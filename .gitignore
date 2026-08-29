@@ -1,0 +1,12 @@
+.DS_Store
+*.log
+
+# Extracts and graph builds. Large and rebuildable.
+/infra/work/
+*.osm.pbf
+
+# Python
+__pycache__/
+.venv/
+.pytest_cache/
+.ruff_cache/

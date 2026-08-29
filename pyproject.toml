@@ -1,0 +1,58 @@
+[project]
+name = "amgraph"
+version = "0.1.0"
+description = "The amgraph routing graph: the access rules, the overlay writer, and the build that turns them into tiles."
+requires-python = ">=3.11"
+license = "LicenseRef-PolyForm-Noncommercial-1.0.0"
+license-files = ["LICENSE.md"]
+# Pinned exactly, not floated. A graph is a legal artefact: the same extract
+# and the same rules have to produce the same tiles, and a geometry library
+# that changes how it decides containment changes which ways the overlay
+# closes without anything here changing.
+dependencies = [
+    "amgraph-rules",
+    "osmium==4.3.1",
+    "pyproj==3.7.2",
+    "pyshp==3.1.6",
+    "shapely==2.1.2",
+]
+
+[dependency-groups]
+dev = [
+    # Runs valhalla/lua/access.lua in-process, so the access rules can be
+    # asserted directly instead of only through a built graph. Lua 5.4,
+    # because 5.5 makes for-loop variables const and access.lua assigns to one.
+    "lupa>=2.8",
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+    "ruff>=0.16.5",
+]
+
+[tool.uv]
+# The pipeline is scripts and tests, not an importable library. `rules/` is the
+# only thing here anybody installs.
+package = false
+
+[tool.uv.sources]
+amgraph-rules = { path = "rules", editable = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# The gates that read the extract are not unit tests: they need `make extract`
+# and `make official-access` to have run. Deselected by default so the rules
+# loop stays fast, and run explicitly by `make test-audit`.
+markers = ["graph: needs a built extract or a running router"]
+addopts = "-m 'not graph'"
+
+[tool.ruff]
+line-length = 100
+src = ["infra", "rules/src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.lint.isort]
+# The overlay writer imports its siblings flat, because it runs as a script and
+# Python puts its own directory on the path. Ruff cannot infer that from the
+# layout, and without this it files them as third-party and rewrites the block.
+known-first-party = ["amgraph_rules", "artifacts", "cycle_rules", "restrictions"]
