@@ -1,14 +1,13 @@
-"""The app must not go on claiming "checked" against law nobody has re-read.
+"""Nothing here may go on claiming "checked" against law nobody has re-read.
 
-Every route this service returns is implicitly verified by the API contract.
-That claim ages: the
-RVV is amended, and nothing in the code notices. `RULES_VERSION` is a string
-somebody types, so left alone it will happily assert 2026 law in 2029.
+Every graph published from this repository carries an implicit claim that its
+rules were read from the statute. That claim ages: the RVV is amended, and
+nothing in the code notices. `RULES_VERSION` is a string somebody types, so
+left alone it will happily assert 2026 law in 2029.
 
 The rules need re-reading on a schedule. This is the part of it that cannot be
-forgotten: a test that starts failing when the rules go
-stale, so somebody has to open the statute rather than the app quietly
-insisting it is current.
+forgotten: a test that starts failing when the rules go stale, so somebody has
+to open the statute rather than the repository quietly insisting it is current.
 
 Failing here does **not** mean the code is broken. It means the law needs
 re-reading. The fix is to check `docs/rules.md` against the current

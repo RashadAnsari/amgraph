@@ -7,10 +7,11 @@ one, because an unverified country is indistinguishable from a verified one to
 everything downstream.
 
 Being in this registry is necessary but not sufficient to route somewhere. A
-deployment also needs the country's official boundary configured and a graph
-built from an extract that covers it — see ``supported_area`` — and `/v1/config`
-advertises the countries that have both. Splitting it that way is what stops
-a half-finished deployment telling riders it covers a country it has no map for.
+deployment also needs the country's official boundary and a graph built from an
+extract that covers it, and only a country with both can actually be served.
+Keeping those two facts apart is what stops a half-finished deployment telling
+riders it covers a country it has no map for: having read a country's law and
+having a graph for it are different claims, and only the second one routes.
 """
 
 from __future__ import annotations

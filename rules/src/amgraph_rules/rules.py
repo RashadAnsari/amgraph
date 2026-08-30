@@ -38,28 +38,26 @@ def contrast_ratio(one: str, two: str) -> float:
 class Plate:
     """The licence plate a class carries, as the two colours it is made of.
 
-    Colours rather than a key into two the app happened to ship, because the
-    plate is a statutory fact of the country and not a palette choice: a Belgian
-    moped's plate is yellow on black, a Dutch snorfiets's white on blue, and a
-    country whose classes carry a third combination would otherwise need an App
-    Store release to be drawn correctly.
+    Colours rather than a key into a palette a client happened to ship, because
+    the plate is a statutory fact of the country and not a palette choice: a
+    Belgian moped's plate is yellow on black, a Dutch snorfiets's white on blue,
+    and a country whose classes carry a third combination would otherwise need a
+    client release before it could be drawn correctly.
 
     Serving a colour does not mean choosing one by eye, which is a standing rule
-    here and stays one. The pair below is checked on the way out — a plate whose
-    own ink does not read on it is refused at import, so a country module cannot
-    be registered carrying one — and checked again on the way in, because only
-    the app knows the surfaces a plate is drawn against. The app measures every
-    served pair against the chrome, the route line and its own text thresholds,
-    and falls back to a plate it has measured when one fails. So a colour still
-    reaches a rider only after it has been measured; what changed is that the
-    measurement happens where the colours are used rather than by there being
-    exactly two of them.
+    here. The pair below is checked on the way out: a plate whose own ink does
+    not read on it is refused at import, so a country module cannot be
+    registered carrying one. That is only half the check, because contrast is a
+    property of a pair against a surface and only the client drawing it knows
+    its surfaces. A client is expected to measure what it receives against its
+    own chrome and text thresholds and fall back to a plate it has measured when
+    one fails, so a colour reaches a rider only after somebody has measured it.
     """
 
     #: The plate face, as ``#RRGGBB``.
     background: str
 
-    #: The characters on it, and every piece of text the app draws on the plate.
+    #: The characters on it, and every piece of text drawn on the plate.
     foreground: str
 
     def __post_init__(self) -> None:
@@ -68,7 +66,7 @@ class Plate:
                 raise ValueError(f"plate {role} {colour!r} is not an #RRGGBB colour")
         # 3:1 is the WCAG 2.2 bar for large text, which is what the plate
         # carries: the instruction, the speed and the class name are all set
-        # large and heavy. A pair that fails here would be refused by the app
+        # large and heavy. A client that measures would refuse such a pair
         # anyway; failing at import names the country module instead.
         measured = contrast_ratio(self.foreground, self.background)
         if measured < 3:
@@ -104,17 +102,17 @@ class VehicleClass:
     rider on a speed pedelec should be able to say so and be shown the right
     plate. Where a country's law splits them, they take separate carriers.
 
-    ``code`` is the wire value the app stores and sends back. It is a statutory
+    ``code`` is the identifier a client stores and sends back. It is a statutory
     term in the country's own language — ``snorfiets``, not ``light_moped`` —
     because the rules in ``docs/rules.md`` are written against those words and a
     translated identifier would put guesswork between the code and the law.
 
     ``plate`` carries the country's own colours; see :class:`Plate` for why they
-    are values rather than a key, and for the measurement that replaced having
-    exactly two of them. ``marker`` stays a **key**, because it names a glyph the
-    app ships and there is no way to send a drawing. A country whose classes need
-    a shape that is not in the list gets the nearest one, which costs an icon
-    beside a name and a speed that both say what the class is.
+    are values rather than a key. ``marker`` stays a **key**, because it names a
+    glyph rather than carrying one, and a drawing cannot be sent. A country whose
+    classes need a shape a client does not have gets the nearest one it does,
+    which costs an icon beside a name and a speed that both say what the class
+    is. Nothing legal is carried by the drawing.
     """
 
     code: str
@@ -128,14 +126,14 @@ class VehicleClass:
     plate: Plate
 
     #: Which glyph stands for the class in a list: "scooter", "pedelec",
-    #: "microcar", "motorcycle" or "bicycle". A key into the app's drawn shapes.
+    #: "microcar", "motorcycle" or "bicycle". A key into a client's own shapes.
     marker: str
 
     #: Whether electric or combustion changes where this class may legally ride.
     powertrain_matters: bool
 
     #: What a rider calls it, by language tag. English is required, because it
-    #: is what any language the app does not ship falls back to.
+    #: is what any language a client does not ship falls back to.
     names: Mapping[str, str]
 
     def name(self, language: str) -> str:
@@ -215,9 +213,11 @@ class BoundaryDocument:
 
     properties: Mapping[str, str]
 
-    #: The geocoder whose results the app should parse for this country.
-    #: Served in `/v1/config`; a country needing a different one needs a client
-    #: written for it, which is the one app-side gap left in adding a country.
+    #: Which address register a country wants its addresses read from. Naming
+    #: one is all this package can do: the register, its URL and its bounds
+    #: travel together, but parsing its answers is code somebody has to write,
+    #: so a country naming a register nobody has written a client for gets
+    #: place search rather than wrong addresses.
     geocoder: str = "pdok"
 
 

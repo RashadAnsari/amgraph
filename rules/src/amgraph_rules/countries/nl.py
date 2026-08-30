@@ -1,16 +1,16 @@
-"""The Netherlands: every rule this service applies, in one file.
+"""The Netherlands: every rule this package carries, in one file.
 
 Adding a country means adding a module beside this one and naming it in
-``__init__``. Nothing above this package, and nothing in the app, needs to
-change: `/v1/config` serves the country list, the vehicle classes and their
-names, so a new country reaches riders without a release.
+``__init__``. Nothing above this package needs to change, and a client that
+reads the registry rather than hard-coding a country picks the new one up
+without a release of its own.
 
 What lives here is the country's law, including which vehicle classes exist,
 what they are called in each language, what they may do and which Valhalla
 carrier each borrows. The *mechanisms* that apply it are country-agnostic and
-live elsewhere: ``speeds.legal_speed_kph`` takes a class's limits as an
-argument, ``legal_zones`` takes these zone rules, ``profiles`` knows only how a
-carrier reaches Valhalla, and the graph's own access rules are the matching Lua
+live elsewhere: a speed lookup takes a class's limits as an argument rather
+than knowing them, ``profiles`` knows only how a carrier reaches Valhalla, and
+the graph's own access rules are the matching Lua
 in ``valhalla/lua/countries/nl.lua``. That Lua and this module are the
 two halves of the same law and are expected to be edited together — in
 particular the ``carrier`` of each class below must match the ``carrier`` of the
@@ -41,13 +41,13 @@ from amgraph_rules.rules import (
 #: police tell them apart at a glance and exactly what decides which roads the
 #: rider may use.
 #:
-#: The hexes are the app's measured tokens, restated here because the plate is a
-#: fact of Dutch law and the app is now told it rather than shipping it. They are
-#: not free to drift: `app/test/core/contrast_test.dart` still measures the
-#: shipped fallbacks, and the app measures whatever arrives against the surfaces
-#: it draws on before using it. A colour typed in here that fails those checks
-#: reaches nobody; it silently becomes the fallback, which is a worse outcome
-#: than the import error `Plate` raises for a pair that fails on its own.
+#: The hexes are measured values, not eyeballed ones, and they belong here
+#: because the plate is a fact of Dutch law rather than a palette choice.
+#: `Plate` refuses a pair whose own ink does not read on it, which is the half
+#: of the check that can be made here. The other half belongs to whoever draws
+#: it, against surfaces this package cannot see: a colour that fails there is
+#: quietly replaced by a fallback, so a change to either hex should be measured
+#: against the real background before it is committed.
 _YELLOW = Plate(background="#F2C200", foreground="#0A0C0D")
 _BLUE = Plate(background="#1256B8", foreground="#FAFAF8")
 
