@@ -1,0 +1,42 @@
+name: Check
+
+# The gate that needs nothing: the access rules, lint, formatting and the unit
+# tests. No extract, no network, no Docker image to pull beyond a small Lua one.
+#
+# Separate from Graph because the two answer different questions on different
+# budgets. This answers "do the rules still behave as the statute says" in about
+# a minute, and it runs on every push and every pull request without exception.
+# Graph answers "does a whole country's worth of tags survive them", which costs
+# an hour, and is worth spending only when something that reaches the graph has
+# actually changed.
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  # Superseding a push makes the older answer worthless, so cancel it.
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Rules, lint and unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+
+      # 247 plain-Lua assertions over access.lua, plus the second-country and
+      # adapter specs, then ruff and the Python tests. A failure here means a
+      # rider would be offered a road their vehicle class is barred from, which
+      # is the one thing this project exists to prevent.
+      - name: Verify
+        run: make verify

@@ -20,7 +20,21 @@ name: Graph
 on:
   push:
     branches: [master]
+  # On a pull request this runs the same gates and publishes nothing, so a rules
+  # change is audited against the whole country before it is merged rather than
+  # after. Limited to what can actually reach the tiles: an hour of extract,
+  # overlay and tile work proves nothing about a README, and Check already runs
+  # on every pull request whatever it touches.
   pull_request:
+    paths:
+      - "valhalla/**"
+      - "infra/**"
+      - "rules/**"
+      - "tests/**"
+      - "Makefile"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/graph.yml"
   schedule:
     # Early Monday, after Geofabrik's nightly extracts have settled.
     - cron: "0 4 * * 1"
@@ -31,11 +45,16 @@ on:
         default: https://download.geofabrik.de/europe/netherlands-latest.osm.pbf
         required: false
 
-# Release numbers are read, incremented and claimed in three separate steps, so
-# two builds in flight would both claim the same one.
 concurrency:
-  group: graph
-  cancel-in-progress: false
+  # Everything that can publish shares one group, because the release number is
+  # read, incremented and claimed in three separate steps and two runs in flight
+  # would claim the same one. A pull request publishes nothing, so it gets a
+  # group per branch instead: sharing one would let a pull request stall master
+  # for an hour, and `cancel-in-progress: false` means it would wait it out.
+  group: graph-${{ github.event_name == 'pull_request' && github.head_ref || 'release' }}
+  # A superseded pull-request build answers a question nobody is asking any
+  # more. A superseded release build still owes somebody a release.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   EXTRACT_URL: ${{ inputs.extract_url || 'https://download.geofabrik.de/europe/netherlands-latest.osm.pbf' }}
@@ -55,7 +74,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v10
         with:
           enable-cache: true
 
@@ -90,7 +109,7 @@ jobs:
       # built from and puts *every* distinct combination of access tags in the
       # country through the rules — about fifteen thousand of them — so a pass
       # means no way in the Netherlands can be offered to a class the law bars
-      # from it. Not a sample, which is what the route gates in `amgraph` are.
+      # from it. Not a sample, which is what routing against a built graph is.
       #
       # Here rather than after the build, and the placement is the point: it
       # needs the extract and not a router, so running it first fails a bad

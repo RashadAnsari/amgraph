@@ -1,5 +1,9 @@
 # amgraph
 
+[![Graph](https://github.com/RashadAnsari/amgraph/actions/workflows/graph.yml/badge.svg?branch=master)](https://github.com/RashadAnsari/amgraph/actions/workflows/graph.yml?query=branch%3Amaster)
+[![Check](https://github.com/RashadAnsari/amgraph/actions/workflows/check.yml/badge.svg?branch=master)](https://github.com/RashadAnsari/amgraph/actions/workflows/check.yml?query=branch%3Amaster)
+[![Latest graph](https://img.shields.io/github/v/release/RashadAnsari/amgraph?label=graph&sort=semver&display_name=release)](https://github.com/RashadAnsari/amgraph/releases/latest)
+
 A routing graph for Dutch AM-licence vehicles: mopeds, speed pedelecs and
 microcars.
 
@@ -63,6 +67,29 @@ Rolling back is picking an older release.
 
 Nothing is published on a red build. A stale graph that obeys the law beats a
 fresh one that does not.
+
+## What runs when
+
+Two workflows, on deliberately different budgets. The badges above are both for
+`master`.
+
+| | **Check** | **Graph** |
+| --- | --- | --- |
+| Proves | The rules behave as the statute says | No tag combination in the country breaks them |
+| Costs | About a minute, no network | About an hour, and 2.3 GB of downloads |
+| Every push and pull request | ✅ | — |
+| A pull request touching the rules, the build or the tests | ✅ | ✅ |
+| Push to `master`, Monday's cron, manual dispatch | ✅ | ✅ |
+| Publishes a release | — | On `master`, cron and dispatch only |
+
+A pull request gets the same gates a release does, and publishes nothing. It is
+skipped only when the change cannot reach the tiles: an hour of extract, overlay
+and tile work proves nothing about a README, and Check still runs on everything.
+
+The two never queue behind each other. Runs that can publish share one
+concurrency group, because the release number is read and claimed in separate
+steps and two of them in flight would claim the same one; a pull request gets a
+group per branch, so it cannot stall `master` for an hour.
 
 ## Running it
 
