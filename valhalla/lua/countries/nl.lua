@@ -1,5 +1,5 @@
 -- Netherlands. Every branch cites the rule id it implements in
--- docs/rules.md.
+-- docs/countries/nl.md.
 --
 -- A country module answers four questions the shared core cannot: which classes
 -- of road rights exist here and what OSM calls them, what the local cycle-path

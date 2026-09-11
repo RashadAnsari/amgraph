@@ -10,7 +10,7 @@ move snorfietsen onto the rijbaan. That is not an API gate: it is read by
 infra/official_access.py, which takes the class off every verplicht fietspad
 inside the polygon at graph build time. Expressing it per edge is what keeps it
 from refusing whole routes through Amsterdam and Utrecht, which is what an API
-gate on these polygons would do. See docs/rules.md §5 NL-ACC-04.
+gate on these polygons would do. See docs/countries/nl.md NL-ACC-04.
 """
 
 from __future__ import annotations

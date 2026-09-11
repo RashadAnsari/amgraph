@@ -9,7 +9,7 @@
 -- The three things it exercises are the three the research found a real country
 -- needs:
 --
---   1. A FOURTH access class. BE-ACC-02 in docs/rules.md §11 records the
+--   1. A FOURTH access class. BE-ACC-02 in docs/countries/be.md records the
 --      Belgian distinction that requires it. Three stock carriers were
 --      all there were; `taxi` and `bus` are the two remaining Valhalla costings
 --      that read an access bit of their own.

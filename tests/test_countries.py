@@ -1,4 +1,4 @@
-"""An unsupported country must never inherit a fallback legal ruleset."""
+"""An unsupported country is refused, never served another country's ruleset."""
 
 from __future__ import annotations
 

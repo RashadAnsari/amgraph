@@ -1,8 +1,9 @@
 # Working on amgraph
 
 Read this before touching anything. This file is how to work here.
-[docs/rules.md](docs/rules.md) is what the rules are: every rule with its
-verbatim quote, its link and the date it was read.
+[docs/](docs/README.md) is what the rules are: `docs/countries/<cc>.md` carries
+every rule with its verbatim quote, its link and the date it was read, and
+[docs/country-rules.md](docs/country-rules.md) the standard they all meet.
 
 amgraph builds one multi-country routing graph for AM-licence vehicles: mopeds, speed
 pedelecs and microcars. Its entire reason to exist is that **a rider must never
@@ -27,8 +28,8 @@ indistinguishable from a researched one. The result is a rider fined in a
 country whose rules we invented. There is no recovering from that, and no test
 catches it.
 
-Every rule in `docs/rules.md` carries a verbatim quote, a link and a retrieval
-date. Match that standard or do not write the rule.
+Every rule in `docs/countries/<cc>.md` carries a verbatim quote, a link and a
+retrieval date. Match that standard or do not write the rule.
 
 ## Non-negotiables
 
@@ -54,10 +55,11 @@ date. Match that standard or do not write the rule.
 ## Vehicle classes
 
 Learn each country's classes before writing access code. Their definitions and
-road rights are in `docs/rules.md`. The Netherlands declares `snorfiets`,
-`bromfiets`, `speed_pedelec` and `brommobiel`; Belgium declares
+road rights are in `docs/countries/<cc>.md`. The Netherlands declares
+`snorfiets`, `bromfiets`, `speed_pedelec` and `brommobiel`; Belgium declares
 `bromfiets_klasse_a`, `bromfiets_klasse_b`, `speed_pedelec` and
-`lichte_vierwieler`. Neither country's classes or law are a fallback for another.
+`lichte_vierwieler`. No country's classes or law ever stand in for another's:
+an unsupported country is refused, not approximated from a neighbour.
 
 Every build and release contains all supported countries in one graph and one
 ZIP. Country attribution belongs to each way and junction. Border edges must
@@ -72,13 +74,16 @@ a label for a rider translates it there.
 **Adding a country is a change here and nowhere else.** A country states its own
 classes — how many, what OSM calls them, which carrier each borrows, what each
 may do — in `valhalla/lua/countries/<cc>.lua` and
-`rules/src/amgraph_rules/countries/<cc>.py`, and nowhere else.
+`rules/src/amgraph_rules/countries/<cc>.py`, and nowhere else. Registering it
+puts it in every build, audit, gate and release alongside the others.
+[docs/adding-country.md](docs/adding-country.md) is the procedure.
 
 **Five access classes is the ceiling**, being the stock Valhalla travel modes
 that read an access bit of their own. Three would not survive the first country
 anybody would add. Belgium needs four distinct carriers: the speed pedelec and
-klasse B differ on D9 infrastructure. BE-ACC-02 in [docs/rules.md](docs/rules.md)
-quotes the current statute and records its retrieval date.
+klasse B differ on D9 infrastructure. BE-ACC-02 in
+[docs/countries/be.md](docs/countries/be.md) quotes the current statute and
+records its retrieval date.
 
 ## The two files that must agree
 
@@ -112,7 +117,13 @@ valhalla/
 infra/            extracts, the authority overlay, the manifest. work/ is
                   gitignored and large
 tests/            the gates
-docs/rules.md     the law, cited
+docs/
+  countries/<cc>.md   that country's law, cited
+  country-rules.md    what every country must supply
+  access-model.md     how one way or junction is decided
+  architecture.md     the registry, the carriers, the merged-graph invariants
+  adding-country.md   the procedure
+  build-and-release.md  the gates, the workflows, the release ZIP
 ```
 
 ## How to work

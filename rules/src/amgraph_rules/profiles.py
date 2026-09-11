@@ -24,7 +24,7 @@ class Carrier(StrEnum):
 
     Five, and the count is the ceiling on how many access classes a country may
     have. Belgium needs four distinct carriers; see BE-ACC-02 in
-    docs/rules.md §11 for the primary source and retrieval date.
+    docs/countries/be.md for the primary source and retrieval date.
 
     ``TAXI`` and ``BUS`` are the two remaining Valhalla costings that read an
     access bit of their own: ``TaxiCost`` and ``BusCost`` both derive from

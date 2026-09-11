@@ -338,7 +338,7 @@ def test_no_tag_combination_in_the_netherlands_breaks_a_rule(rules) -> None:
         # reaches the snorfiets alone: art. 5 lid 1 admits that class to a G11
         # and a G12a alike, so the register only has to establish that one of
         # the two is there. For a bromfiets they are opposite answers and no
-        # value of the overlay may open the way. See docs/rules.md
+        # value of the overlay may open the way. See docs/countries/nl.md
         # NL-ACC-02 and NL-ACC-03.
         says_something = any(
             tags.get(k)

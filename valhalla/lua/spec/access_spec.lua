@@ -1,7 +1,7 @@
 -- Unit tests for the Dutch access rules. Plain Lua, no framework, no Valhalla:
 -- run with `valhalla/lua/spec/run.sh`.
 --
--- Each case names the rule it pins from docs/rules.md. A failure here
+-- Each case names the rule it pins from docs/countries/nl.md. A failure here
 -- means the router would offer a rider a road their vehicle is barred from, so
 -- these are the most important tests in the project.
 
@@ -131,7 +131,7 @@ allows("conservative", "blanket public access can explicitly open an uncertain t
   { highway = "track", access = "yes" }, { true, true, true })
 
 -- NL-ACC-02: the mandatory-use rule --------------------------------------
--- The stock Valhalla bug docs/rules.md §2 names: use_sidepath is not in upstream's
+-- The stock Valhalla bug docs/access-model.md names: use_sidepath is not in upstream's
 -- moped value table, so it falls through to "allowed" and produces exactly the
 -- illegal route this rule forbids.
 

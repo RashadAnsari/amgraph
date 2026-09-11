@@ -6,7 +6,7 @@ Two things are published here and they are not under the same terms.
 
 Everything in this repository — the access rules in `valhalla/lua/`, the overlay
 writer in `infra/`, the `amgraph-rules` package, the build, the tests and
-`docs/rules.md` — is Copyright Rashad Ansari and licensed under the
+everything under `docs/` — is Copyright Rashad Ansari and licensed under the
 [PolyForm Noncommercial License 1.0.0](LICENSE.md).
 
 Read it, run it, change it, build your own graph with it, publish papers about

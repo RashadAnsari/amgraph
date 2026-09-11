@@ -29,7 +29,7 @@ local M = {}
 -- (baldr/graphconstants.h), which nodes_proc clears when a class may not pass.
 --
 -- Five, and the count is the ceiling on how many classes a country may have.
--- Belgium needs four distinct carriers; see BE-ACC-02 in docs/rules.md §11.
+-- Belgium needs four distinct carriers; see BE-ACC-02 in docs/countries/be.md.
 -- `taxi` and `bus` read access bits of their own and are otherwise unused here
 -- — both derive from AutoCost with kTaxiAccess and kBusAccess respectively,
 -- verified against the 3.8.3 source. `auto` is deliberately left alone: it is
@@ -329,7 +329,7 @@ function M.country_for(tags)
   return M.COUNTRIES[tags["amgraph:country"]]
 end
 
---- Border attribution is explicit; no country is a fallback for another.
+--- Border attribution is explicit; no country's rules stand in for another's.
 function M.countries_for(tags)
   local value = tags["amgraph:country"] or ""
   local result, seen = {}, {}
@@ -752,7 +752,7 @@ function M.classes(tags, country)
       -- an onderbord on a verplicht fietspad and send snorfietsen to the
       -- rijbaan; Amsterdam and Utrecht have both done it across most of their
       -- central network. Deferring to the G11 here would put the class exactly
-      -- where the verkeersbesluit takes it off. See docs/rules.md §5 NL-ACC-04.
+      -- where the verkeersbesluit takes it off. See docs/countries/nl.md NL-ACC-04.
       if tags[class.overlay] == "roadway_only" then
         classes[index] = false
       end

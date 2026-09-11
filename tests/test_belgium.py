@@ -1,4 +1,4 @@
-"""Belgian access assertions pin the primary-source rules in docs/rules.md §11."""
+"""Belgian access assertions pin the primary-source rules in docs/countries/be.md."""
 
 from pathlib import Path
 

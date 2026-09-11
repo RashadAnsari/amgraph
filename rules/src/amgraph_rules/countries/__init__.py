@@ -2,7 +2,7 @@
 
 One module per country, and this registry. A country appears here only once its
 law has been read from primary sources and cited to the standard in
-``docs/rules.md``; there is deliberately no environment variable that can add
+``docs/countries/<cc>.md``; there is deliberately no environment variable that can add
 one, because an unverified country is indistinguishable from a verified one to
 everything downstream.
 
@@ -50,7 +50,7 @@ _MODELLED: dict[str, CountryRules] = {BELGIUM.code: BELGIUM, NETHERLANDS.code: N
 
 
 def rules_for(country_code: str) -> CountryRules:
-    """Return verified rules, never a conservative or neighbouring fallback."""
+    """Return the country's own verified rules, or refuse. Never a neighbour's."""
     try:
         return _MODELLED[country_code.upper()]
     except (AttributeError, KeyError) as exc:

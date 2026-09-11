@@ -1,17 +1,17 @@
 """Nothing here may go on claiming "checked" against law nobody has re-read.
 
-Every graph published from this repository carries an implicit claim that its
-rules were read from the statute. That claim ages: the RVV is amended, and
-nothing in the code notices. `RULES_VERSION` is a string somebody types, so
-left alone it will happily assert 2026 law in 2029.
+Every graph published from this repository carries an implicit claim that each
+country's rules were read from its statute. That claim ages: a traffic code is
+amended and nothing in the code notices. `RULES_VERSION` is a string somebody
+types, so left alone it will happily assert 2026 law in 2029.
 
 The rules need re-reading on a schedule. This is the part of it that cannot be
 forgotten: a test that starts failing when the rules go stale, so somebody has
 to open the statute rather than the repository quietly insisting it is current.
 
-Failing here does **not** mean the code is broken. It means the law needs
-re-reading. The fix is to check `docs/rules.md` against the current
-consolidated statute, correct anything that changed, and then bump the date.
+Failing here does **not** mean the code is broken. It means that country's law
+needs re-reading. The fix is to check `docs/countries/<cc>.md` against the
+current consolidated statute, correct anything that changed, then bump the date.
 """
 
 from __future__ import annotations
@@ -24,8 +24,8 @@ import pytest
 from amgraph_rules.countries import modelled_countries
 
 #: Quarterly. Long enough that
-#: this is not noise, short enough that a change to the RVV cannot sit
-#: unnoticed for a riding season.
+#: this is not noise, short enough that an amendment to any country's traffic
+#: code cannot sit unnoticed for a riding season.
 MAX_AGE_DAYS = 90
 
 
@@ -58,7 +58,7 @@ def test_the_law_has_been_read_recently_enough_to_claim_it_is_checked(country) -
             "This is not a code failure. Every route we return relies on "
             "these rules, and that review is now older than we "
             "are willing to stand behind.\n\n"
-            "Re-read docs/rules.md against the current consolidated "
-            "statute, correct anything that has changed, then bump RULES_VERSION "
-            "to today."
+            f"Re-read docs/countries/{country.code.lower()}.md against the current "
+            "consolidated statute, correct anything that has changed, then bump "
+            "RULES_VERSION to today."
         )

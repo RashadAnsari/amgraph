@@ -1,4 +1,4 @@
--- Belgian access rules. Primary-source quotations and dates: docs/rules.md §11.
+-- Belgian access rules. Primary-source quotations and dates: docs/countries/be.md.
 -- Ways require the matching enrichment version; raw OSM is never enough.
 
 local all = {

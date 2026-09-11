@@ -18,7 +18,7 @@ class of the same name there, which AGENTS.md records as the one failure in this
 codebase that does not announce itself.
 
 Every rule cites the article it comes from; the quotes and retrieval dates are
-in ``docs/rules.md``, which is the source of truth.
+in ``docs/countries/nl.md``, which is the source of truth.
 """
 
 from __future__ import annotations
@@ -46,8 +46,8 @@ from amgraph_rules.rules import (
 #: `Plate` refuses a pair whose own ink does not read on it, which is the half
 #: of the check that can be made here. The other half belongs to whoever draws
 #: it, against surfaces this package cannot see: a colour that fails there is
-#: quietly replaced by a fallback, so a change to either hex should be measured
-#: against the real background before it is committed.
+#: quietly replaced by one the client has measured, so a change to either hex
+#: should be measured against the real background before it is committed.
 _YELLOW = Plate(background="#F2C200", foreground="#0A0C0D")
 _BLUE = Plate(background="#1256B8", foreground="#FAFAF8")
 
@@ -101,7 +101,7 @@ CLASSES: tuple[VehicleClass, ...] = (
 )
 
 #: The most restricted of the four on the cycle network: a bromfiets may use a
-#: G12a and nothing else. See docs/rules.md §5 NL-ACC-02 and CountryRules.
+#: G12a and nothing else. See docs/countries/nl.md NL-ACC-02 and CountryRules.
 DEFAULT_CLASS = "bromfiets"
 
 _EMISSION_TWO_WHEELERS = frozenset({"snorfiets", "bromfiets", "speed_pedelec"})
@@ -135,7 +135,7 @@ _EMISSION_TWO_WHEELERS = frozenset({"snorfiets", "bromfiets", "speed_pedelec"})
 #: The Amsterdam and Utrecht snorfiets place-on-road rule (art. 5 lid 8) is not
 #: an emission rule and gates nothing here. It is a rule about which edge a
 #: rider belongs on, so it is carried as `roadway_only_classes` and applied per
-#: edge at graph build time. See docs/rules.md §5 NL-ACC-04.
+#: edge at graph build time. See docs/countries/nl.md NL-ACC-04.
 MUNICIPAL_ZONES: dict[str, MunicipalZone] = {
     "Amsterdam": MunicipalZone(
         municipality_id="GM0363",
@@ -208,7 +208,7 @@ NETHERLANDS = CountryRules(
     address_search_bounds=ADDRESS_SEARCH_BOUNDS,
     boundary=BOUNDARY,
     rules_version=RULES_VERSION,
-    source="RVV 1990, cited per rule in docs/rules.md",
+    source="RVV 1990, cited per rule in docs/countries/nl.md",
 )
 
 

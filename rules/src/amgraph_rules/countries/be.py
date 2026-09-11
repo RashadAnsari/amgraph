@@ -1,6 +1,6 @@
 """Belgian classes, statutory constraints and extract-enrichment policy.
 
-Every legal rule is quoted and dated in docs/rules.md §11. Geometry and PBF
+Every legal rule is quoted and dated in docs/countries/be.md. Geometry and PBF
 handling belong to infra/prepare_country.py; the interpretation belongs here.
 """
 
@@ -102,7 +102,7 @@ BELGIUM = CountryRules(
     address_search_bounds=SearchBounds(south=49.49, north=51.51, west=2.54, east=6.41),
     boundary=BoundaryDocument(properties={"niscode": "01000", "namedut": "België"}, geocoder=""),
     rules_version=RULES_VERSION,
-    source="KB 1 december 1975; regional LEZ legislation; docs/rules.md §11",
+    source="KB 1 december 1975; regional LEZ legislation; docs/countries/be.md",
     valid_until=date(2027, 6, 1),
 )
 

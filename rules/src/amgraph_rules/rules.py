@@ -49,7 +49,7 @@ class Plate:
     registered carrying one. That is only half the check, because contrast is a
     property of a pair against a surface and only the client drawing it knows
     its surfaces. A client is expected to measure what it receives against its
-    own chrome and text thresholds and fall back to a plate it has measured when
+    own chrome and text thresholds and substitute a plate it has measured when
     one fails, so a colour reaches a rider only after somebody has measured it.
     """
 
@@ -99,7 +99,7 @@ class VehicleClass:
 
     ``code`` is the identifier a client stores and sends back. It is a statutory
     term in the country's own language — ``snorfiets``, not ``light_moped`` —
-    because the rules in ``docs/rules.md`` are written against those words and a
+    because the rules in ``docs/countries/<cc>.md`` are written against those words and a
     translated identifier would put guesswork between the code and the law.
 
     ``plate`` carries the country's own colours; see :class:`Plate` for why they

@@ -3,7 +3,7 @@
 #
 # Runs upstream Valhalla, unmodified and pinned by digest, with our own Lua tag
 # transform so the country's access classes land on carrier travel modes. See
-# docs/rules.md §2.
+# docs/access-model.md.
 #
 #   ./valhalla/build.sh [path-to-extract.osm.pbf]
 set -euo pipefail
