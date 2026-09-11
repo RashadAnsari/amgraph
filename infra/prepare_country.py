@@ -30,6 +30,7 @@ from shapely.strtree import STRtree
 from amgraph_rules.countries import rules_for
 from artifacts import replace_atomically
 from restrictions import conservative_restriction_tags
+from zones import zone_feature
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -130,23 +131,7 @@ def write_boundaries(module, country, archive: Path, work: Path):
         if len(matching) != 1:
             raise ValueError(f"missing or ambiguous legal-zone boundary: {name}")
         geometry = checked_geometry(matching[0])
-        zones.append(
-            {
-                "type": "Feature",
-                "geometry": mapping(geometry),
-                "properties": {
-                    "name": name,
-                    "municipality_id": zone.municipality_id,
-                    "profiles": sorted(zone.powertrain_classes),
-                    "allowed_powertrains": sorted(p.value for p in zone.allowed_powertrains),
-                    "blocked_profiles": sorted(zone.blocked_classes),
-                    "valid_from": zone.valid_from.isoformat() if zone.valid_from else None,
-                    "valid_to": zone.valid_to.isoformat() if zone.valid_to else None,
-                    "scope": "whole_administrative_area_conservative",
-                    "source": module.BOUNDARY_URL,
-                },
-            }
-        )
+        zones.append(zone_feature(name, zone, mapping(geometry), module.BOUNDARY_URL))
     (directory / "legal-zones.geojson").write_text(
         json.dumps(
             {

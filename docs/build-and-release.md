@@ -14,7 +14,12 @@ valhalla/tiles.tar                the graph itself
 valhalla/admin.sqlite             engine administrative metadata
 boundaries/<cc>.geojson           official territory for each supported country
 boundaries/legal-zones.geojson    municipal vehicle rules, as polygons
+NOTICE.md                         the licence the tiles carry, and its attribution
 ```
+
+`NOTICE.md` travels inside the ZIP because the graph is an OpenStreetMap
+derivative database: the attribution has to reach whoever holds the tiles, not
+only whoever reads the repository.
 
 Unzip it, point `valhalla_service` at `valhalla.json`, and you are serving it.
 Rolling back is picking an older release.
@@ -70,7 +75,7 @@ in every country and across supported borders.
 ```toml
 [tool.uv.sources]
 amgraph-rules = { git = "https://github.com/RashadAnsari/amgraph",
-                  subdirectory = "rules", tag = "rules-v2.0.0" }
+                  subdirectory = "rules", tag = "rules-v2.0.1" }
 ```
 
 It holds the half of the access rules that has to be readable at run time as

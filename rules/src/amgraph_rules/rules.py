@@ -165,15 +165,10 @@ class MunicipalZone:
     #: carriageway. Read by infra/official_access.py, not by the API.
     roadway_only_classes: frozenset[str] = frozenset()
 
+    #: Inclusive, and ``valid_to`` exclusive, which is how a measure that starts
+    #: or ends on a date reads.
     valid_from: date | None = None
     valid_to: date | None = None
-
-    def in_force(self, on: date) -> bool:
-        """Is this rule binding on `on`? Inclusive of `valid_from`, exclusive of
-        `valid_to`, which is how a measure that ends on a date reads."""
-        if self.valid_from is not None and on < self.valid_from:
-            return False
-        return not (self.valid_to is not None and on >= self.valid_to)
 
 
 @dataclass(frozen=True)

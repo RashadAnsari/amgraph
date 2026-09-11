@@ -16,6 +16,51 @@ def test_pedelec_carrier_is_stable_across_supported_borders():
     assert {c.vehicle("speed_pedelec").carrier.value for c in modelled_countries()} == {"taxi"}
 
 
+def test_every_country_publishes_the_same_legal_zone_properties(tmp_path):
+    """One released file carries every country's zones, so a writer that omits a
+    field is a by-law leaving the graph without failing anything. The Dutch
+    authority pipeline and the generic country preparation are separate writers,
+    and this runs the Dutch one against the builder both must go through."""
+    import json
+
+    import legal_zones
+    from zones import zone_feature
+
+    square = {
+        "type": "MultiPolygon",
+        "coordinates": [[[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]]],
+    }
+    expected = set(
+        zone_feature(
+            "any", next(iter(modelled_countries()[0].municipal_zones.values())), square, ""
+        )["properties"]
+    )
+    assert "roadway_only_profiles" in expected, (
+        "roadway_only_classes is what infra/official_access.py reads to find the "
+        "municipalities that moved a class onto the carriageway"
+    )
+
+    source = tmp_path / "brk.geojson"
+    source.write_text(
+        json.dumps(
+            {
+                "features": [
+                    {
+                        "type": "Feature",
+                        "properties": {"naam": official, "identificatie": identifier},
+                        "geometry": square,
+                    }
+                    for official, (_, identifier) in legal_zones.TARGETS.items()
+                ]
+            }
+        )
+    )
+    output = tmp_path / "legal-zones.geojson"
+    legal_zones.build([source], output)
+    written = json.loads(output.read_text())["features"]
+    assert written and all(set(f["properties"]) == expected for f in written)
+
+
 def test_each_country_has_exactly_the_same_carriers_in_lua_and_python():
     for country in modelled_countries():
         access = Access(country.code)

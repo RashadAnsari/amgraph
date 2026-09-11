@@ -55,4 +55,4 @@ select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF"]
 # The overlay writer imports its siblings flat, because it runs as a script and
 # Python puts its own directory on the path. Ruff cannot infer that from the
 # layout, and without this it files them as third-party and rewrites the block.
-known-first-party = ["amgraph_rules", "artifacts", "cycle_rules", "restrictions"]
+known-first-party = ["amgraph_rules", "artifacts", "cycle_rules", "restrictions", "zones"]

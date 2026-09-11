@@ -164,7 +164,7 @@ def load_snorfiets_roadway(path: Path):
     areas = [
         shape(feature["geometry"])
         for feature in document.get("features", ())
-        if (feature.get("properties") or {}).get("snorfiets_roadway")
+        if "snorfiets" in ((feature.get("properties") or {}).get("roadway_only_profiles") or ())
     ]
     if not areas:
         print(f"No snorfiets-roadway municipality in {path}.", file=sys.stderr)

@@ -34,10 +34,10 @@ powertrain-dependent zones and other declared runtime constraints.
 
 ## Coverage and validation
 
-Every build includes all discovered country modules. Each needs a matching
-Lua model, source extract, official boundary, successful audit and current
-legal evidence. Every shared way and junction must satisfy all applicable
-country rules. One country's failed gate blocks the complete release.
+Every build includes every registered country. Each needs a matching Lua model,
+source extract, official boundary, successful audit and current legal evidence.
+Every shared way and junction must satisfy all applicable country rules. One
+country's failed gate blocks the complete release.
 
 The source audit evaluates every observed access-tag combination. Runtime
 checks measure reachability for every vehicle class and declared border route,

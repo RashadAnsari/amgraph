@@ -1,6 +1,6 @@
 # Netherlands rules
 
-Primary sources last reviewed **2026-08-15**. The country modules declare `nl-2026-08-16.1`.
+Primary sources last reviewed **2026-08-15**. The country module declares `nl-2026-08-15.1`.
 
 [Documentation](../README.md) · [Shared country rules](../country-rules.md) · [Belgium](be.md)
 

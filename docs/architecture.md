@@ -2,10 +2,14 @@
 
 [Documentation](README.md) · [The access model](access-model.md) · [Adding a country](adding-country.md)
 
-Every supported country contributes to the same routing graph. The Python
-country registry discovers country modules, and the Lua adapter loads their
-matching access modules by ISO code. Preparation, audits, merge, route checks,
-manifest creation and ZIP packaging all consume the complete registry.
+Every supported country contributes to the same routing graph. Two registries
+name them, and both are written by hand: `_MODELLED` in
+`rules/src/amgraph_rules/countries/__init__.py` and `M.COUNTRIES` in
+`valhalla/lua/access.lua`. Nothing scans a directory, and there is no
+environment variable that can add a country, because an unverified country is
+indistinguishable from a verified one to everything downstream. Everything
+after that point reads the registry rather than a country name: preparation,
+audits, merge, route checks, manifest creation and ZIP packaging.
 
 ## Where a country's facts live
 

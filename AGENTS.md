@@ -71,12 +71,19 @@ They are statutory terms and the rules are written against them, so a translated
 identifier would put guesswork between the code and the law. Anything rendering
 a label for a rider translates it there.
 
-**Adding a country is a change here and nowhere else.** A country states its own
-classes — how many, what OSM calls them, which carrier each borrows, what each
-may do — in `valhalla/lua/countries/<cc>.lua` and
-`rules/src/amgraph_rules/countries/<cc>.py`, and nowhere else. Registering it
-puts it in every build, audit, gate and release alongside the others.
-[docs/adding-country.md](docs/adding-country.md) is the procedure.
+**A country states its own classes in two files.** How many, what OSM calls
+them, which carrier each borrows, what each may do, all in
+`valhalla/lua/countries/<cc>.lua` and
+`rules/src/amgraph_rules/countries/<cc>.py`. No shared file learns a country's
+law.
+
+**Both are then named by hand in a registry**, `M.COUNTRIES` in `access.lua` and
+`_MODELLED` in `countries/__init__.py`. That is deliberate: there is no
+directory scan and no environment variable, because an unverified country is
+indistinguishable from a verified one to everything downstream. A module missing
+from its registry is never loaded, so its territory builds as unsupported and
+closes. Registering it puts it in every build, audit, gate and release alongside
+the others. [docs/adding-country.md](docs/adding-country.md) is the procedure.
 
 **Five access classes is the ceiling**, being the stock Valhalla travel modes
 that read an access bit of their own. Three would not survive the first country

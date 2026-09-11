@@ -12,7 +12,13 @@
 WKD_BASE ?= https://downloads.rijkswaterstaatdata.nl/wkd/geogegevens/Shape
 WKD_RELEASE ?=
 
-EXTRACT_URL ?= https://download.geofabrik.de/europe/netherlands-latest.osm.pbf
+# The extract and the boundary filename are facts the country module already
+# states. Reading them from it keeps one copy: a second one here would drift
+# with every build still green. Recursive, so passing EXTRACT_URL on the
+# command line, which all_countries.py does, never runs the interpreter.
+nl_fact = $(shell cd .. && uv run python -c 'from amgraph_rules.countries import nl; print(nl.$(1))')
+EXTRACT_URL ?= $(call nl_fact,EXTRACT_URL)
+BOUNDARY_FILENAME ?= $(call nl_fact,BOUNDARY_FILENAME)
 WORK := work/countries/nl
 SUPPORTED_AREA_URL ?= https://api.pdok.nl/kadaster/brk-bestuurlijke-gebieden/ogc/v1/collections/landgebied/items?f=json&limit=10
 
@@ -72,7 +78,7 @@ sign-data: ## Download the national traffic-sign register (about 1 GB)
 
 supported-area: ## Download the official BRK boundary of the Netherlands
 	mkdir -p $(WORK)/boundaries
-	curl -fL --retry 3 --retry-all-errors --progress-bar -o $(WORK)/boundaries/netherlands.geojson \
+	curl -fL --retry 3 --retry-all-errors --progress-bar -o $(WORK)/boundaries/$(BOUNDARY_FILENAME) \
 		'$(SUPPORTED_AREA_URL)'
 
 legal-zones: ## Build conservative municipal vehicle-rule boundaries
