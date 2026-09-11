@@ -49,6 +49,35 @@ def build_stamp(work: Path, extract: Path):
     }
 
 
+def published_route_checks(routes: dict) -> dict:
+    """The gate's verdicts, without the geometry that produced them.
+
+    Every fixture comes back with the bounding box of the route it found, and
+    the release notes carry this file verbatim. Publishing each result whole
+    buries the only thing a reader needs, which is whether the gate passed and
+    over how many attempts. The full report stays in routes.json, which the
+    release does not carry.
+    """
+    return {
+        "passed": routes["passed"],
+        "countries": {
+            code: {
+                vehicle: {"attempted": result["attempted"], "successful": result["successful"]}
+                for vehicle, result in measured.items()
+            }
+            for code, measured in routes["countries"].items()
+        },
+        "borders": {
+            key: {"attempted": len(results), "passed": sum(bool(r["ok"]) for r in results)}
+            for key, results in routes["borders"].items()
+        },
+        "access_probes": {
+            code: {name: probe["way_ids"] for name, probe in probes.items()}
+            for code, probes in routes["access_probes"].items()
+        },
+    }
+
+
 def build(release: int, commit: str, work: Path) -> dict:
     stamp = json.loads((work / "build.json").read_text())
     countries = modelled_countries()
@@ -118,7 +147,7 @@ def build(release: int, commit: str, work: Path) -> dict:
     return {
         "schema_version": 2,
         "rules_package_version": stamp["rules_package_version"],
-        "route_checks": routes,
+        "route_checks": published_route_checks(routes),
         "release": release,
         "countries": entries,
         "graph_commit": commit,

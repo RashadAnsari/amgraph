@@ -350,11 +350,21 @@ def test_a_manifest_cannot_certify_two_disconnected_country_graphs(tmp_path):
         "rules_package_version": version("amgraph-rules"),
     }
     (tmp_path / "build.json").write_text(json.dumps(stamp))
+    # A fixture answer carries the bounding box of the route it found. The
+    # manifest goes into the release notes verbatim, so it must publish the
+    # verdict and not the geometry behind it.
+    route = {
+        "ok": True,
+        "summary": {"min_lat": 50.85, "min_lon": 5.69, "max_lat": 50.89, "max_lon": 5.73},
+    }
     routes = {
         "passed": True,
         "tiles_sha256": stamp["tiles_sha256"],
         "countries": {
-            c.code: {v.code: {"attempted": 10, "successful": 10} for v in c.classes}
+            c.code: {
+                v.code: {"attempted": 10, "successful": 10, "routes": [route] * 10}
+                for v in c.classes
+            }
             for c in modelled_countries()
         },
         "borders": {},
@@ -367,7 +377,7 @@ def test_a_manifest_cannot_certify_two_disconnected_country_graphs(tmp_path):
         for neighbour, pairs in getattr(module, "BORDER_ROUTE_CHECKS", {}).items():
             for vehicle in country.classes:
                 routes["borders"][f"{country.code}-{neighbour}/{vehicle.carrier}"] = [
-                    {"ok": True} for _ in pairs
+                    route for _ in pairs
                 ]
     (tmp_path / "routes.json").write_text(json.dumps(routes))
     routes["access_probes"] = {
@@ -383,6 +393,12 @@ def test_a_manifest_cannot_certify_two_disconnected_country_graphs(tmp_path):
     result = manifest.build(1, "test", tmp_path)
     assert set(result["countries"]) == {"BE", "NL"}
     assert "country" not in result
+    published = json.dumps(result)
+    assert not any(key in published for key in ("min_lat", "max_lon", "summary")), (
+        "the manifest is copied into the release notes; it carries each gate's "
+        "verdict, never the route geometry that produced it"
+    )
+    assert result["route_checks"]["borders"]["NL-BE/taxi"] == {"attempted": 2, "passed": 2}
     del stamp["countries"]["BE"]
     (tmp_path / "build.json").write_text(json.dumps(stamp))
     with pytest.raises(ValueError, match="supported country set"):
