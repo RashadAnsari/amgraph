@@ -40,9 +40,8 @@ class Plate:
 
     Colours rather than a key into a palette a client happened to ship, because
     the plate is a statutory fact of the country and not a palette choice: a
-    Belgian moped's plate is yellow on black, a Dutch snorfiets's white on blue,
-    and a country whose classes carry a third combination would otherwise need a
-    client release before it could be drawn correctly.
+    country introducing a different combination would otherwise need a client
+    release before it could be drawn correctly.
 
     Serving a colour does not mean choosing one by eye, which is a standing rule
     here. The pair below is checked on the way out: a plate whose own ink does
@@ -93,14 +92,10 @@ class ClassSpeeds:
 class VehicleClass:
     """A vehicle a rider can pick, and the access class it rides on.
 
-    Not the same thing as an access class in ``access.lua``, and the difference
-    is load-bearing. There, a class is a set of road rights and each one owns a
-    Valhalla carrier outright. Here, a class is something a rider recognises and
-    chooses. Where two vehicles may go exactly the same places they share one
-    carrier and route identically — in the Netherlands a bromfiets and a speed
-    pedelec do, under RVV art. 6 — while still being two entries, because a
-    rider on a speed pedelec should be able to say so and be shown the right
-    plate. Where a country's law splits them, they take separate carriers.
+    Each class names the carrier its country writes into the combined graph.
+    A vehicle crossing a supported border must retain that carrier; matching
+    rights within one country are not enough to merge identities that another
+    country's law distinguishes.
 
     ``code`` is the identifier a client stores and sends back. It is a statutory
     term in the country's own language — ``snorfiets``, not ``light_moped`` —
@@ -218,7 +213,7 @@ class BoundaryDocument:
     #: travel together, but parsing its answers is code somebody has to write,
     #: so a country naming a register nobody has written a client for gets
     #: place search rather than wrong addresses.
-    geocoder: str = "pdok"
+    geocoder: str = ""
 
 
 @dataclass(frozen=True)
@@ -239,7 +234,9 @@ class CountryRules:
     #: bromfiets would route them onto a verplicht fietspad a bromfiets may not
     #: use, which is precisely the mistake this product exists to prevent.
     #: Guessing the other way only costs a longer ride.
-    default_class: str
+    #: ``None`` requires the rider to choose: some countries have no class
+    #: whose routes are lawful for every other class.
+    default_class: str | None
 
     municipal_zones: Mapping[str, MunicipalZone]
 
@@ -256,13 +253,17 @@ class CountryRules:
     #: Where the rules were read from, for a support case that has to name it.
     source: str
 
+    #: Exclusive end of the researched legal regime. A graph build after this
+    #: date requires a new review even if its quarterly freshness check passes.
+    valid_until: date | None = None
+
     def __post_init__(self) -> None:
         if not self.classes:
             raise ValueError(f"{self.code} declares no vehicle classes")
         codes = [vehicle.code for vehicle in self.classes]
         if len(codes) != len(set(codes)):
             raise ValueError(f"{self.code} declares a vehicle class code twice")
-        if self.default_class not in set(codes):
+        if self.default_class is not None and self.default_class not in set(codes):
             raise ValueError(f"{self.code} defaults to a class it does not offer")
         carriers = {vehicle.carrier for vehicle in self.classes}
         if len(carriers) > len(Carrier):

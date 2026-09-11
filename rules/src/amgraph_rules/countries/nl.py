@@ -54,28 +54,9 @@ _BLUE = Plate(background="#1256B8", foreground="#FAFAF8")
 #: Bump on any change below. Kept internally rather than served, so the legal
 #: freshness gate can force a periodic re-read of the primary sources without
 #: the string reading to a rider as a build number.
-RULES_VERSION = "nl-2026-08-16"
+RULES_VERSION = "nl-2026-08-16.1"
 
-#: The four vehicles a Dutch rider can pick, riding three access classes.
-#:
-#: Three classes rather than four because RVV art. 6 sends a bromfiets and a
-#: speed pedelec to exactly the same places, so they share the motorcycle
-#: carrier and route identically. They stay two entries because a rider on a
-#: speed pedelec should be able to say so: the plate and the drawing differ even
-#: though the roads do not. In the Lua the speed pedelec is a `closing_keys`
-#: entry on the bromfiets class, which may shut the shared carrier but never
-#: open it.
-#:
-#: The English is a description rather than a translation: there is no English
-#: word for a snorfiets, and "light moped" is what a rider will recognise. The
-#: identifiers stay Dutch because they are the statutory terms the rules in
-#: docs/rules.md are written against, and a translated one would put guesswork
-#: between the code and the law.
-#:
-#: Speeds are RVV 1990 art. 20, 21 and 22, quoted in docs/rules.md §7. A
-#: snorfiets and a brommobiel carry a single construction-limit cap everywhere
-#: (art. 22); the other two follow the road. ``None`` means the class may not be
-#: on a cycle path at all, so no cycle-path speed applies.
+#: Separate carriers keep each vehicle identity stable across country boundaries.
 CLASSES: tuple[VehicleClass, ...] = (
     VehicleClass(
         code="snorfiets",
@@ -99,7 +80,7 @@ CLASSES: tuple[VehicleClass, ...] = (
     ),
     VehicleClass(
         code="speed_pedelec",
-        carrier=Carrier.MOTORCYCLE,
+        carrier=Carrier.TAXI,
         construction_limit_kph=45,
         speeds=ClassSpeeds(roadway=45, cycle_path_built_up=30, cycle_path_rural=40),
         plate=_YELLOW,
@@ -212,9 +193,11 @@ MUNICIPAL_ZONES: dict[str, MunicipalZone] = {
 ADDRESS_SEARCH_BOUNDS = SearchBounds(south=50.74, north=53.60, west=3.20, east=7.23)
 
 #: The single land area in the Kadaster's BRK bestuurlijke gebieden export.
-#: Named here rather than in supported_area.py so that a second country brings
+#: Named here rather than in supported_area.py so that each country brings
 #: its own authority's identifiers with it instead of editing shared code.
-BOUNDARY = BoundaryDocument(properties={"identificatie": "LND6030", "naam": "Nederland"})
+BOUNDARY = BoundaryDocument(
+    properties={"identificatie": "LND6030", "naam": "Nederland"}, geocoder="pdok"
+)
 
 NETHERLANDS = CountryRules(
     code="NL",
@@ -227,3 +210,34 @@ NETHERLANDS = CountryRules(
     rules_version=RULES_VERSION,
     source="RVV 1990, cited per rule in docs/rules.md",
 )
+
+
+EXTRACT_URL = "https://download.geofabrik.de/europe/netherlands-latest.osm.pbf"
+BOUNDARY_FILENAME = "netherlands.geojson"
+PREPARE_TARGETS = ("extract", "official-data", "official-access")
+AUDIT_TESTS = ("tests/test_access_rules.py", "tests/test_official_overlay.py")
+SOURCE_RELEASE_FILES = {"wkd_release": "wkd-release.txt"}
+
+ROUTE_CHECKS = (
+    ((52.0907, 5.1214), (52.0800, 5.1300)),
+    ((52.3650, 4.9000), (52.3750, 4.9150)),
+    ((51.9220, 4.4790), (51.9320, 4.4890)),
+    ((52.0700, 4.3000), (52.0800, 4.3150)),
+    ((51.4400, 5.4800), (51.4500, 5.4900)),
+    ((50.8500, 5.6900), (50.8600, 5.7000)),
+    ((52.5100, 6.0950), (52.5200, 6.1100)),
+    ((53.2150, 6.5600), (53.2250, 6.5800)),
+    ((51.9850, 5.9150), (51.9950, 5.9300)),
+    ((53.2000, 5.7900), (53.2100, 5.8050)),
+)
+
+# Shared-carrier checks cross the official boundary rather than merely routing
+# two countries independently through the same process.
+BORDER_ROUTE_CHECKS = {
+    "BE": (
+        ((50.8500, 5.6900), (50.8900, 5.6500)),
+        ((50.8900, 5.6500), (50.8500, 5.6900)),
+    ),
+}
+
+ACCESS_PROBES = (("snorfiets", "bromfiets"), ("speed_pedelec", "brommobiel"))

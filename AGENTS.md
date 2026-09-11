@@ -4,7 +4,7 @@ Read this before touching anything. This file is how to work here.
 [docs/rules.md](docs/rules.md) is what the rules are: every rule with its
 verbatim quote, its link and the date it was read.
 
-amgraph builds a routing graph for Dutch AM-licence vehicles: mopeds, speed
+amgraph builds one multi-country routing graph for AM-licence vehicles: mopeds, speed
 pedelecs and microcars. Its entire reason to exist is that **a rider must never
 be routed onto infrastructure their vehicle class is legally barred from.**
 Every other requirement is subordinate to that one.
@@ -51,12 +51,18 @@ date. Match that standard or do not write the rule.
 3. **A graph that fails a gate is never published.** A stale graph that obeys
    the law beats a fresh one that does not.
 
-## The four vehicles
+## Vehicle classes
 
-Learn them before writing access code. What each may ride is in
-`docs/rules.md`: `snorfiets` (blue plate, 25 km/h) follows bicycle rules,
-`bromfiets` and `speed_pedelec` (yellow, 45) may use a fiets/bromfietspad and
-nothing else in that family, `brommobiel` (yellow, 45) uses the roadway only.
+Learn each country's classes before writing access code. Their definitions and
+road rights are in `docs/rules.md`. The Netherlands declares `snorfiets`,
+`bromfiets`, `speed_pedelec` and `brommobiel`; Belgium declares
+`bromfiets_klasse_a`, `bromfiets_klasse_b`, `speed_pedelec` and
+`lichte_vierwieler`. Neither country's classes or law are a fallback for another.
+
+Every build and release contains all supported countries in one graph and one
+ZIP. Country attribution belongs to each way and junction. Border edges must
+satisfy every applicable country's rules, and a failed country blocks the
+whole release.
 
 **The identifiers stay in the country's own language.** `snorfiets` in code.
 They are statutory terms and the rules are written against them, so a translated
@@ -70,11 +76,9 @@ may do — in `valhalla/lua/countries/<cc>.lua` and
 
 **Five access classes is the ceiling**, being the stock Valhalla travel modes
 that read an access bit of their own. Three would not survive the first country
-anybody would add. Belgium clears three on its first article: art. 9.1.2 of the
-Code van de openbare weg gives a klasse A moped, a klasse B moped, a speed
-pedelec and a light quadricycle four different sets of road rights, because the
-pedelec and the klasse B differ on a cycle path where the limit is 50 km/h or
-less.
+anybody would add. Belgium needs four distinct carriers: the speed pedelec and
+klasse B differ on D9 infrastructure. BE-ACC-02 in [docs/rules.md](docs/rules.md)
+quotes the current statute and records its retrieval date.
 
 ## The two files that must agree
 
@@ -82,8 +86,8 @@ less.
 and `access.lua` writes it into that stock Valhalla travel mode at graph build
 time. `rules/src/amgraph_rules/countries/<cc>.py` names the same carrier per
 class, and whatever serves the graph maps a carrier to the costing model that
-reads its bit. For the Netherlands: snorfiets on moped, bromfiets and speed
-pedelec on motorcycle, brommobiel on truck.
+reads its bit. For the Netherlands: snorfiets on moped, bromfiets on motorcycle, speed
+pedelec on taxi, brommobiel on truck.
 
 Change one without the other and routes stay plausible while becoming illegal.
 It is the only failure in this codebase that does not announce itself, and it is

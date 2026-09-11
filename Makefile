@@ -4,7 +4,8 @@
 # pipeline mean the same thing.
 
 .DEFAULT_GOAL := help
-.PHONY: help deps rules lint format format-check test test-audit verify infra-%
+.PHONY: help deps rules lint format format-check test test-audit verify country-prepare country-merge country-graph infra-%
+
 
 help: ## Show this list
 	@grep -hE '^[a-z%-]+:.*?## ' $(MAKEFILE_LIST) infra/Makefile \
@@ -28,12 +29,17 @@ format-check: ## Fail if anything is unformatted
 test: ## Unit tests that need nothing built
 	uv run pytest -q
 
-test-audit: ## Every access-tag combination in the country, against the extract
-	# Not a sample. 2.8 million highway ways collapse to about fifteen thousand
-	# distinct combinations of the tags the rules read, so all of them can be
-	# checked. Needs the enriched extract on disk, not a running router, and it
-	# is the only gate that covers combinations no route happens to touch.
-	uv run pytest -m graph tests/test_access_rules.py tests/test_official_overlay.py -q
+test-audit: ## Audit every supported country's complete enriched extract
+	uv run python infra/all_countries.py audit
+
+country-prepare: ## Fetch and enrich all supported countries
+	uv run python infra/all_countries.py prepare --download
+
+country-merge: ## Merge all audited countries into one attributed graph input
+	uv run python infra/all_countries.py merge
+
+country-graph: country-merge ## Build one graph containing all supported countries
+	valhalla/build.sh
 
 verify: deps rules lint format-check test ## Everything CI checks before it spends an hour on tiles
 

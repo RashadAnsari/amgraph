@@ -14,8 +14,8 @@ name: Graph
 #
 # The gates here read the extract, which is stronger than sampling routes but
 # blind to one failure: a router that has stopped routing passes every legality
-# check, because "no lawful path" is a legitimate answer. Whoever serves a
-# release should route against it before trusting it.
+# check, because "no lawful path" is a legitimate answer. The running-router
+# gate therefore measures reachability in every supported country as well.
 
 on:
   push:
@@ -39,11 +39,6 @@ on:
     # Early Monday, after Geofabrik's nightly extracts have settled.
     - cron: "0 4 * * 1"
   workflow_dispatch:
-    inputs:
-      extract_url:
-        description: Geofabrik extract to build from
-        default: https://download.geofabrik.de/europe/netherlands-latest.osm.pbf
-        required: false
 
 concurrency:
   # Everything that can publish shares one group, because the release number is
@@ -56,16 +51,12 @@ concurrency:
   # more. A superseded release build still owes somebody a release.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-env:
-  EXTRACT_URL: ${{ inputs.extract_url || 'https://download.geofabrik.de/europe/netherlands-latest.osm.pbf' }}
-
 jobs:
   build:
     name: Build and verify the graph
     runs-on: ubuntu-latest
-    # A Netherlands build takes about two minutes of tile work on a laptop;
-    # a hosted runner with a cold download needs considerably more headroom.
-    timeout-minutes: 90
+    # Includes every country download, authority overlay, merge and route gate.
+    timeout-minutes: 180
     permissions:
       contents: write
 
@@ -91,53 +82,17 @@ jobs:
       - name: Unit-test the rules before spending an hour on a graph
         run: make verify
 
-      - name: Fetch a fresh OpenStreetMap extract
-        run: make infra-extract EXTRACT_URL="$EXTRACT_URL"
+      - name: Fetch and enrich every supported country
+        run: make country-prepare
 
-      # OpenStreetMap cannot carry the mandatory-use rule: it states the
-      # obligation on a fraction of the roads that carry it. Rijkswaterstaat
-      # publishes the answer per road section, refreshed monthly, so the weekly
-      # rebuild picks up the newest release rather than a pinned one.
-      - name: Fetch the road authority's access decisions
-        run: make infra-official-data
-
-      - name: Match those decisions onto OpenStreetMap ways
-        # WKD is closure-only. Positive answers are discarded because NDW
-        # documents sign-to-road coupling errors and a geometric affirmation
-        # must never legalise an OSM way.
-        run: make infra-official-access
-
-      # The strongest gate there is: it reads the extract the graph will be
-      # built from and puts *every* distinct combination of access tags in the
-      # country through the rules — about fifteen thousand of them — so a pass
-      # means no way in the Netherlands can be offered to a class the law bars
-      # from it. Not a sample, which is what routing against a built graph is.
-      #
-      # Here rather than after the build, and the placement is the point: it
-      # needs the extract and not a router, so running it first fails a bad
-      # rules change before an hour is spent on tiles, and before the disk
-      # cleanup below deletes what it reads.
-      - name: Audit every access-tag combination, and that the overlay bites
-        # The second half matters as much as the first. A closure-only overlay
-        # can be present but inert if none of its tags changes carrier access,
-        # and this also asserts that the two permissive overlay values stay
-        # inside the cases their statute reaches.
+      - name: Audit every supported country's complete input
         run: make test-audit
 
-      - name: Drop the build inputs the graph no longer needs
-        # The working set is ~6.9 GB and a hosted runner has ~14 GB after the
-        # cleanup above. The shapefiles, the 1 GB sign register and the plain
-        # extract have all been consumed by this point; only the enriched
-        # extract feeds the graph.
-        run: |
-          rm -rf infra/work/wkd infra/work/ndw
-          rm -f infra/work/netherlands-latest.osm.pbf
-          df -h /
+      - name: Select real cycle edges for carrier checks
+        run: uv run python infra/collect_probes.py
 
-      - name: Build the routing graph
-        # The build accepts only the enriched extract. A plain extract has
-        # neither mandatory-use decisions nor supported-country attribution.
-        run: make infra-graph
+      - name: Merge and build the single multi-country graph
+        run: make country-graph
 
       - name: Start the router on the new graph
         run: |
@@ -155,7 +110,9 @@ jobs:
       # if the tiles being served predate any of it. These ask the running
       # router rather than a file, which is the only way to tell the two apart.
       - name: Check the router is serving the graph that was just built
-        run: uv run pytest -m graph tests/test_graph_is_current.py -q
+        run: |
+          uv run pytest -m graph tests/test_graph_is_current.py -q
+          uv run python infra/verify_routes.py --url http://localhost:8002
 
       - name: Report what was built
         run: ls -lh infra/work/valhalla/tiles.tar infra/work/valhalla/admin.sqlite
@@ -185,29 +142,19 @@ jobs:
         # rules_version comes out of the country module rather than a string
         # here, so it is the version the tiles were actually built under, and a
         # consumer can refuse a release that disagrees with the package it pins.
-        if: github.event_name != 'pull_request'
         run: |
           uv run python infra/manifest.py \
-            --release "${{ steps.next.outputs.number }}" \
-            --extract-url "$EXTRACT_URL" \
+            --release "${{ steps.next.outputs.number || '0' }}" \
             --output infra/work/manifest.json
 
       - name: Package the graph
         # Exactly what serving the graph needs and nothing else: the engine
-        # files, the BRK boundary these tiles cover, the municipal legal zones,
-        # and the manifest. The extract is deliberately absent — it is 1.3 GB
-        # and no runtime reads it.
-        if: github.event_name != 'pull_request'
+        # files, every country boundary, the combined legal zones,
+        # and the manifest. No runtime reads the source extracts.
         run: |
-          cd infra/work
-          zip -r -1 "$GITHUB_WORKSPACE/amgraph-${{ steps.next.outputs.number }}.zip" \
-            manifest.json \
-            valhalla.json \
-            valhalla/tiles.tar \
-            valhalla/admin.sqlite \
-            boundaries/netherlands.geojson \
-            boundaries/legal-zones.geojson
-          ls -lh "$GITHUB_WORKSPACE/amgraph-${{ steps.next.outputs.number }}.zip"
+          uv run python infra/package_graph.py \
+            --output "$GITHUB_WORKSPACE/amgraph-${{ steps.next.outputs.number || '0' }}.zip"
+          ls -lh "$GITHUB_WORKSPACE/amgraph-${{ steps.next.outputs.number || '0' }}.zip"
 
       - name: Publish the release
         if: github.event_name != 'pull_request'
@@ -216,7 +163,7 @@ jobs:
         run: |
           {
             echo "Built from \`$GITHUB_SHA\`, gated on every access-tag"
-            echo "combination in the country before it was published."
+            echo "combination in every supported country before it was published."
             echo
             echo '```json'
             cat infra/work/manifest.json

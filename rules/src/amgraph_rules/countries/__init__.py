@@ -16,6 +16,7 @@ having a graph for it are different claims, and only the second one routes.
 
 from __future__ import annotations
 
+from amgraph_rules.countries.be import BELGIUM
 from amgraph_rules.countries.nl import NETHERLANDS
 from amgraph_rules.rules import (
     BoundaryDocument,
@@ -45,7 +46,7 @@ class UnsupportedCountryError(ValueError):
     """Raised instead of substituting rules from another country."""
 
 
-_MODELLED: dict[str, CountryRules] = {NETHERLANDS.code: NETHERLANDS}
+_MODELLED: dict[str, CountryRules] = {BELGIUM.code: BELGIUM, NETHERLANDS.code: NETHERLANDS}
 
 
 def rules_for(country_code: str) -> CountryRules:

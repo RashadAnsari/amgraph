@@ -11,7 +11,7 @@ to open the statute rather than the repository quietly insisting it is current.
 
 Failing here does **not** mean the code is broken. It means the law needs
 re-reading. The fix is to check `docs/rules.md` against the current
-consolidated RVV, correct anything that changed, and then bump the date.
+consolidated statute, correct anything that changed, and then bump the date.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from datetime import UTC, date, datetime
 
 import pytest
 
-from amgraph_rules.countries.nl import RULES_VERSION
+from amgraph_rules.countries import modelled_countries
 
 #: Quarterly. Long enough that
 #: this is not noise, short enough that a change to the RVV cannot sit
@@ -29,32 +29,36 @@ from amgraph_rules.countries.nl import RULES_VERSION
 MAX_AGE_DAYS = 90
 
 
-def _verified_on() -> date:
-    match = re.search(r"(\d{4})-(\d{2})-(\d{2})", RULES_VERSION)
+def _verified_on(rules_version: str) -> date:
+    match = re.search(r"(\d{4})-(\d{2})-(\d{2})", rules_version)
     assert match, (
-        f"RULES_VERSION is {RULES_VERSION!r} and carries no date. It is the only "
+        f"RULES_VERSION is {rules_version!r} and carries no date. It is the only "
         "record of when the law behind a route was last read; keep the "
         "country-YYYY-MM-DD shape."
     )
     return date(*(int(part) for part in match.groups()))
 
 
-def test_the_rules_carry_the_date_they_were_read() -> None:
-    assert _verified_on() <= datetime.now(UTC).date(), (
+@pytest.mark.parametrize("country", modelled_countries(), ids=lambda c: c.code)
+def test_the_rules_carry_the_date_they_were_read(country) -> None:
+    assert _verified_on(country.rules_version) <= datetime.now(UTC).date(), (
         "RULES_VERSION is dated in the future, so its age cannot be judged."
     )
 
 
-def test_the_law_has_been_read_recently_enough_to_claim_it_is_checked() -> None:
-    age = (datetime.now(UTC).date() - _verified_on()).days
+@pytest.mark.parametrize("country", modelled_countries(), ids=lambda c: c.code)
+def test_the_law_has_been_read_recently_enough_to_claim_it_is_checked(country) -> None:
+    today = datetime.now(UTC).date()
+    assert country.valid_until is None or today < country.valid_until
+    age = (today - _verified_on(country.rules_version)).days
     if age > MAX_AGE_DAYS:
         pytest.fail(
-            f"The Dutch rules were last verified {age} days ago "
-            f"({RULES_VERSION}), over the {MAX_AGE_DAYS}-day limit.\n\n"
+            f"The {country.code} rules were last verified {age} days ago "
+            f"({country.rules_version}), over the {MAX_AGE_DAYS}-day limit.\n\n"
             "This is not a code failure. Every route we return relies on "
             "these rules, and that review is now older than we "
             "are willing to stand behind.\n\n"
             "Re-read docs/rules.md against the current consolidated "
-            "RVV, correct anything that has changed, then bump RULES_VERSION "
+            "statute, correct anything that has changed, then bump RULES_VERSION "
             "to today."
         )

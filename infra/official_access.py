@@ -612,7 +612,8 @@ class Inject(osmium.SimpleHandler):
             self.writer.add_way(w)
             return
 
-        tags = dict(w.tags)
+        # Only this authority pass can supply internal access evidence.
+        tags = {key: value for key, value in w.tags if not key.startswith("amgraph:")}
         if is_route:
             try:
                 coordinates = [(n.lon, n.lat) for n in w.nodes if n.location.valid()]
@@ -685,7 +686,7 @@ def inject(extract: str, closed, supported_area, out: Path) -> None:
     replace_atomically(out, write)
     handler = completed["handler"]
 
-    # build.sh refuses to guess between multiple enriched extracts. Remove an
+    # The country merger requires one current input per country. Remove an
     # artefact from an earlier source name only after this one is complete.
     for stale in out.parent.glob("*-official.osm.pbf"):
         if stale != out:
@@ -696,15 +697,10 @@ def inject(extract: str, closed, supported_area, out: Path) -> None:
     print(f"wrote {out} ({out.stat().st_size / 1e9:.2f} GB)")
 
 
-WORK_BOUNDARY = Path(__file__).parent / "work" / "boundaries" / "netherlands.geojson"
-
-
 def enriched_name(extract: str) -> str:
     """`netherlands-latest.osm.pbf` -> `netherlands-latest-official.osm.pbf`.
 
-    Derived rather than hardcoded so the extract's country is not baked in:
-    `make infra-extract EXTRACT_URL=...` saves whatever Geofabrik calls the
-    file, and build.sh looks for `*-official.osm.pbf`.
+    The country merger derives the same name from the module's source URL.
     """
     name = Path(extract).name
     return name.removesuffix(".osm.pbf") + "-official.osm.pbf"
@@ -726,13 +722,16 @@ def default_extract(work: Path) -> Path:
 
 def main(extract: str, out: Path) -> None:
     here = Path(__file__).parent
-    shp = next((here / "work" / "wkd").glob("**/WKD_VRKRSTPNV2.shp"), None)
+    work = Path(os.environ.get("AMGRAPH_WORK", here / "work/countries/nl"))
+    shp = next((work / "wkd").glob("**/WKD_VRKRSTPNV2.shp"), None)
     if shp is None:
-        print("No Verkeerstypen shapefile under infra/work/wkd.", file=sys.stderr)
+        print(f"No Verkeerstypen shapefile under {work / 'wkd'}.", file=sys.stderr)
         print("Fetch it with: make infra-official-data", file=sys.stderr)
         raise SystemExit(1)
 
-    boundary_path = Path(os.environ.get("AMGRAPH_SUPPORTED_AREA", WORK_BOUNDARY))
+    boundary_path = Path(
+        os.environ.get("AMGRAPH_SUPPORTED_AREA", work / "boundaries" / "netherlands.geojson")
+    )
     supported_area = load_supported_area(boundary_path)
 
     print("checking every turn restriction…", flush=True)
@@ -749,7 +748,7 @@ def main(extract: str, out: Path) -> None:
     print(f"    bromfiets forbidden   : {counts['bromfiets']:,}")
     print(f"  indexed segments        : {counts['segments']:,}", flush=True)
 
-    signs_path = here / "work" / "ndw" / "signs.geojson"
+    signs_path = work / "ndw" / "signs.geojson"
     if not signs_path.exists():
         print(f"No sign register at {signs_path}.", file=sys.stderr)
         print("Fetch it with: make infra-official-data", file=sys.stderr)
@@ -761,7 +760,7 @@ def main(extract: str, out: Path) -> None:
         print(f"    {code:20s}: {sign_counts[code]:,}")
 
     zones_path = Path(
-        os.environ.get("AMGRAPH_LEGAL_ZONES", here / "work" / "boundaries" / "legal-zones.geojson")
+        os.environ.get("AMGRAPH_LEGAL_ZONES", work / "boundaries" / "legal-zones.geojson")
     )
     snorfiets_roadway = load_snorfiets_roadway(zones_path)
 
@@ -833,7 +832,8 @@ def main(extract: str, out: Path) -> None:
 
 if __name__ == "__main__":
     root = Path(__file__).parent
+    work = Path(os.environ.get("AMGRAPH_WORK", root / "work/countries/nl"))
     main(
-        sys.argv[1] if len(sys.argv) > 1 else str(default_extract(root / "work")),
-        Path(sys.argv[2]) if len(sys.argv) > 2 else root / "work" / "official-access.tsv",
+        sys.argv[1] if len(sys.argv) > 1 else str(default_extract(work)),
+        Path(sys.argv[2]) if len(sys.argv) > 2 else work / "official-access.tsv",
     )

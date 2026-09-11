@@ -21,6 +21,7 @@ extract that was built.
 from __future__ import annotations
 
 import os
+from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -45,8 +46,8 @@ pytestmark = [
 
 
 def _enriched_extract() -> Path | None:
-    found = sorted(WORK.glob("*-official.osm.pbf"))
-    return found[0] if found else None
+    extract = WORK / "all-countries-official.osm.pbf"
+    return extract if extract.is_file() else None
 
 
 def test_the_served_tiles_are_newer_than_the_extract_they_come_from() -> None:
@@ -117,7 +118,7 @@ def test_the_authority_overlay_is_present_in_the_served_graph() -> None:
     class FindClosed(osmium.SimpleHandler):
         def way(self, w) -> None:
             if len(found) >= 25:
-                return
+                raise StopIteration
             # Closed to a bromfiets by the authority, and open to it in OSM's
             # own tags, so the overlay is the only reason it is shut.
             if w.tags.get("amgraph:bromfiets") != "no":
@@ -133,7 +134,8 @@ def test_the_authority_overlay_is_present_in_the_served_graph() -> None:
             if len(points) >= 3:
                 found.append(points[len(points) // 2])
 
-    FindClosed().apply_file(str(extract), locations=True)
+    with suppress(StopIteration):
+        FindClosed().apply_file(str(extract), locations=True)
     if not found:
         pytest.skip("no unambiguous overlay-closed way to probe")
 

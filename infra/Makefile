@@ -1,4 +1,4 @@
-# Map data and the routing graph.
+# Dutch authority-source preparation; graph builds use every country.
 .DEFAULT_GOAL := help
 .PHONY: help extract graph clean-work size official-data sign-data official-access supported-area legal-zones
 
@@ -13,19 +13,19 @@ WKD_BASE ?= https://downloads.rijkswaterstaatdata.nl/wkd/geogegevens/Shape
 WKD_RELEASE ?=
 
 EXTRACT_URL ?= https://download.geofabrik.de/europe/netherlands-latest.osm.pbf
-WORK := work
+WORK := work/countries/nl
 SUPPORTED_AREA_URL ?= https://api.pdok.nl/kadaster/brk-bestuurlijke-gebieden/ogc/v1/collections/landgebied/items?f=json&limit=10
 
 help: ## Show this list
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | sed 's/:.*## /\t/' \
 		| awk -F'\t' '{printf "  \033[36m%-24s\033[0m %s\n", $$1, $$2}'
 
-extract: ## Download a fresh OSM extract
+extract: ## Download the Dutch authority pipeline's OSM input
 	mkdir -p $(WORK)
-	curl -fL --progress-bar -o $(WORK)/$(notdir $(EXTRACT_URL)) $(EXTRACT_URL)
+	curl -fL --retry 3 --retry-all-errors --progress-bar -o $(WORK)/$(notdir $(EXTRACT_URL)) $(EXTRACT_URL)
 
-graph: ## Build the routing graph from the current extract
-	../valhalla/build.sh
+graph: ## Merge all audited countries and build the single graph
+	$(MAKE) -C .. country-graph
 
 official-data: sign-data ## Download the road authority's access and built-up-area decisions
 	# Rijkswaterstaat's Wegkenmerkendatabase, public domain, refreshed monthly.
@@ -49,7 +49,7 @@ official-data: sign-data ## Download the road authority's access and built-up-ar
 	printf '%s\n' "$$release" > $(WORK)/wkd-release.txt; \
 	mkdir -p $(WORK)/wkd; \
 	for set in Verkeerstypen Komgrenzen; do \
-		curl -fL --progress-bar -o "$(WORK)/wkd/$$set.zip" \
+		curl -fL --retry 3 --retry-all-errors --progress-bar -o "$(WORK)/wkd/$$set.zip" \
 			"$(WKD_BASE)/$$set/$$release.zip"; \
 		rm -rf "$(WORK)/wkd/$$set"; \
 		unzip -oq "$(WORK)/wkd/$$set.zip" -d "$(WORK)/wkd/$$set"; \
@@ -67,23 +67,23 @@ sign-data: ## Download the national traffic-sign register (about 1 GB)
 	# now refuses outright instead, and its error message names this target's
 	# parent, so the two must not come apart again.
 	mkdir -p $(WORK)/ndw
-	curl -fL --progress-bar -o $(WORK)/ndw/signs.geojson \
+	curl -fL --retry 3 --retry-all-errors --progress-bar -o $(WORK)/ndw/signs.geojson \
 		"https://data.ndw.nu/api/rest/static-road-data/traffic-signs/v4/current-state?f=geojson"
 
 supported-area: ## Download the official BRK boundary of the Netherlands
 	mkdir -p $(WORK)/boundaries
-	curl -fL --progress-bar -o $(WORK)/boundaries/netherlands.geojson \
+	curl -fL --retry 3 --retry-all-errors --progress-bar -o $(WORK)/boundaries/netherlands.geojson \
 		'$(SUPPORTED_AREA_URL)'
 
 legal-zones: ## Build conservative municipal vehicle-rule boundaries
 	mkdir -p $(WORK)/boundaries/municipalities
-	curl -fL --progress-bar -o $(WORK)/boundaries/municipalities/amsterdam.geojson \
+	curl -fL --retry 3 --retry-all-errors --progress-bar -o $(WORK)/boundaries/municipalities/amsterdam.geojson \
 		'https://api.pdok.nl/kadaster/brk-bestuurlijke-gebieden/ogc/v1/collections/gemeentegebied/items?f=json&bbox=4.7,52.25,5.1,52.5&limit=100'
-	curl -fL --progress-bar -o $(WORK)/boundaries/municipalities/den-haag.geojson \
+	curl -fL --retry 3 --retry-all-errors --progress-bar -o $(WORK)/boundaries/municipalities/den-haag.geojson \
 		'https://api.pdok.nl/kadaster/brk-bestuurlijke-gebieden/ogc/v1/collections/gemeentegebied/items?f=json&bbox=4.1,51.9,4.5,52.2&limit=100'
-	curl -fL --progress-bar -o $(WORK)/boundaries/municipalities/nijmegen.geojson \
+	curl -fL --retry 3 --retry-all-errors --progress-bar -o $(WORK)/boundaries/municipalities/nijmegen.geojson \
 		'https://api.pdok.nl/kadaster/brk-bestuurlijke-gebieden/ogc/v1/collections/gemeentegebied/items?f=json&bbox=5.7,51.7,6.0,52.0&limit=100'
-	curl -fL --progress-bar -o $(WORK)/boundaries/municipalities/utrecht.geojson \
+	curl -fL --retry 3 --retry-all-errors --progress-bar -o $(WORK)/boundaries/municipalities/utrecht.geojson \
 		'https://api.pdok.nl/kadaster/brk-bestuurlijke-gebieden/ogc/v1/collections/gemeentegebied/items?f=json&bbox=5.0,52.0,5.3,52.2&limit=100'
 	# The project's interpreter, not the system one: this reads the municipal
 	# rules straight out of the country module so the two cannot drift.
@@ -94,10 +94,10 @@ legal-zones: ## Build conservative municipal vehicle-rule boundaries
 official-access: supported-area legal-zones ## Match authority decisions and legal boundaries onto OSM
 	# Writes the authority verdict for the Lua tests and an enriched PBF for the
 	# graph. The latter also attributes every complete way to the BRK boundary.
-	cd .. && uv run python infra/official_access.py
+	cd .. && AMGRAPH_WORK="$(abspath $(WORK))" uv run python infra/official_access.py
 
-size: ## How much disk the working set uses
+size: ## How much disk the Dutch source working set uses
 	@du -sh $(WORK)/* 2>/dev/null || echo "nothing built yet"
 
-clean-work: ## Delete extracts and tiles. They are large and rebuildable.
+clean-work: ## Delete the rebuildable Dutch source working set
 	rm -rf $(WORK)

@@ -2,9 +2,9 @@
 -- tags. No Valhalla, no globals, no side effects, so every rule can be
 -- unit-tested against a tag table.
 --
--- A *class* here is a set of road rights, not a vehicle. Two vehicles whose
--- rights are identical share one class: in the Netherlands a bromfiets and a
--- speed pedelec do, because RVV art. 6 sends them to the same places.
+-- A class owns a carrier bit throughout the combined graph. Two vehicles
+-- distinguished by any supported country's law need distinct carriers even
+-- where another country gives them identical road rights.
 --
 -- This file holds what is the same wherever the rider is: how to read an access
 -- tag, how a one-way binds, that a footway is never open to a motor. What
@@ -29,10 +29,8 @@ local M = {}
 -- (baldr/graphconstants.h), which nodes_proc clears when a class may not pass.
 --
 -- Five, and the count is the ceiling on how many classes a country may have.
--- Three would not reach Belgium: art. 9.1.2 of the Code van de openbare weg
--- splits into four sets of rights, because a speed pedelec and a klasse B
--- bromfiets differ on a cycle path where the limit is 50 or less. `taxi` and `bus` are the two Valhalla
--- costings that read an access bit of their own and are otherwise unused here
+-- Belgium needs four distinct carriers; see BE-ACC-02 in docs/rules.md §11.
+-- `taxi` and `bus` read access bits of their own and are otherwise unused here
 -- — both derive from AutoCost with kTaxiAccess and kBusAccess respectively,
 -- verified against the 3.8.3 source. `auto` is deliberately left alone: it is
 -- the mode everything else in the toolchain assumes when it wants to know
@@ -184,6 +182,10 @@ function M.prepare(country)
     country.consulted[key] = true
   end
 
+  for _, key in ipairs(country.extra_keys or {}) do
+    consult(key)
+  end
+
   for _, key in ipairs({
     "highway", "junction", "motorroad", "access", "vehicle", "oneway",
     "maxspeed", "maxspeed:forward", "maxspeed:backward",
@@ -315,6 +317,7 @@ end
 
 M.COUNTRIES = {
   NL = load_country("nl"),
+  BE = load_country("be"),
 }
 
 --- Which verified country's rules apply to this complete way.
@@ -324,6 +327,29 @@ M.COUNTRIES = {
 -- no amgraph carrier access at all.
 function M.country_for(tags)
   return M.COUNTRIES[tags["amgraph:country"]]
+end
+
+--- Border attribution is explicit; no country is a fallback for another.
+function M.countries_for(tags)
+  local value = tags["amgraph:country"] or ""
+  local result, seen = {}, {}
+  if value == "" or value:sub(1, 1) == ";" or value:sub(-1) == ";"
+    or value:find(";;", 1, true) then return result end
+  for code in value:gmatch("[^;]+") do
+    if M.COUNTRIES[code] == nil or seen[code] then return {} end
+    seen[code] = true
+    result[#result + 1] = M.COUNTRIES[code]
+  end
+  return result
+end
+
+local function scoped_tags(tags, country)
+  local result = { ["amgraph:country"] = country.code }
+  local prefix = "amgraph:" .. country.code .. ":"
+  for key, value in pairs(tags) do
+    if key:sub(1, #prefix) == prefix then result[key:sub(#prefix + 1)] = value end
+  end
+  return result
 end
 
 --- Every OSM key the rules read for this country.
@@ -464,9 +490,8 @@ end
 --- What a sign admits for one class.
 --
 -- `true` and `false` are the ordinary answers. A function is for the rules that
--- turn on something else about the way: Belgian art. 9.1.2 admits a klasse B
--- bromfiets to a marked cycle path only where the road's own limit is above 50
--- km/h, so the sign alone does not settle it.
+-- turn on something else about the way. The second-country fixture tests
+-- this mechanism with an invented rule, not a Belgian access restriction.
 local function admits(entry, code, tags)
   local rule = entry.admits[code]
   if type(rule) == "function" then
@@ -668,7 +693,13 @@ function M.classes(tags, country)
   if country == nil then
     return {}
   end
+  if country.normalize_tags then tags = country.normalize_tags(tags) end
   local classes = classes_from_tags(tags, country)
+  for index, class in ipairs(country.classes) do
+    if country.restricts and country.restricts(tags, class.code, false) then
+      classes[index] = false
+    end
+  end
 
   -- The road authority's own decision, written into the extract by
   -- infra/official_access.py. Applied last so it overrides every branch above,
@@ -773,15 +804,16 @@ function M.classes(tags, country)
   -- the API cannot tell the rider the signed limit. A3 is electronic and can
   -- change after the graph build, so no static value can verify it.
   local unscoped_a1 = M.has_sign_in(tags,
-    { "traffic_sign" }, "A1", country.sign_prefix, true)
+    { "traffic_sign" }, country.speed_sign or "A1", country.sign_prefix, true)
   local forward_a1 = M.has_sign_in(tags,
-    { "traffic_sign:forward" }, "A1", country.sign_prefix, true)
+    { "traffic_sign:forward" }, country.speed_sign or "A1", country.sign_prefix, true)
   local backward_a1 = M.has_sign_in(tags,
-    { "traffic_sign:backward" }, "A1", country.sign_prefix, true)
+    { "traffic_sign:backward" }, country.speed_sign or "A1", country.sign_prefix, true)
   if (unscoped_a1 and tags["maxspeed"] == nil)
     or (forward_a1 and tags["maxspeed"] == nil and tags["maxspeed:forward"] == nil)
     or (backward_a1 and tags["maxspeed"] == nil and tags["maxspeed:backward"] == nil)
-    or M.has_sign(tags, "A3", country.sign_prefix, true) then
+    or (country.dynamic_speed_sign ~= false
+      and M.has_sign(tags, country.dynamic_speed_sign or "A3", country.sign_prefix, true)) then
     set_all(classes, false)
   end
 
@@ -917,6 +949,7 @@ function M.node_classes(tags, country)
   if country == nil then
     return {}
   end
+  if country.normalize_tags then tags = country.normalize_tags(tags) end
 
   local blanket = M.access_value(tags, { "access", "vehicle" })
   local classes = {}
@@ -935,6 +968,9 @@ function M.node_classes(tags, country)
       classes[index] = blanket
     else
       classes[index] = true
+    end
+    if country.restricts and country.restricts(tags, class.code, true) then
+      classes[index] = false
     end
   end
 
@@ -1131,6 +1167,22 @@ end
 -- for `taxi` and `bus` is ordinary road access and would hand a class its
 -- neighbour's rights the day a country starts using that carrier.
 function M.carrier_flags(tags, country)
+  if country == nil and (tags["amgraph:country"] or ""):find(";", 1, true) then
+    local countries = M.countries_for(tags)
+    local result = {}
+    for _, carrier in ipairs(M.CARRIER_ORDER) do
+      result[M.CARRIERS[carrier].forward] = "false"
+      result[M.CARRIERS[carrier].backward] = "false"
+    end
+    for index, applicable in ipairs(countries) do
+      local flags = M.carrier_flags(scoped_tags(tags, applicable), applicable)
+      for key, value in pairs(flags) do
+        if index == 1 then result[key] = value
+        elseif value == "false" then result[key] = "false" end
+      end
+    end
+    return result
+  end
   country = country or M.country_for(tags)
 
   local flags = {}
@@ -1140,11 +1192,12 @@ function M.carrier_flags(tags, country)
   end
 
   -- Country attribution is the outer legal boundary. Return before any
-  -- country-specific sign parsing so an unsupported or border-crossing way is
+  -- country-specific sign parsing so a way with unsupported attribution is
   -- both closed and safe to import without a country module.
   if country == nil then
     return flags
   end
+  if country.normalize_tags then tags = country.normalize_tags(tags) end
 
   local classes = M.classes(tags, country)
 

@@ -23,11 +23,11 @@ def test_lookup_is_case_insensitive() -> None:
     assert rules_for("nl") is NETHERLANDS
 
 
-@pytest.mark.parametrize("code", ["BE", "DE", "XX", ""])
+@pytest.mark.parametrize("code", ["DE", "XX", ""])
 def test_an_unsupported_country_has_no_rules(code: str) -> None:
     with pytest.raises(UnsupportedCountryError):
         rules_for(code)
 
 
 def test_only_researched_countries_are_listed() -> None:
-    assert [country.code for country in modelled_countries()] == ["NL"]
+    assert [country.code for country in modelled_countries()] == ["BE", "NL"]

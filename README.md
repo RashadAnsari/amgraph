@@ -4,61 +4,44 @@
 [![Check](https://github.com/RashadAnsari/amgraph/actions/workflows/check.yml/badge.svg?branch=master)](https://github.com/RashadAnsari/amgraph/actions/workflows/check.yml?query=branch%3Amaster)
 [![Latest graph](https://img.shields.io/github/v/release/RashadAnsari/amgraph?label=graph&sort=semver&display_name=release)](https://github.com/RashadAnsari/amgraph/releases/latest)
 
-A routing graph for Dutch AM-licence vehicles: mopeds, speed pedelecs and
-microcars.
+One routing graph for AM-licence vehicles across all supported countries.
+Belgium and the Netherlands are country entries in the same build; neither is
+a fallback or an optional extension of the other. Country-specific access
+rules, sources and retrieval dates are in [docs/rules.md](docs/rules.md).
 
-These classes follow their own access rules. A bromfiets must use the
-fiets/bromfietspad where one exists, may not use an ordinary fietspad, and may
-never use an autosnelweg or an autoweg. A snorfiets follows bicycle rules
-instead. A brommobiel uses the roadway only. General-purpose routing engines
-model none of this, so the whole project is the access rules and the evidence
-that they hold.
+The build enriches each country's OpenStreetMap extract with its own authority
+data, audits every input, and merges the results by OSM identity and official
+territory. Ways and junctions carry their own country attribution. A supported
+border crossing must satisfy every applicable country's rules; territory with
+no verified rules stays closed. Conflicting source versions stop the merge.
 
-The result is a [Valhalla](https://valhalla.github.io/valhalla/) graph in which
-a road a class may not use is not merely expensive: it is **absent**. Serve it
-with `valhalla_service` and route with the `moped`, `motorcycle` or `truck`
-costing, and the answers are ones a Dutch rider can lawfully follow.
+A class borrows a stock [Valhalla](https://valhalla.github.io/valhalla/) access
+bit. The carrier stays stable across these countries:
 
-```
-OpenStreetMap extract ─┐
-Rijkswaterstaat WKD   ─┼─▶ infra/official_access.py ─▶ enriched .osm.pbf
-BRK boundaries        ─┘         the authority's own                │
-                                 access decisions,                  ▼
-                                 matched onto OSM ways      valhalla/build.sh
-                                                            with valhalla/lua/
-                                                                    │
-                                                                    ▼
-                                                                Release N
-```
+| Carrier | Belgium | Netherlands | Valhalla costing |
+| --- | --- | --- | --- |
+| `moped` | `bromfiets_klasse_a` | `snorfiets` | `motor_scooter` |
+| `motorcycle` | `bromfiets_klasse_b` | `bromfiets` | `motorcycle` |
+| `taxi` | `speed_pedelec` | `speed_pedelec` | `taxi` |
+| `truck` | `lichte_vierwieler` | `brommobiel` | `truck` |
 
-## Which class rides where
-
-| Class | Plate | Limit | Carrier | May use |
-| --- | --- | --- | --- | --- |
-| `snorfiets` | Blue | 25 km/h | `moped` | Bicycle infrastructure, under bicycle rules |
-| `bromfiets` | Yellow | 45 km/h | `motorcycle` | The fiets/bromfietspad, and the roadway |
-| `speed_pedelec` | Yellow | 45 km/h | `motorcycle` | The same as a bromfiets |
-| `brommobiel` | Yellow | 45 km/h | `truck` | The roadway only |
-
-Each class borrows a stock Valhalla travel mode to carry its access bit, which
-is how a graph built here routes on an unmodified Valhalla. Five is the ceiling,
-being the stock modes that read an access bit of their own.
-
-The identifiers stay Dutch. They are statutory terms and the rules are written
-against them, so a translated identifier would put guesswork between the code
-and the law.
+Identifiers retain their statutory language. A carrier is storage for a
+vehicle's access decision; it does not give that vehicle the rights of a taxi,
+truck or motorcycle. Consumers must use the matching rules package for vehicle
+selection, speeds and powertrain-dependent legal zones.
 
 ## Releases
 
 Every push to `master` and every Monday, the graph is rebuilt from a fresh
-extract, gated, and published as **Release N** with one zip attached:
+extract for every supported country, gated, and published as **Release N** with one zip attached:
 
 ```
-manifest.json                     what this graph is, and the rules version it was built under
+manifest.json                     country-indexed rules versions, inputs and graph hashes
 valhalla.json                     the engine config the tiles were built with
 valhalla/tiles.tar                the graph itself
 valhalla/admin.sqlite             admin areas, for the country-specific rules
-boundaries/netherlands.geojson    the official BRK boundary these tiles cover
+boundaries/be.geojson             official Belgian territory
+boundaries/nl.geojson             official Dutch territory
 boundaries/legal-zones.geojson    municipal vehicle rules, as polygons
 ```
 
@@ -75,8 +58,8 @@ Two workflows, on deliberately different budgets. The badges above are both for
 
 | | **Check** | **Graph** |
 | --- | --- | --- |
-| Proves | The rules behave as the statute says | No tag combination in the country breaks them |
-| Costs | About a minute, no network | About an hour, and 2.3 GB of downloads |
+| Proves | The rules behave as the statute says | All country inputs pass, and the combined graph routes |
+| Costs | About a minute, no network | Country downloads, enrichment, audits and a graph build |
 | Every push and pull request | ✅ | — |
 | A pull request touching the rules, the build or the tests | ✅ | ✅ |
 | Push to `master`, Monday's cron, manual dispatch | ✅ | ✅ |
@@ -94,21 +77,20 @@ group per branch, so it cannot stall `master` for an hour.
 ## Running it
 
 ```sh
-make                        # every target, with descriptions
-make verify                 # everything CI checks before it spends an hour on tiles
-make infra-extract          # an OpenStreetMap extract (1.4 GB)
-make infra-official-data    # the road authority's access decisions
-make infra-official-access  # match them onto OSM ways
-make infra-graph            # build the routing graph (a few minutes)
-make test-audit             # every access-tag combination in the country
+make                                   # every target, with descriptions
+make verify                            # everything CI checks before it spends an hour on tiles
+make country-prepare                   # download and enrich every registered country
+make test-audit                        # audit every complete country input; missing data fails
+uv run python infra/collect_probes.py  # select real cycle edges for runtime checks
+make country-graph                     # merge all countries and build one graph
+uv run python infra/verify_routes.py   # check every class and border fixtures on the running router
 ```
 
 `make verify` needs nothing built and no network. `make test-audit` needs the
-enriched extract, and it is the strongest gate here: it reads the extract rather
-than sampling routes, so a pass means no way in the country can be offered to a
-class the law bars from it. It cannot tell you a graph has stopped routing,
-though, because "no lawful path" is a legitimate answer — route against a build
-and count the answers before trusting it.
+enriched inputs for every registered country. It checks the legal invariants
+against observed tags; it cannot prove that OSM matches every sign on the road.
+The separate running-router gate measures successful routes for every vehicle
+in every country and across supported borders.
 
 ## The rules package
 
@@ -117,14 +99,16 @@ and count the answers before trusting it.
 ```toml
 [tool.uv.sources]
 amgraph-rules = { git = "https://github.com/RashadAnsari/amgraph",
-                  subdirectory = "rules", tag = "rules-v1.0.0" }
+                  subdirectory = "rules", tag = "rules-v2.0.0" }
 ```
 
 It holds the half of the access rules that has to be readable at run time as
 well as at build time: the vehicle classes, their carriers, their speed limits
-and the municipal by-laws. `valhalla/lua/countries/nl.lua` holds the half that
-is baked into the tiles. `manifest.json` records which version of the package a
-given release was built under, so a service running a different one can tell.
+and the municipal by-laws. `valhalla/lua/countries/<cc>.lua` holds the matching graph rules. Manifest
+schema 2 records every country under `countries`, including its rules version,
+class-to-carrier mapping and boundary path. There is no top-level default
+country or single-country rules version. A consumer must reject a mismatch for
+any country the route crosses.
 
 ## Working on this
 

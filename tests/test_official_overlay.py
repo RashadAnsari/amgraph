@@ -75,6 +75,10 @@ def rules():
 
     def classes(tags: dict[str, str]) -> tuple[bool, bool, bool]:
         flags = dict(access.carrier_flags(runtime.table_from(tags), netherlands))
+        # NL-DEF-03 applies the authority's bromfiets evidence equally to
+        # the pedelec, despite its separate carrier in the combined graph.
+        for direction in ("forward", "backward"):
+            assert flags[f"taxi_{direction}"] == flags[f"motorcycle_{direction}"]
         return (
             flags["moped_forward"] == "true",
             flags["motorcycle_forward"] == "true",

@@ -4,7 +4,8 @@ Every rule this graph enforces, with the statute it comes from, the link it was
 read at, and the date it was read. How access is decided, what every sign means,
 what is verified and what is not.
 
-**Last verified against primary sources: 2026-08-15.** Netherlands only.
+**Netherlands last verified against primary sources: 2026-08-15.**
+Belgium has a partial, unregistered ruleset researched on 2026-09-09; see §11.
 
 Nothing here is legal advice. Current signs and authorised directions on the
 ground govern. A static graph cannot see an unpublished or newly placed
@@ -77,8 +78,8 @@ means does.
 
 ### Order of evidence
 
-1. **Country attribution.** A way not wholly inside a verified country gets no
-   access at all.
+1. **Country attribution.** A way must be wholly inside the union of verified
+   territories. Every country touching it must admit the same carrier.
 2. **Outright prohibitions** — motorway, motorroad, footway and friends.
 3. **Blanket bans** — `access=no`, `vehicle=no`, unless a class-specific tag
    lifts them, and never lifting a brommobiel onto cycle infrastructure.
@@ -155,8 +156,8 @@ naturally on a way are wrong on a point:
   for every access tag in the country combined. An explicit `access=no` or
   `moped=no` on a barrier still closes.
 
-`amgraph.lua` **intersects** our node answer with upstream's mask, clearing only
-the three borrowed carrier bits. It can never reopen something upstream shut.
+`amgraph.lua` **intersects** our node answer with upstream's mask, clearing
+barred and unassigned carrier bits. It can never reopen something upstream shut.
 That asymmetry is also the fastest diagnostic in the project: if plain `auto`
 routes and `truck`/`motorcycle` do not, the fault is in our node rules.
 
@@ -594,8 +595,8 @@ is established independently of the missing tag.
 
 | Not handled | Why | Effect on a rider |
 | --- | --- | --- |
-| Countries other than the Netherlands | Not researched | No graph is built for them |
-| A way crossing the national border | Not wholly governed by Dutch law | Closed to all carrier modes |
+| Countries other than Belgium and the Netherlands | Not researched | Their territory stays closed |
+| A way leaving the verified territory union | Its complete legal regime is unknown | Closed to all carrier modes |
 | Temporary or newly placed restrictions | No verified live closure feed is integrated | The graph cannot know it |
 | Mandatory use where OSM and WKD are both silent | Only 46.9% of the obligation is expressed in OSM | A rider may be routed on the carriageway where the sidepath was compulsory |
 | A combustion vehicle's year, engine cycle or exemption | Not in the request | Emission-zone municipalities closed conservatively |
@@ -661,19 +662,18 @@ country, and it does not compress.
    municipal zones, address-search bounds, the boundary document with the
    address register it wants, rules version and source. Register it in
    `countries/__init__.py`.
-6. Add legal-route tests in that country and build a graph from an extract that
-   includes it, with `AMGRAPH_COUNTRY=<cc>`.
+6. Declare its extract, authority data and route fixtures in the country module.
+   Build and audit the combined graph containing every registered country.
 
 Steps 1–3 are where a country is won or lost. Steps 4–6 are an afternoon.
 
 ### What a class is, and how many there may be
 
-A class is a **set of road rights**, not a vehicle. Two vehicles that may go
-exactly the same places are one class with two names: in the Netherlands a
-bromfiets and a speed pedelec are, under RVV art. 6, so they share the
-motorcycle carrier and route identically while staying two entries in the
-country module — the plate and the construction limit differ even though the
-roads do not.
+A class is a set of road rights tied to a stable carrier throughout the graph.
+Dutch bromfietsen and speed pedelecs both follow RVV art. 6 (NL-ACC-02), but
+Belgian law distinguishes them. They therefore use motorcycle and taxi carriers
+in both countries. The Dutch pedelec retains the same conservative intersection
+of moped and pedelec access tags as the bromfiets.
 
 **Five is the ceiling**, being the stock Valhalla travel modes that read an
 access bit of their own: `moped` (512), `motorcycle` (1024), `truck` (8),
@@ -683,18 +683,21 @@ gets auto-family costing and the dimension handling that goes with it. `auto` is
 deliberately left alone: it is what the rest of the toolchain reaches for when
 it wants to know whether a road exists at all.
 
-Three would not survive the first country anybody would add. Belgian art. 9.1.2
-of the Code van de openbare weg gives four sets of rights: a klasse A moped must
-use the cycle path; a speed pedelec *may* use one marked D7 or by markings where
-the limit is 50 km/h or less and *must* above that; a klasse B moped is on the
-roadway at 50 or less unless the path carries the moped symbol, and on the cycle
-path above; a light quadricycle is on the roadway only. The pedelec and the
-klasse B are not the same class, so they cannot share a carrier.
+The adapter marks every carrier decision with Valhalla's corresponding
+`*_tag` flag, including refusals and unassigned carriers. Without these flags,
+the enhance stage can replace our audited access bits with its stock country
+defaults. Verified against Valhalla 3.8.3's
+[parser](https://github.com/valhalla/valhalla/blob/3.8.3/src/mjolnir/pbfgraphparser.cc)
+and [country-access pass](https://github.com/valhalla/valhalla/blob/3.8.3/src/mjolnir/countryaccess.cc),
+retrieved 2026-09-10. Runtime cycle-edge probes verify the resulting tiles.
 
-That article also needs something a sign table could not say: whether a class is
-admitted depends on **the road's own speed limit**. A `cycle_signs` entry's
-`admits` value may therefore be a function of the way's tags rather than a
-boolean.
+Belgium needs a separate carrier for the speed pedelec: D9 admits it but
+not a tweewielige bromfiets klasse B. D7 admits both. The distinction is
+permission versus mandatory use, not permission below versus above 50 km/h;
+see BE-ACC-02 and BE-ACC-03 in §11 for the primary source and retrieval date.
+
+A `cycle_signs` entry's `admits` value may also be a function of the way's tags.
+The invented second-country fixture tests that mechanism; it is not Belgian law.
 
 Two classes may not share a carrier in the Lua. They would be indistinguishable
 in the graph, so the router would answer for whichever it happened to ask about;
@@ -705,20 +708,335 @@ A fourth access class is not an exception, because the ceiling is five.
 country that exists nowhere else, so a change that quietly moves a country's
 facts back into shared code fails rather than waits to be noticed.
 
-### Three traps
+### Combined-graph invariants
 
-- **One graph per country.** `access.lua` decides a way's country from its
-  `amgraph:country` tag. On a multi-country extract, a way that crosses a
-  border gets no access at all — which is correct, and also means cross-border
-  routing stays impossible until ways are attributed per segment.
-- **A configuration value can never expose an unverified country.** The registry
-  is code, and that is the point: a code with no rules module refuses to load
-  rather than opening a country nobody has read. Whatever serves a graph decides
-  separately which of the registered countries it actually has tiles and a
-  boundary for, so reading a country's law and shipping a graph for it stay two
-  different claims.
-- **Nodes have no country of their own.** `infra/official_access.py` attributes
-  ways, not nodes, so `amgraph.lua` reads `AMGRAPH_COUNTRY` at build time to
-  know whose sign vocabulary a node is under. Unset or unrecognised leaves every
-  node closed to our classes, which is the conservative half of one graph per
-  country.
+- Every build includes every registered country. Missing input, boundary, audit
+  or rules-version evidence aborts the build; there is no preferred country.
+- The merger streams sorted OSM identities and rejects conflicting object
+  versions. Official polygons select a way's owning input, regardless of file
+  order. Junctions receive the same geographic attribution.
+- Before attribution, standalone building outlines without highway, route or
+  railway tags are omitted. Every other way and every relation is retained;
+  reference completion restores relation members and their original node tags.
+  The highway count must equal the audited input's count.
+- An edge wholly covered by the union of supported territories can cross a
+  border. Each country's enriched tags remain separately scoped, and its
+  carrier flags are intersected with the others. A shared junction likewise
+  intersects the applicable node rules. Unknown territory and boundary gaps
+  stay closed; polygons are never buffered to manufacture coverage. A way
+  missing from any owning country's extract also stays closed, and the merge
+  report counts these missing-evidence closures by geographic ownership.
+- One ZIP carries one tile archive, every country's boundary, all legal zones
+  and a country-indexed manifest. A rules mismatch for any covered country
+  invalidates the release. The runtime gate checks every class in every country
+  and the declared cross-border fixtures. Real cycle-edge probes also check
+  allowed and barred carriers against the running tiles.
+
+## 11. Belgium
+
+The paired modules declare `be-2026-09-09.3`. Belgium is registered alongside
+the Netherlands; registration never bypasses the input, audit, build or route
+gates. A rider must select a vehicle explicitly because these classes do not
+have interchangeable road rights.
+
+### Sources and temporal scope
+
+The quotations below are from the **Koninklijk besluit van 1 december 1975**,
+[current consolidated text on Justel][be-code], retrieved **2026-09-09**.
+They are statutory text; editorial amendment markers have been omitted from
+quotations. Each rule below uses that source and retrieval date unless another
+is given explicitly.
+
+The [royal decree of 30 June 2026, art. 58][be-transition], retrieved
+**2026-09-09**, amends the future code's commencement:
+
+> In artikel 86 van hetzelfde besluit wordt de datum van "1 september 2026" vervangen door de datum "1 juni 2027".
+
+The implementation therefore uses the 1975 code and the current regional
+versions, with an exclusive validity deadline of **2027-06-01**. The ordinary
+90-day source-review gate remains stricter. A future code is not selected from
+an outdated catalogue end-date field.
+
+### BE-DEF-01 — vehicle scope and carriers
+
+Art. 2.17, 1 defines a bromfiets klasse A with:
+
+> een door de constructie bepaalde maximumsnelheid van 25 km per uur
+
+Art. 2.17, 2(a) defines the two-wheeled klasse B with:
+
+> een door de constructie bepaalde maximumsnelheid van ten hoogste 45 km per uur
+
+Art. 2.17, 2(b) also includes:
+
+> elk drie- of vierwielig voertuig, met uitsluiting van de bromfietsen klasse A
+
+subject to the construction speed, power, mass and seating conditions stated
+in that article. The microcar profile is for this four-wheeled klasse B
+vehicle, not any vehicle colloquially called a quad.
+
+Art. 2.17, 3 defines the speed pedelec by assistance:
+
+> waarvan de aandrijfkracht wordt onderbroken bij een voertuigsnelheid van maximum 45 km per uur
+
+| Profile | Scope | Carrier | Principal OSM key |
+| --- | --- | --- | --- |
+| `bromfiets_klasse_a` | Two-wheeled klasse A | `moped` | `mofa` |
+| `bromfiets_klasse_b` | Two-wheeled klasse B | `motorcycle` | `moped` |
+| `speed_pedelec` | Art. 2.17, 3 | `taxi` | `speed_pedelec` |
+| `lichte_vierwieler` | Four-wheeled klasse B | `truck` | `motorcar` |
+
+Three-wheeled vehicles are outside this initial profile set. No bicycle-rule
+inheritance is declared: sharing a path with bicycles is not evidence that all
+bicycle rules apply. Carrier selection is an implementation decision, not law.
+All classes also consult `motor_vehicle` as a less specific access key.
+The [OSM moped vocabulary][be-osm-moped] and [Belgian sign tagging][be-osm-signs]
+were read on **2026-09-09** for tag semantics only, not as legal authority.
+The extract audit evaluates every observed access-tag combination, including
+the quad's `motorcar` and `motor_vehicle` keys.
+
+### BE-ACC-01 — motorways and motorroads
+
+Art. 21.1 states “De toegang tot de autosnelwegen is verboden” and includes:
+
+> aan de bestuurders van rijwielen, van bromfietsen en van dieren
+
+Art. 22.1 admits motor vehicles to autowegen:
+
+> met uitzondering van de bromfietsen
+
+The modules close `motorway`, `motorway_link` and `motorroad=yes` for every
+declared class, including the four-wheeled klasse B. Access tags cannot lift
+these exclusions. F5 and F9 identify the same roads under arts. 2.3 and 2.4
+and close them even when the highway classification contradicts the sign.
+
+### BE-ACC-02 — cycle-path permission
+
+Art. 9.1.2, 1:
+
+> Omvat de openbare weg een berijdbaar fietspad, aangeduid door het verkeersbord D7 of D9, dan moeten de fietsers en bestuurders van tweewielige bromfietsen klasse A, dit fietspad volgen, voor zover het in de door hen gevolgde rijrichting is gesignaleerd.
+
+Art. 9.1.2, 2 permits klasse B and speed pedelecs on D7 or marked paths at
+50 km/h or less, and makes that use obligatory at higher limits when the path
+is present and usable. Its additional D9 permission names speed pedelecs:
+
+> Daarenboven mogen bestuurders van speed pedelecs in dezelfde omstandigheden het fietspad aangeduid door het verkeersbord D9 volgen.
+
+At higher limits it adds:
+
+> Daarenboven moeten bestuurders van speed pedelecs in dezelfde omstandigheden het fietspad aangeduid door het verkeersbord D9 volgen.
+
+Art. 69.3 describes D10 as:
+
+> Deel van de openbare weg voorbehouden voor het verkeer van voetgangers en fietsers.
+
+| Sign | Klasse A (two wheels) | Klasse B (two wheels) | Speed pedelec | Light quadricycle |
+| --- | --- | --- | --- | --- |
+| D7 | admitted | admitted | admitted | closed |
+| D9 | admitted | closed | admitted | closed |
+| D10 | closed | closed | closed | closed |
+
+The table describes basic permission, not all supplementary plates or direction
+requirements. Its exclusions also close a contradictory highway/access tag.
+An unsigned cycleway is unresolved and stays closed without specific access
+evidence. A path's own `maxspeed` must never stand in for the adjacent road's
+speed when deciding mandatory use. The tests vary it through 30, 50, 70 and 90
+and also omit it, with the same permission result.
+
+### BE-ACC-03 — carriageway and mandatory use
+
+Art. 9.1.1:
+
+> Wanneer de openbare weg een rijbaan omvat moeten de bestuurders deze rijbaan volgen.
+
+Art. 9.1.2, 2 distinguishes “mogen” at 50 km/h or less from “moeten” above
+that threshold, for a path “wanneer dit aanwezig en bruikbaar is.”
+The module respects class-specific `use_sidepath`. The Belgian enrichment
+indexes only cycle edges that its own access rules admit, and matches parallel
+nearby geometry before deriving a roadway closure. Klasse A and an explicit
+mandatory subplate create an obligation; for B and pedelecs, an unknown adjacent
+road speed takes the above-50 branch only when a usable path is established.
+The path's own speed never supplies the roadway threshold. Dutch WKD evidence
+is not used to decide Belgian obligations.
+
+`amgraph:sidepaths` retains the matched way IDs. Unknown or already closed
+cycle edges cannot supply this evidence. This is a geometric approximation,
+not an official Belgian road-by-road mandatory-use register; missing or
+incorrect source topology remains a limitation of the routing claim.
+
+### BE-ACC-04 — prohibition signs
+
+Art. 68.3:
+
+| Sign | Verbatim meaning | Graph handling |
+| --- | --- | --- |
+| C1 | “Verboden richting voor iedere bestuurder” | Close the signed direction; unscoped closes both |
+| C3 | “Verboden toegang, in beide richtingen, voor ieder bestuurder” | Close every class |
+| C5 | “Verboden toegang voor bestuurders van motorvoertuigen met meer dan twee wielen en van motorfietsen met zijspan” | Close the quad |
+| C9 | “Verboden toegang voor bestuurders van bromfietsen” | Close every declared class |
+
+Supplementary exceptions are not used to open these prohibitions. A sign-only
+exception can therefore lose a lawful route. Unknown sign codes or unparsed
+suffixes close access instead of being ignored.
+
+### BE-SPD-01 — vehicle caps are not complete road limits
+
+Art. 11.3, 4 and 5 limit klasse B to “45” km/h and klasse A to “25 km per uur”.
+The Python definitions carry 25 and 45 as vehicle caps. A speed pedelec's 45
+comes from the assistance cut-off in BE-DEF-01 and is an operational cap,
+not a claim that art. 11.3 imposes that absolute riding limit on it.
+
+The Walloon version of art. 11.1 says:
+
+> De snelheid is beperkt tot 30 km/u op de voor voetgangers en fietsers bestemde gedeelten van de openbare weg, aangeduid met het sein D9 of D10.
+
+The cycle-path caps are conservatively 25 for klasse A and 30 for klasse B and
+pedelecs; the quad has no cycle-path speed. Regional and signed lower limits
+are handled by BE-SPD-02.
+
+### BE-SPD-02 — road, zone and signed limits
+
+Brussels art. 11.1 states “30 km/u” as the built-up-area default. The Flemish
+and Walloon versions of art. 11.1 state “50 km per uur” there. The graph uses
+30 when no numeric limit is mapped, with these lower/special-zone constraints:
+
+| Article | Verbatim provision | Handling |
+| --- | --- | --- |
+| 22bis, 3° | “is de snelheid beperkt tot 20 km per uur” | Living streets/F12a: 20 |
+| 22ter.1, 1° | “met een snelheid die niet meer bedraagt dan 30 km per uur” | Raised traffic calming/A14/F87: at most 30 |
+| 22quater | “Binnen de zones afgebakend door de verkeersborden F 4a en F 4b is de snelheid beperkt tot 30 km per uur.” | F4a: at most 30 |
+| 22novies | “nooit hoger liggen dan 30 kilometer per uur” | Cycle zones/F111: at most 30 |
+| 68.3, C43 | “verbod te rijden met een grotere snelheid dan deze die is aangeduid.” | Parse the numeric value; unresolved values close the way |
+
+The regional hints `BE-BRU:urban`, `BE-VLG:urban` and `BE-WAL:urban`
+use those respective urban limits. Regional rural and dual-carriageway hints
+use a conservative 70 cap: Brussels and Flemish art. 11.2 include “70”
+for other roads, while Walloon art. 11.2 includes “90” and its middle
+carriageways are limited to “70”. These are read in the regional versions of
+[the same decree][be-code], retrieved 2026-09-09. Numeric `zone30`/`zone:30`
+variants are interpreted as their mapped limit; living-street and cycle-street
+hints use the cited special-zone limits above.
+
+Mapped lower numeric and directional limits remain binding. Numeric implicit
+zone tags cannot be replaced with a faster default. Unknown speed hints and
+conditional values close access. Belgian A1 is not interpreted as Dutch A1.
+The 30 default is a conservative choice among researched statutory defaults,
+not evidence that an unmapped lower sign does not exist.
+
+### BE-ACC-05 — supplementary cycle-path plates
+
+Art. 69.4, 2° says D7/M6 applies “wanneer het fietspad moet gevolgd worden door
+de bestuurders van tweewielige bromfietsen klasse B”; 3° uses “niet mag gevolgd
+worden” for D7/M7. Paragraphs 4°–7° state:
+
+> het fietspad moet gevolgd worden door de bestuurders van speed pedelecs
+
+for M13, and extend the mandatory classes to B and pedelecs for M14. M15 says:
+
+> het fietspad niet mag gevolgd worden door de bestuurders van speed pedelecs
+
+M16 extends that prohibition to B and pedelecs. The enrichment records the
+mandatory cases; Lua enforces the prohibitions even against generic access=yes.
+
+### BE-ACC-06 — reserved infrastructure
+
+Art. 22quinquies.1 permits only the categories whose symbol appears:
+
+> Op deze wegen is alleen het verkeer toegestaan van de categorieën van weggebruikers waarvan het symbool afgebeeld is op de verkeersborden die bij de toegang geplaatst zijn.
+
+F99a/b/c alone does not establish all pictured categories. These unresolved
+roads stay closed. Art. 69.3 calls D11 “Verplichte weg voor voetgangers” and
+D13 “Verplichte weg voor ruiters”; neither gives an AM profile access.
+Art. 22sexies.1 says pedestrian zones admit “alleen voetgangers”, subject to
+listed exceptions that the graph does not assume. F103 therefore closes access.
+Art. 71.2 describes F17 as “een strook voorbehouden voor autobussen” and F18 as
+“voorbehouden aan het verkeer van voertuigen van geregelde diensten voor
+gemeenschappelijk vervoer”. An unresolved F17/F18 way cannot borrow taxi
+permission; closing the whole way can lose a legal adjacent ordinary lane.
+
+### BE-ACC-07 — movement restrictions
+
+Art. 69.3 calls D1 “Verplichting de door de pijl aangeduide richting te volgen”
+and D3 “Verplichting een van de door de pijlen aangeduide richtingen te volgen”.
+Art. 68.3 C31 prohibits the pictured turn; C33 states “Vanaf het verkeersbord
+tot en met het volgend kruispunt, verbod te keren.” Unresolved way-level movements
+close the edge. These are not entry bans and do not close an entire junction.
+OSM turn relations are normalized for every borrowed carrier. An uninterpretable
+relation closes its incident ways before the unusable relation is excluded.
+
+### BE-ACC-08 — dimensions, freight and dangerous goods
+
+Art. 68.3 C21 refers to vehicles whose “massa in beladen toestand hoger is dan
+de aangeduide massa”; C23 to vehicles “bestemd of gebruikt voor het vervoer
+van zaken”. C25/C27/C29 limit length/width/height. C24a/b/c distinguish dangerous,
+flammable/explosive and water-polluting cargo. These properties are not fully
+represented by the profile selection, so the signed ways stay closed rather
+than guessing a cargo or dimension exemption.
+
+### BE-LEZ-01 — powertrain-dependent zones
+
+[Brussels decree of 25 January 2018, art. 5 §1, 1°][be-lez], retrieved
+**2026-09-09**, admits zero-emission vehicles:
+
+> de gemotoriseerde voertuigen waarvan de motor geen luchtverontreinigende stoffen uitstoot, zoals elektrische voertuigen en de voertuigen die werken op waterstof
+
+The §1, 3° access tables distinguish diesel, petrol, Euro standard and L vehicle
+category; from 2025 the L-category diesel entries state “Verboden”. The package
+knows combustion versus electric, so it conservatively refuses combustion
+throughout the official Brussels-Capital Region boundary. This over-approximates
+both the zone and the affected vehicles; it does not claim every petrol moped
+is legally forbidden. Consumers must apply the packaged zone to complete route
+geometry. The graph itself does not encode fuel type.
+
+The [Flemish LEZ decree, art. 2][be-flemish-lez], retrieved **2026-09-09**,
+admits “de motorvoertuigen die niet behoren tot de motorvoertuigen van categorie
+M, N of T”. The [Walloon decree of 17 January 2019, art. 4 §1, 1°][be-walloon-lez],
+retrieved **2026-09-09**, admits “véhicules qui n'appartiennent pas aux catégories
+M et N”. These provisions do not impose an L-category emission closure.
+
+### BE-BOUND-01 — official geographic evidence
+
+The [NGI administrative-vector metadata][be-boundaries], retrieved
+**2026-09-09**, identifies the official national and regional boundary export
+and its WGS84 download. The national feature must identify `01000`/`België`;
+the Brussels regional feature must identify `04000`. Invalid polygons abort
+rather than being repaired into different territory. The merger attributes
+both roads and junctions from these polygons and the other supported countries'
+official boundaries, with no country-order fallback.
+
+The NGI export is licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+The ZIP preserves attribution in `NOTICE.md` and records derived country and
+zone polygons in the manifest.
+
+### BE-PLATE-01 — plate presentation
+
+[Ministerieel besluit van 23 juli 2001, art. 19 §1][be-plates], retrieved
+**2026-09-09**:
+
+> De gewone kentekenplaat heeft een witte achtergrond. Het opschrift en de boord zijn robijnrood (RAL 3003).
+
+The Python colour pair is a screen approximation of ruby red on white, not a
+statutory sRGB value or a measured physical plate sample. `Plate` measures its
+contrast against the existing 3:1 minimum. Colour carries no access decision.
+Powertrain remains an explicit vehicle fact for every profile because of
+BE-LEZ-01.
+
+### Build gates
+
+`make verify` tests both country modules and the mixed-country adapter.
+`make test-audit` requires and audits every supported country's enriched input.
+`make country-graph` merges all audited inputs before invoking Valhalla. The
+running-router gate measures each class in every country and the border
+fixtures; a failed country prevents the entire ZIP from being published.
+Unit and extract checks do not substitute for running those graph gates.
+
+[be-code]: https://www.ejustice.just.fgov.be/cgi_loi/change_lg.pl?cn=1975120131&la=N&language=nl&table_name=wet
+[be-transition]: https://www.ejustice.just.fgov.be/cgi_loi/article.pl?language=nl&lg_txt=n&cn_search=2026063009
+[be-plates]: https://www.ejustice.just.fgov.be/eli/besluit/2001/07/23/2001014154/justel
+[be-osm-moped]: https://wiki.openstreetmap.org/wiki/Key:moped
+[be-osm-signs]: https://wiki.openstreetmap.org/wiki/Road_signs_in_Belgium/D_Mandatory_signs
+
+[be-lez]: https://www.ejustice.just.fgov.be/eli/besluit/2018/01/25/2018030279/justel
+[be-flemish-lez]: https://codex.vlaanderen.be/PrintDocument.ashx?geannoteerd=true&id=1026568
+[be-walloon-lez]: https://wallex.wallonie.be/eli/loi-decret/2019/01/17/2019200758/2024/09/26
+[be-boundaries]: https://publish.geo.be/geonetwork/srv/api/records/fb1e2993-2020-428c-9188-eb5f75e284b9/formatters/xml

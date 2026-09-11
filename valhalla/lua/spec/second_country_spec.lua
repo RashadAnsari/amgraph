@@ -1,19 +1,16 @@
 -- Proves that a country the Netherlands does not resemble can be added to the
 -- graph rules without editing access.lua.
 --
--- Deliberately written while there is no second country to add, because that is
--- when it is cheap. Its purpose is not to describe anybody's law: the module
--- below is a fixture, its sign codes are invented, and nothing here may be
--- cited as a rule. Its purpose is to fail the day somebody makes access.lua own
+-- This synthetic module is a fixture with invented sign codes; nothing here
+-- may be cited as a rule. It must fail if somebody makes access.lua own
 -- the Dutch answer again — three classes, `mofa`/`moped`/`motorcar`, a sign
 -- that admits a class unconditionally or not at all.
 --
 -- The three things it exercises are the three the research found a real country
 -- needs:
 --
---   1. A FOURTH access class. Belgian art. 9.1.2 splits into four sets of road
---      rights, because a speed pedelec and a klasse B bromfiets differ on a
---      cycle path where the limit is 50 km/h or less. Three stock carriers were
+--   1. A FOURTH access class. BE-ACC-02 in docs/rules.md §11 records the
+--      Belgian distinction that requires it. Three stock carriers were
 --      all there were; `taxi` and `bus` are the two remaining Valhalla costings
 --      that read an access bit of their own.
 --   2. A cycle rule CONDITIONAL on the way, not settled by the sign alone.
@@ -67,8 +64,8 @@ local FIXTURE = access.prepare({
       sign = "P1",
       admits = {
         light = true,
-        -- Invented, and shaped after the real Belgian rule: admitted only
-        -- where the road beside it is faster than 50.
+        -- Invented: admission depends on the fixture way
+        -- being faster than 50. This is not Belgian law.
         heavy = limit_above(50),
         pedelec = true,
       },

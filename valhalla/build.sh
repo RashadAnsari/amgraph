@@ -17,49 +17,14 @@ VALHALLA_CONTAINER="amgraph-valhalla"
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 work_dir="${WORK_DIR:-$repo_root/infra/work}"
 lua_dir="$repo_root/valhalla/lua"
-# infra/official_access.py writes the enriched extract with both the road
-# authority's access verdict and official BRK country attribution.
-extract="${1:-}"
-if [[ -z "$extract" ]]; then
-  # Found rather than named, so the extract's country is not baked in here.
-  # `make infra-extract EXTRACT_URL=…` saves whatever Geofabrik calls the file,
-  # so hardcoding netherlands-*.osm.pbf made the workflow's own extract_url
-  # input impossible to use.
-  shopt -s nullglob
-  enriched=("$work_dir"/*-official.osm.pbf)
-  plain=()
-  for candidate in "$work_dir"/*.osm.pbf; do
-    [[ "$candidate" == *-official.osm.pbf ]] || plain+=("$candidate")
-  done
-  shopt -u nullglob
-
-  if (( ${#enriched[@]} > 1 || ${#plain[@]} > 1 )); then
-    echo "More than one extract in $work_dir. Name the one to build from:" >&2
-    printf '  %s\n' "${enriched[@]}" "${plain[@]}" >&2
-    echo "  $0 <path-to.osm.pbf>" >&2
-    exit 1
-  fi
-
-  if (( ${#enriched[@]} == 1 )); then
-    extract="${enriched[0]}"
-  else
-    echo "No *-official.osm.pbf in $work_dir." >&2
-    echo "A graph without BRK attribution cannot serve any route. Run:" >&2
-    echo "  make infra-official-data infra-official-access" >&2
-    exit 1
-  fi
-fi
-
-if [[ "$extract" != *-official.osm.pbf ]]; then
-  echo "Refusing an extract without the official access and BRK overlay: $extract" >&2
-  exit 1
-fi
-
+# Every registered country must be represented in this audited merge.
+extract="${1:-$work_dir/all-countries-official.osm.pbf}"
 if [[ ! -f "$extract" ]]; then
-  echo "No extract at $extract" >&2
-  echo "Fetch one with: curl -o $extract https://download.geofabrik.de/europe/netherlands-latest.osm.pbf" >&2
+  echo "No combined input at $extract. Run make country-prepare test-audit country-merge." >&2
   exit 1
 fi
+(cd "$repo_root" && uv run python infra/check_build.py \
+  --work "$work_dir" --extract "$extract")
 
 mkdir -p "$work_dir/valhalla" "$work_dir/lua"
 
@@ -77,19 +42,11 @@ cp "$lua_dir/access.lua" "$lua_dir/amgraph.lua" "$work_dir/lua/"
 mkdir -p "$work_dir/lua/countries"
 cp "$lua_dir/countries/"*.lua "$work_dir/lua/countries/"
 
-# Which country's rules the nodes in this graph are read under. Ways carry
-# their own attribution from infra/official_access.py and need none; nodes do
-# not, so a graph is built for one country and says which. An unrecognised code
-# leaves every node closed to our classes rather than borrowing a neighbour's
-# sign vocabulary, which is the conservative half of "one graph per country".
-AMGRAPH_COUNTRY="${AMGRAPH_COUNTRY:-NL}"
-
 in_container() {
   docker run --rm \
     -v "$work_dir:/data" \
     -e UPSTREAM_GRAPH_LUA=/data/lua/graph.lua \
     -e AMGRAPH_ACCESS_LUA=/data/lua/access.lua \
-    -e AMGRAPH_COUNTRY="$AMGRAPH_COUNTRY" \
     -w /data \
     "$VALHALLA_IMAGE" "$@"
 }
@@ -161,6 +118,12 @@ fi
 # archive being served — a rules change appears to have been built and has not.
 echo "==> Packing tiles into a single archive"
 in_container /bin/bash -c "cd /data && valhalla_build_extract --config /data/valhalla.json --overwrite -v"
+
+# This stamp is emitted only after successful packing. A later manifest must
+# describe these copied rules and this input, not whichever source is current.
+(cd "$repo_root" && uv run python infra/manifest.py --build-stamp \
+  --work "$work_dir" --extract "$extract" \
+  --output "$work_dir/build.json")
 
 echo "==> Done. Tiles in $work_dir/valhalla"
 du -sh "$work_dir/valhalla" 2>/dev/null || true

@@ -23,9 +23,8 @@ class Carrier(StrEnum):
     """A stock Valhalla travel mode borrowed to carry one access class.
 
     Five, and the count is the ceiling on how many access classes a country may
-    have. Three would not reach Belgium: art. 9.1.2 of the Code van de openbare
-    weg splits into four sets of rights, because a speed pedelec and a klasse B
-    bromfiets differ on a cycle path where the limit is 50 km/h or less.
+    have. Belgium needs four distinct carriers; see BE-ACC-02 in
+    docs/rules.md §11 for the primary source and retrieval date.
 
     ``TAXI`` and ``BUS`` are the two remaining Valhalla costings that read an
     access bit of their own: ``TaxiCost`` and ``BusCost`` both derive from

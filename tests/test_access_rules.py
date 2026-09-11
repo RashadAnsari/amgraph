@@ -238,11 +238,12 @@ class DutchRules:
         self.consulted = list(access.consulted_keys(self._country).values())
 
     def __call__(self, tags: dict[str, str]) -> tuple[bool, bool, bool]:
-        # Carrier flags rather than classes(), so the direction handling is
-        # covered too: moped is the snorfiets, motorcycle the bromfiets and
-        # speed pedelec, truck the brommobiel. See AGENTS.md, the two files
-        # that must agree.
+        # NL-DEF-03 gives the pedelec the bromfiets's access rights. Its
+        # separate cross-country carrier must preserve that answer on every
+        # observed combination, in both directions.
         flags = dict(self._access.carrier_flags(self._runtime.table_from(tags), self._country))
+        for direction in ("forward", "backward"):
+            assert flags[f"taxi_{direction}"] == flags[f"motorcycle_{direction}"]
         return (
             flags["moped_forward"] == "true",
             flags["motorcycle_forward"] == "true",

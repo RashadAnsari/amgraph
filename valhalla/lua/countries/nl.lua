@@ -6,27 +6,15 @@
 -- signs mean, what an unsigned cycle path should be assumed to be, and which
 -- roads a class is barred from outright.
 
-return {
+local country = {
   code = "NL",
 
   -- Prefix on `traffic_sign` values, e.g. "NL:G12a". Also how the core works
   -- out which country a way is in on a multi-country extract.
   sign_prefix = "NL",
 
-  -- The classes, from docs/rules.md §4. Three, because a bromfiets and a speed
-  -- pedelec have identical road rights under RVV art. 6 and so are one class:
-  -- the speed pedelec rides the bromfiets carrier and appears only as a
-  -- `closing_keys` entry, which may shut the shared bit but never open it.
-  --
-  -- `carrier` is the stock Valhalla travel mode this class borrows. It pairs
-  -- with `_COSTING` in rules/src/amgraph_rules/profiles.py, and
-  -- changing one without the other produces routes that stay plausible while
-  -- becoming illegal. AGENTS.md calls it the only failure in this codebase that
-  -- does not announce itself.
-  --
-  -- `access_keys` are the OSM keys that decide the class, most specific first.
-  -- Dutch mappers write `moped=designated` on a bromfietspad because Dutch law
-  -- puts a bromfiets there; 68,219 ways use it.
+  -- NL-ACC-02. Both 45 km/h two-wheelers follow RVV art. 6, but their
+  -- carriers stay distinct so a border never changes the vehicle being routed.
   classes = {
     {
       code = "snorfiets",
@@ -175,3 +163,19 @@ return {
   -- than a prohibition, so they never close a node.
   oneway_signs = { "C3", "C4" },
 }
+
+-- Preserve the existing conservative intersection of moped and pedelec tags
+-- while giving the pedelec its own bit throughout the combined graph.
+local pedelec = {}
+for key, value in pairs(country.classes[2]) do pedelec[key] = value end
+pedelec.code = "speed_pedelec"
+pedelec.carrier = "taxi"
+country.classes[#country.classes + 1] = pedelec
+for _, entry in ipairs(country.cycle_signs) do
+  entry.admits.speed_pedelec = entry.admits.bromfiets
+end
+for _, entry in ipairs(country.closed_signs) do
+  entry.bars.speed_pedelec = entry.bars.bromfiets
+end
+country.unsigned_cycleway.speed_pedelec = country.unsigned_cycleway.bromfiets
+return country

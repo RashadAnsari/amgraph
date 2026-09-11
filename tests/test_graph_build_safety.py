@@ -29,7 +29,7 @@ def test_every_input_the_overlay_refuses_to_run_without_is_fetched() -> None:
     overlay = (REPOSITORY_ROOT / "infra/official_access.py").read_text()
     makefile = (REPOSITORY_ROOT / "infra/Makefile").read_text()
 
-    assert 'here / "work" / "ndw" / "signs.geojson"' in overlay
+    assert 'work / "ndw" / "signs.geojson"' in overlay
     assert "$(WORK)/ndw/signs.geojson" in makefile
     # A prerequisite, not a separate step: the overlay's own error message tells
     # the reader to run official-data, so official-data has to be enough.

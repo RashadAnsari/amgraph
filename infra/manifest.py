@@ -1,71 +1,153 @@
-"""Write the manifest that travels inside a graph release.
-
-The access rules are read twice: `valhalla/lua/countries/nl.lua` decides access
-when the tiles are built, and `amgraph_rules.countries.nl` carries the same
-classes, carriers and limits for whoever serves them. A consumer pins the
-package by tag, and a pin can lag the graph it is asked to serve.
-
-`rules_version` is what makes that visible. It is read from the country module
-here rather than passed in, so the number in the manifest is the number the
-tiles were actually built under, and anyone deploying a release can refuse one
-whose value does not match their own. That check is the reason this file exists;
-everything else in it is for reading a live host's logs.
-"""
+"""Bind one released graph to the exact rules of every country it contains."""
 
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import subprocess
 from datetime import UTC, datetime
+from importlib.metadata import version
 from pathlib import Path
 
-from amgraph_rules.countries.nl import RULES_VERSION
-
-
-def _wkd_release(work: Path) -> str | None:
-    """Which monthly authority release the overlay was matched from.
-
-    Recorded because it is discovered at build time rather than pinned, so
-    without this there is no way to tell afterwards which month's decisions a
-    given graph is carrying. Deliberately not inside `wkd/`, which the build
-    deletes to free disk before the tiles are written.
-    """
-    stamp = work / "wkd-release.txt"
-    return stamp.read_text().strip() if stamp.exists() else None
-
-
-def build(release: int, commit: str, extract_url: str, work: Path) -> dict:
-    return {
-        "release": release,
-        "rules_version": RULES_VERSION,
-        "graph_commit": commit,
-        "extract_url": extract_url,
-        "wkd_release": _wkd_release(work),
-        "valhalla_version": _valhalla_version(),
-        "built_at": datetime.now(UTC).isoformat(timespec="seconds"),
-    }
+from amgraph_rules.countries import modelled_countries
+from check_build import check
+from prepare_country import ROOT, digest, require_current
 
 
 def _valhalla_version() -> str:
-    """From build.sh, so the manifest cannot claim a version we did not use."""
-    build_sh = Path(__file__).resolve().parents[1] / "valhalla" / "build.sh"
-    for line in build_sh.read_text().splitlines():
+    for line in (ROOT / "valhalla/build.sh").read_text().splitlines():
         if line.startswith("VALHALLA_VERSION="):
             return line.split("=", 1)[1].strip().strip('"')
     raise ValueError("build.sh no longer declares VALHALLA_VERSION")
 
 
+def build_stamp(work: Path, extract: Path):
+    combined = check(work, extract)
+    # Authority releases are discovered while preparing a country. Keep their
+    # names alongside its input hash so a release still identifies that data
+    # after the large authority download has been discarded.
+    for country in modelled_countries():
+        module = importlib.import_module(f"amgraph_rules.countries.{country.code.lower()}")
+        for field, filename in getattr(module, "SOURCE_RELEASE_FILES", {}).items():
+            value = (work / "countries" / country.code.lower() / filename).read_text().strip()
+            if not value:
+                raise ValueError(f"{country.code} has an empty authority release stamp")
+            combined["countries"][country.code][field] = value
+    names = [
+        "access.lua",
+        "amgraph.lua",
+        *[f"countries/{c.code.lower()}.lua" for c in modelled_countries()],
+    ]
+    return {
+        "countries": combined["countries"],
+        "rules_package_version": version("amgraph-rules"),
+        "enriched_sha256": combined["enriched_sha256"],
+        "lua_sha256": {name: digest(work / "lua" / name) for name in names},
+        "tiles_sha256": digest(work / "valhalla/tiles.tar"),
+        "built_at": datetime.now(UTC).isoformat(timespec="seconds"),
+    }
+
+
+def build(release: int, commit: str, work: Path) -> dict:
+    stamp = json.loads((work / "build.json").read_text())
+    countries = modelled_countries()
+    if set(stamp["countries"]) != {c.code for c in countries}:
+        raise ValueError("built graph does not cover exactly the supported country set")
+    for name, expected in stamp["lua_sha256"].items():
+        if (
+            digest(work / "lua" / name) != expected
+            or digest(ROOT / "valhalla/lua" / name) != expected
+        ):
+            raise ValueError("graph rules changed after the build")
+    if stamp["tiles_sha256"] != digest(work / "valhalla/tiles.tar"):
+        raise ValueError("graph archive changed after the build")
+    routes = json.loads((work / "routes.json").read_text())
+    if (
+        routes.get("passed") is not True
+        or routes.get("tiles_sha256") != stamp["tiles_sha256"]
+        or set(routes.get("countries", {})) != {c.code for c in countries}
+    ):
+        raise ValueError("release lacks passing multi-country routes for this tile archive")
+    for country in countries:
+        measured = routes["countries"][country.code]
+        if set(measured) != country.class_codes:
+            raise ValueError("route gate did not test every vehicle class")
+        if any(
+            r["attempted"] < 10 or r["successful"] / r["attempted"] < 0.8 for r in measured.values()
+        ):
+            raise ValueError("route gate failed its reachability floor")
+    required_borders = {}
+    for country in countries:
+        module = importlib.import_module(f"amgraph_rules.countries.{country.code.lower()}")
+        for neighbour, pairs in getattr(module, "BORDER_ROUTE_CHECKS", {}).items():
+            for vehicle in country.classes:
+                required_borders[f"{country.code}-{neighbour}/{vehicle.carrier}"] = len(pairs)
+    if set(routes.get("borders", {})) != set(required_borders):
+        raise ValueError("route gate did not test every declared border crossing")
+    for key, count in required_borders.items():
+        results = routes["borders"][key]
+        if len(results) != count or not all(result.get("ok") is True for result in results):
+            raise ValueError(f"border route gate failed: {key}")
+    for country in countries:
+        module = importlib.import_module(f"amgraph_rules.countries.{country.code.lower()}")
+        expected_probes = {f"{a}/{b}" for a, b in module.ACCESS_PROBES}
+        probes = routes.get("access_probes", {}).get(country.code, {})
+        if set(probes) != expected_probes or any(
+            p.get("passed") is not True or not p.get("way_ids") for p in probes.values()
+        ):
+            raise ValueError("release lacks actual cycle-edge access proofs")
+    if stamp["rules_package_version"] != version("amgraph-rules"):
+        raise ValueError("built graph and installed rules package disagree")
+    entries = {}
+    for country in countries:
+        require_current(country)
+        source = stamp["countries"][country.code]
+        if source["rules_version"] != country.rules_version:
+            raise ValueError(f"{country.code} build and runtime rules disagree")
+        boundary = f"boundaries/{country.code.lower()}.geojson"
+        entries[country.code] = {
+            **source,
+            "boundary": boundary,
+            "boundary_sha256": digest(work / boundary),
+            "rules_valid_until": country.valid_until.isoformat() if country.valid_until else None,
+            "classes": {
+                vehicle.code: {"carrier": vehicle.carrier.value} for vehicle in country.classes
+            },
+        }
+    return {
+        "schema_version": 2,
+        "rules_package_version": stamp["rules_package_version"],
+        "route_checks": routes,
+        "release": release,
+        "countries": entries,
+        "graph_commit": commit,
+        "valhalla_version": _valhalla_version(),
+        "build": stamp,
+        "legal_zones": "boundaries/legal-zones.geojson",
+        "legal_zones_sha256": digest(work / "boundaries/legal-zones.geojson"),
+    }
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--release", required=True, type=int)
-    parser.add_argument("--extract-url", required=True)
+    parser.add_argument("--release", type=int)
+    parser.add_argument("--work", type=Path, default=ROOT / "infra/work")
+    parser.add_argument("--build-stamp", action="store_true")
+    parser.add_argument("--extract", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
-
-    commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
-    work = Path(__file__).resolve().parent / "work"
-    manifest = build(args.release, commit, args.extract_url, work)
-
+    if args.build_stamp:
+        if args.extract is None:
+            parser.error("--build-stamp requires --extract")
+        manifest = build_stamp(args.work, args.extract)
+    else:
+        if args.release is None:
+            parser.error("release manifests require --release")
+        commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+        manifest = build(args.release, commit, args.work)
+    manifest["working_tree_dirty"] = bool(
+        subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True).strip()
+    )
     args.output.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
     print(json.dumps(manifest, indent=2, sort_keys=True))
