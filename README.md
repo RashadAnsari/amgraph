@@ -43,16 +43,13 @@ selection, speeds and powertrain-dependent legal zones.
 ## Licence
 
 The **code** is Copyright Rashad Ansari under the
-[PolyForm Noncommercial License 1.0.0](LICENSE.md): free for study, research,
-hobby projects and noncommercial organisations, and not licensed for commercial
-use by anyone else. Ask if you want that.
+[MIT License](LICENSE.md): use it, change it and redistribute it, keeping the
+copyright notice with it.
 
 The **published graph** is derived from OpenStreetMap, © OpenStreetMap
 contributors, so it is offered under the
-[Open Database License 1.0](https://opendatacommons.org/licenses/odbl/1-0/) and
-may be used commercially by anyone with attribution and share-alike. ODbL does
-not permit a derived database to carry extra restrictions, and this does not try
-to. Rijkswaterstaat's Wegkenmerkendatabase and the Kadaster BRK boundaries are
-public domain.
+[Open Database License 1.0](https://opendatacommons.org/licenses/odbl/1-0/),
+which asks for attribution and share-alike. Rijkswaterstaat's
+Wegkenmerkendatabase and the Kadaster BRK boundaries are public domain.
 
 [NOTICE.md](NOTICE.md) sets out both in full, and why they differ.
