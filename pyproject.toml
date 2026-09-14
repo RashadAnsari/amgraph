@@ -3,7 +3,7 @@ name = "amgraph"
 version = "0.1.0"
 description = "The amgraph routing graph: the access rules, the overlay writer, and the build that turns them into tiles."
 requires-python = ">=3.11"
-license = "LicenseRef-PolyForm-Noncommercial-1.0.0"
+license = "MIT"
 license-files = ["LICENSE.md"]
 # Pinned exactly, not floated. A graph is a legal artefact: the same extract
 # and the same rules have to produce the same tiles, and a geometry library

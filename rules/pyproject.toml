@@ -5,9 +5,9 @@ name = "amgraph-rules"
 version = "2.0.1"
 description = "Country-specific AM vehicle classes, carriers, limits and legal zones."
 requires-python = ">=3.11"
-# Noncommercial, like the rest of the project. A consumer installing this by
-# tag is agreeing to those terms; NOTICE.md says why the graph itself differs.
-license = "LicenseRef-PolyForm-Noncommercial-1.0.0"
+# MIT, like the rest of the project. NOTICE.md says why the graph itself
+# carries different terms.
+license = "MIT"
 # Deliberately none. This is the half of the access rules that has to be
 # readable at run time as well as at build time, and a dependency here would
 # land in the tree of everything that serves a graph. If something in here needs

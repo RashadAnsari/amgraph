@@ -7,16 +7,14 @@ Two things are published here and they are not under the same terms.
 Everything in this repository — the access rules in `valhalla/lua/`, the overlay
 writer in `infra/`, the `amgraph-rules` package, the build, the tests and
 everything under `docs/` — is Copyright Rashad Ansari and licensed under the
-[PolyForm Noncommercial License 1.0.0](LICENSE.md).
+[MIT License](LICENSE.md).
 
 Read it, run it, change it, build your own graph with it, publish papers about
-it. What you may not do is use it for a commercial purpose. That right is not
-granted to anyone, and the copyright holder keeps it. If you want it, ask.
+it, sell it. There is no commercial restriction. The one condition is that the
+copyright notice and the licence text travel with any copy or substantial
+portion you pass on, and that the software comes with no warranty.
 
-Personal study, hobby projects, research, and use by charities, schools, public
-research bodies, health and safety organisations and government institutions are
-all permitted, whatever their funding. The licence says so in its own words; this
-paragraph is a summary and the licence governs.
+This paragraph is a summary and the licence governs.
 
 ## The published graph
 
@@ -49,6 +47,11 @@ files retain the source attribution and licence; NGI does not endorse the graph.
 
 ## What that means in practice
 
-The graph is free for anyone to serve. Building, correcting and maintaining one
-is not: that is the code, that is where the work is, and a graph a week old is a
-graph that routes riders by last week's cycle paths.
+Both halves are free for anyone to use, including commercially. They are free
+under different licences, and the difference matters when you redistribute: the
+code asks only that you keep the copyright notice, while the graph carries
+ODbL's attribution and share-alike obligations, which come from OpenStreetMap
+and cannot be dropped. Ship the graph, ship `NOTICE.md` with it.
+
+What is not free is the work: building, correcting and maintaining a graph, and
+a graph a week old is a graph that routes riders by last week's cycle paths.

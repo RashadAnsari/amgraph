@@ -43,9 +43,8 @@ selection, speeds and powertrain-dependent legal zones.
 ## Licence
 
 The **code** is Copyright Rashad Ansari under the
-[PolyForm Noncommercial License 1.0.0](LICENSE.md): free for study, research,
-hobby projects and noncommercial organisations, and not licensed for commercial
-use by anyone else. Ask if you want that.
+[MIT License](LICENSE.md): anyone may use, change, distribute and sell it,
+commercially included, as long as the copyright notice travels with it.
 
 The **published graph** is derived from OpenStreetMap, © OpenStreetMap
 contributors, so it is offered under the
