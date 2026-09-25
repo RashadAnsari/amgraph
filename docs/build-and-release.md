@@ -75,7 +75,7 @@ in every country and across supported borders.
 ```toml
 [tool.uv.sources]
 amgraph-rules = { git = "https://github.com/RashadAnsari/amgraph",
-                  subdirectory = "rules", tag = "rules-v2.0.1" }
+                  subdirectory = "rules", tag = "rules-v2.1.0" }
 ```
 
 It holds the half of the access rules that has to be readable at run time as
@@ -84,4 +84,10 @@ and the municipal by-laws. `valhalla/lua/countries/<cc>.lua` holds the matching 
 schema 2 records every country under `countries`, including its rules version,
 class-to-carrier mapping and boundary path. A consumer must reject a mismatch for
 any country the route crosses.
+
+It also carries the one check a consumer cannot skip, `legal_zones.LegalZones`.
+An emission zone turns on the powertrain, which the graph cannot see, so every
+route is tested against `boundaries/legal-zones.geojson` after it is found. The
+check is here rather than left to each consumer because a route from this graph
+is not lawful without it, and it needs nothing beyond the standard library.
 

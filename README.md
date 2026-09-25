@@ -28,7 +28,11 @@ bit. The carrier stays stable across these countries:
 Identifiers retain their statutory language. A carrier is storage for a
 vehicle's access decision; it does not give that vehicle the rights of a taxi,
 truck or motorcycle. Consumers must use the matching rules package for vehicle
-selection, speeds and powertrain-dependent legal zones.
+selection, speeds and powertrain-dependent legal zones. A route is lawful only
+once `amgraph_rules.legal_zones.LegalZones.blocks` has passed it against the
+release's `boundaries/legal-zones.geojson`: the tiles cannot hold an emission
+zone, because a combustion and an electric vehicle of one class share a carrier.
+A consumer not written in Python must reproduce that check, not skip it.
 
 ## Documentation
 
