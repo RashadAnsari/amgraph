@@ -1,6 +1,6 @@
 # Shared country rules
 
-[Documentation](README.md) · [Adding a country](adding-country.md) · [Belgium](countries/be.md) · [Netherlands](countries/nl.md)
+[Documentation](README.md) · [Adding a country](adding-country.md) · [Netherlands](countries/nl.md)
 
 amgraph builds one routing graph for AM-licence vehicles across all supported
 countries. Every country supplies its own statutory vehicle identifiers,

@@ -9,10 +9,10 @@
 -- The three things it exercises are the three the research found a real country
 -- needs:
 --
---   1. A FOURTH access class. BE-ACC-02 in docs/countries/be.md records the
---      Belgian distinction that requires it. Three stock carriers were
---      all there were; `taxi` and `bus` are the two remaining Valhalla costings
---      that read an access bit of their own.
+--   1. A FOURTH and a FIFTH access class. A country that separates a speed
+--      pedelec from a 45 km/h moped on some cycle paths needs a carrier each.
+--      `taxi` and `bus` are the two remaining Valhalla costings that read an
+--      access bit of their own.
 --   2. A cycle rule CONDITIONAL on the way, not settled by the sign alone.
 --   3. Its own OSM key vocabulary, so the derived tag families follow the
 --      country's classes rather than the Dutch ones.
@@ -65,7 +65,7 @@ local FIXTURE = access.prepare({
       admits = {
         light = true,
         -- Invented: admission depends on the fixture way
-        -- being faster than 50. This is not Belgian law.
+        -- being faster than 50. This is not any country's law.
         heavy = limit_above(50),
         pedelec = true,
       },

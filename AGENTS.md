@@ -56,15 +56,22 @@ retrieval date. Match that standard or do not write the rule.
 
 Learn each country's classes before writing access code. Their definitions and
 road rights are in `docs/countries/<cc>.md`. The Netherlands declares
-`snorfiets`, `bromfiets`, `speed_pedelec` and `brommobiel`; Belgium declares
-`bromfiets_klasse_a`, `bromfiets_klasse_b`, `speed_pedelec` and
-`lichte_vierwieler`. No country's classes or law ever stand in for another's:
+`snorfiets`, `bromfiets`, `speed_pedelec` and `brommobiel`, and is the one
+country modelled today. No country's classes or law ever stand in for another's:
 an unsupported country is refused, not approximated from a neighbour.
 
 Every build and release contains all supported countries in one graph and one
 ZIP. Country attribution belongs to each way and junction. Border edges must
 satisfy every applicable country's rules, and a failed country blocks the
 whole release.
+
+**The multi-country machinery stays tested with one country registered.** The
+tests prove border attribution, the merge, the manifest, the package and
+cross-border zones against an invented second country, `ZZ`, whose Python half
+is `tests/conftest.py` and whose Lua half is
+`valhalla/lua/spec/fixture_country.lua`. It is registered only inside the tests
+that ask for it. Keep it: with one real country, it is the only thing that
+notices when the machinery a second country needs stops working.
 
 **The identifiers stay in the country's own language.** `snorfiets` in code.
 They are statutory terms and the rules are written against them, so a translated
@@ -86,11 +93,10 @@ closes. Registering it puts it in every build, audit, gate and release alongside
 the others. [docs/adding-country.md](docs/adding-country.md) is the procedure.
 
 **Five access classes is the ceiling**, being the stock Valhalla travel modes
-that read an access bit of their own. Three would not survive the first country
-anybody would add. Belgium needs four distinct carriers: the speed pedelec and
-klasse B differ on D9 infrastructure. BE-ACC-02 in
-[docs/countries/be.md](docs/countries/be.md) quotes the current statute and
-records its retrieval date.
+that read an access bit of their own. The Netherlands uses four, and a country
+whose law tells two classes apart on the cycle network, where Dutch law does
+not, needs a carrier for each. The speed pedelec rides its own carrier for that
+reason, though the Netherlands gives it the bromfiets's rights.
 
 ## The two files that must agree
 

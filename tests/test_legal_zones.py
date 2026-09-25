@@ -15,7 +15,6 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "infra"))
 
 from amgraph_rules.countries import rules_for
-from amgraph_rules.countries.be import BELGIUM
 from amgraph_rules.countries.nl import MUNICIPAL_ZONES, NETHERLANDS
 from amgraph_rules.legal_zones import LegalZoneFileError, LegalZoneRule, LegalZones, Point
 from amgraph_rules.profiles import Carrier, Powertrain
@@ -185,26 +184,28 @@ def test_the_released_zone_file_shape_is_accepted_as_published(tmp_path: Path) -
 
 #: Made-up squares far apart, so each point is inside exactly one zone.
 AMSTERDAM_SQUARE = [[[[2, 2], [4, 2], [4, 4], [2, 4], [2, 2]]]]
-BRUSSELS_SQUARE = [[[[12, 12], [14, 12], [14, 14], [12, 14], [12, 12]]]]
+ZEDTOWN_SQUARE = [[[[12, 12], [14, 12], [14, 14], [12, 14], [12, 12]]]]
 IN_AMSTERDAM: list[Point] = [(3.0, 3.0)]
-IN_BRUSSELS: list[Point] = [(13.0, 13.0)]
+IN_ZEDTOWN: list[Point] = [(13.0, 13.0)]
 
 
+@pytest.mark.usefixtures("second_country")
 class TestAVehicleFromAcrossTheBorder:
     """A zone is written in its own country's class codes, and a vehicle
     crossing into it arrives with another country's.
 
     The graph gives a crossing vehicle the rights of the class that shares its
     carrier on the far side, so the zone check must read the vehicle the same
-    way. Matching codes instead let a Dutch brommobiel into Brussels and a
-    Belgian klasse B moped into Amsterdam, both combustion, both unchecked.
+    way. Matching codes instead lets through every vehicle whose own country
+    happens to spell its class differently. The second country is the invented
+    ZZ of conftest.py, whose Zedtown reaches its two-wheelers.
     """
 
     def _zones(self, tmp_path: Path) -> LegalZones:
-        """Amsterdam and Brussels as their countries declare them, on made-up squares."""
+        """Amsterdam and Zedtown as their countries declare them, on made-up squares."""
         declared = {
             "Amsterdam": (NETHERLANDS, AMSTERDAM_SQUARE),
-            "Brussels-Capital Region": (BELGIUM, BRUSSELS_SQUARE),
+            "Zedtown": (rules_for("ZZ"), ZEDTOWN_SQUARE),
         }
         features, ids, rules, countries = [], {}, {}, {}
         for name, (country, coordinates) in declared.items():
@@ -233,9 +234,9 @@ class TestAVehicleFromAcrossTheBorder:
         ("country", "code", "shape"),
         [
             ("NL", "bromfiets", IN_AMSTERDAM),
-            ("BE", "bromfiets_klasse_b", IN_AMSTERDAM),
-            ("BE", "lichte_vierwieler", IN_BRUSSELS),
-            ("NL", "brommobiel", IN_BRUSSELS),
+            ("ZZ", "heavy", IN_AMSTERDAM),
+            ("ZZ", "heavy", IN_ZEDTOWN),
+            ("NL", "bromfiets", IN_ZEDTOWN),
         ],
     )
     def test_a_combustion_vehicle_is_refused_whichever_country_it_comes_from(
@@ -247,8 +248,8 @@ class TestAVehicleFromAcrossTheBorder:
     @pytest.mark.parametrize(
         ("country", "code", "shape"),
         [
-            ("BE", "bromfiets_klasse_b", IN_AMSTERDAM),
-            ("NL", "brommobiel", IN_BRUSSELS),
+            ("ZZ", "heavy", IN_AMSTERDAM),
+            ("NL", "bromfiets", IN_ZEDTOWN),
         ],
     )
     def test_an_electric_one_is_admitted_as_the_local_class_would_be(
@@ -261,6 +262,10 @@ class TestAVehicleFromAcrossTheBorder:
         """Carried over as the class it is at home, not promoted to one the rule reaches."""
         assert not self._zones(tmp_path).blocks(
             BROMMOBIEL, Powertrain.COMBUSTION, IN_AMSTERDAM, on=TODAY
+        )
+        # And read as Zedland's quad, which Zedtown's rule does not reach either.
+        assert not self._zones(tmp_path).blocks(
+            BROMMOBIEL, Powertrain.COMBUSTION, IN_ZEDTOWN, on=TODAY
         )
 
     def test_a_vehicle_with_no_counterpart_in_the_zones_country_is_refused(

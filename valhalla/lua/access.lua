@@ -29,7 +29,8 @@ local M = {}
 -- (baldr/graphconstants.h), which nodes_proc clears when a class may not pass.
 --
 -- Five, and the count is the ceiling on how many classes a country may have.
--- Belgium needs four distinct carriers; see BE-ACC-02 in docs/countries/be.md.
+-- The Netherlands uses four. A country whose law tells two classes apart on
+-- the cycle network, where the Dutch law does not, needs a carrier for each.
 -- `taxi` and `bus` read access bits of their own and are otherwise unused here
 -- — both derive from AutoCost with kTaxiAccess and kBusAccess respectively,
 -- verified against the 3.8.3 source. `auto` is deliberately left alone: it is
@@ -317,7 +318,6 @@ end
 
 M.COUNTRIES = {
   NL = load_country("nl"),
-  BE = load_country("be"),
 }
 
 --- Which verified country's rules apply to this complete way.
@@ -491,7 +491,7 @@ end
 --
 -- `true` and `false` are the ordinary answers. A function is for the rules that
 -- turn on something else about the way. The second-country fixture tests
--- this mechanism with an invented rule, not a Belgian access restriction.
+-- this mechanism with an invented rule, not any country's access restriction.
 local function admits(entry, code, tags)
   local rule = entry.admits[code]
   if type(rule) == "function" then

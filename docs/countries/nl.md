@@ -2,7 +2,7 @@
 
 Primary sources last reviewed **2026-08-15**. The country module declares `nl-2026-08-15.2`.
 
-[Documentation](../README.md) · [Shared country rules](../country-rules.md) · [Belgium](be.md)
+[Documentation](../README.md) · [Shared country rules](../country-rules.md)
 
 ## Vehicle classes
 

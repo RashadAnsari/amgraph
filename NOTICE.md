@@ -32,14 +32,6 @@ they attribute OpenStreetMap and share alike.
 The Rijkswaterstaat Wegkenmerkendatabase and the Kadaster BRK boundaries that
 also feed the graph are public domain and impose no further condition.
 
-Belgian national and regional boundaries are adapted from the National
-Geographic Institute (NGI/IGN), **Administrative Units / AdminVector**,
-retrieved 2026-09-09, under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
-[Official source metadata](https://publish.geo.be/geonetwork/srv/api/records/fb1e2993-2020-428c-9188-eb5f75e284b9/formatters/xml).
-The build converts the national polygon to GeoJSON and uses the Brussels
-regional polygon as a conservative legal-zone boundary. These derived boundary
-files retain the source attribution and licence; NGI does not endorse the graph.
-
 ## What that means in practice
 
 The two licences ask different things of you when you redistribute. The code

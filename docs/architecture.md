@@ -23,10 +23,12 @@ of each tag value and the node rules are in
 ## Classes and carriers
 
 A class is a set of road rights tied to a stable carrier throughout the graph.
-Dutch bromfietsen and speed pedelecs both follow RVV art. 6 (NL-ACC-02), but
-Belgian law distinguishes them. They therefore use motorcycle and taxi carriers
-in both countries. The Dutch pedelec retains the same conservative intersection
-of moped and pedelec access tags as the bromfiets.
+Dutch bromfietsen and speed pedelecs both follow RVV art. 6 (NL-ACC-02), yet
+they use the motorcycle and taxi carriers. A neighbouring country may separate
+them on the cycle network, and a class keeps its carrier across a border, so
+merging them now would have to be undone when such a country is added. The
+Dutch pedelec retains the same conservative intersection of moped and pedelec
+access tags as the bromfiets.
 
 **Five is the ceiling**, being the stock Valhalla travel modes that read an
 access bit of their own: `moped` (512), `motorcycle` (1024), `truck` (8),
@@ -44,13 +46,15 @@ defaults. Verified against Valhalla 3.8.3's
 and [country-access pass](https://github.com/valhalla/valhalla/blob/3.8.3/src/mjolnir/countryaccess.cc),
 retrieved 2026-09-10. Runtime cycle-edge probes verify the resulting tiles.
 
-Belgium needs a separate carrier for the speed pedelec: D9 admits it but
-not a tweewielige bromfiets klasse B. D7 admits both. The distinction is
-permission versus mandatory use, not permission below versus above 50 km/h;
-see [BE-ACC-02 and BE-ACC-03](countries/be.md) for primary sources and retrieval dates.
-
 A `cycle_signs` entry's `admits` value may also be a function of the way's tags.
-The invented second-country fixture tests that mechanism; it is not Belgian law.
+The invented second-country fixture tests that mechanism; it is not any
+country's law.
+
+With one country registered, the multi-country machinery is proved against an
+invented second country, `ZZ`: `tests/conftest.py` registers its Python half and
+`valhalla/lua/spec/fixture_country.lua` is its Lua half. Border attribution, the
+merge, the manifest's border and required-route gates, the package and
+cross-border legal zones all run over it. It exists only inside the tests.
 
 Two classes may not share a carrier in the Lua. They would be indistinguishable
 in the graph, so the router would answer for whichever it happened to ask about;

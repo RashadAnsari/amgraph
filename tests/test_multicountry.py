@@ -1,4 +1,8 @@
-"""A combined graph has no implicit country or input-order preference."""
+"""A combined graph has no implicit country or input-order preference.
+
+Only the Netherlands is modelled, so the second country in these tests is the
+invented ZZ of conftest.py. What is proved is the machinery, not any law.
+"""
 
 import sys
 from pathlib import Path
@@ -10,10 +14,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "infra"))
 
 from amgraph_rules.countries import modelled_countries
 from prepare_country import Access
-
-
-def test_pedelec_carrier_is_stable_across_supported_borders():
-    assert {c.vehicle("speed_pedelec").carrier.value for c in modelled_countries()} == {"taxi"}
 
 
 def test_every_country_publishes_the_same_legal_zone_properties(tmp_path):
@@ -61,7 +61,8 @@ def test_every_country_publishes_the_same_legal_zone_properties(tmp_path):
     assert written and all(set(f["properties"]) == expected for f in written)
 
 
-def test_each_country_has_exactly_the_same_carriers_in_lua_and_python():
+def test_each_country_has_exactly_the_same_carriers_in_lua_and_python(second_country):
+    assert [country.code for country in modelled_countries()] == ["NL", "ZZ"]
     for country in modelled_countries():
         access = Access(country.code)
         assert dict(access.classes) == {v.code: v.carrier.value for v in country.classes}
@@ -71,33 +72,33 @@ def test_border_geometry_is_not_assigned_to_the_first_country():
     from merge_countries import Territories
 
     for boundaries in (
-        {"NL": box(0, 0, 1, 1), "BE": box(1, 0, 2, 1)},
-        {"BE": box(1, 0, 2, 1), "NL": box(0, 0, 1, 1)},
+        {"NL": box(0, 0, 1, 1), "ZZ": box(1, 0, 2, 1)},
+        {"ZZ": box(1, 0, 2, 1), "NL": box(0, 0, 1, 1)},
     ):
         territories = Territories(boundaries)
         assert territories.countries(Point(0.5, 0.5)) == ("NL",)
-        assert territories.countries(Point(1, 0.5)) == ("BE", "NL")
-        assert territories.countries(LineString([(0.5, 0.5), (1.5, 0.5)])) == ("BE", "NL")
+        assert territories.countries(Point(1, 0.5)) == ("NL", "ZZ")
+        assert territories.countries(LineString([(0.5, 0.5), (1.5, 0.5)])) == ("NL", "ZZ")
         assert territories.countries(LineString([(0.5, 0.5), (2.5, 0.5)])) == ()
 
 
 def test_a_boundary_gap_is_not_repaired_into_supported_territory():
     from merge_countries import Territories
 
-    territories = Territories({"NL": box(0, 0, 1, 1), "BE": box(1.001, 0, 2, 1)})
+    territories = Territories({"NL": box(0, 0, 1, 1), "ZZ": box(1.001, 0, 2, 1)})
     assert territories.countries(LineString([(0.5, 0.5), (1.5, 0.5)])) == ()
 
 
-def test_border_access_is_the_intersection_of_every_applicable_law():
-    access = Access("BE")
+def test_border_access_is_the_intersection_of_every_applicable_law(second_country):
+    access = Access("ZZ")
     version = access.country.rules_version
     tags = {
-        "amgraph:country": "BE;NL",
+        "amgraph:country": "NL;ZZ",
         "highway": "residential",
         "maxspeed": "30",
-        "amgraph:BE:amgraph:rules": version,
-        "amgraph:BE:highway": "residential",
-        "amgraph:BE:maxspeed": "30",
+        "amgraph:ZZ:amgraph:rules": version,
+        "amgraph:ZZ:highway": "residential",
+        "amgraph:ZZ:maxspeed": "30",
         "amgraph:NL:highway": "residential",
         "amgraph:NL:maxspeed": "30",
     }
@@ -106,17 +107,19 @@ def test_border_access_is_the_intersection_of_every_applicable_law():
         return dict(access.lua.carrier_flags(access.runtime.table_from(tags)))
 
     assert flags()["taxi_forward"] == "true"
-    tags["amgraph:BE:traffic_sign"] = "BE:C9"
+    tags["amgraph:ZZ:traffic_sign"] = "ZZ:X1"
     assert set(flags().values()) == {"false"}
-    del tags["amgraph:BE:traffic_sign"]
+    del tags["amgraph:ZZ:traffic_sign"]
     tags["amgraph:NL:traffic_sign"] = "NL:C13"
     assert flags()["taxi_forward"] == "false"
     assert flags()["truck_forward"] == "true"
 
 
-@pytest.mark.parametrize("attribution", ["", "NL;XX", "BE;", "NL;NL"])
-def test_malformed_or_unknown_border_attribution_cannot_borrow_a_country(attribution):
-    access = Access("BE")
+@pytest.mark.parametrize("attribution", ["", "NL;XX", "ZZ;", "NL;NL"])
+def test_malformed_or_unknown_border_attribution_cannot_borrow_a_country(
+    attribution, second_country
+):
+    access = Access("ZZ")
     flags = access.lua.carrier_flags(
         access.runtime.table_from(
             {"amgraph:country": attribution, "highway": "residential", "maxspeed": "30"}
@@ -128,7 +131,7 @@ def test_malformed_or_unknown_border_attribution_cannot_borrow_a_country(attribu
 @pytest.mark.parametrize("missing_owner", [False, True])
 @pytest.mark.parametrize("conflicting_relation", [False, True])
 def test_merge_selects_the_geographic_owner_and_attributes_shared_nodes(
-    tmp_path, conflicting_relation, missing_owner
+    tmp_path, conflicting_relation, missing_owner, second_country
 ):
     import json
 
@@ -159,13 +162,11 @@ def test_merge_selects_the_geographic_owner_and_attributes_shared_nodes(
                     osmium.osm.mutable.Node(id=identifier, version=1, location=(lon, 0.5))
                 )
             for identifier, nodes in ((10, [1, 2]), (11, [2, 3, 4])):
-                if missing_owner and code == "BE" and identifier == 11:
+                if missing_owner and code == "ZZ" and identifier == 11:
                     continue
                 tags = {"highway": "residential", "maxspeed": "30", "amgraph:country": code}
-                if code == "BE":
-                    tags.update(
-                        {"amgraph:rules": module.RULES_VERSION, "amgraph:bromfiets_klasse_a": "no"}
-                    )
+                if code == "ZZ":
+                    tags.update({"amgraph:rules": module.RULES_VERSION, "amgraph:light": "no"})
                 writer.add_way(
                     osmium.osm.mutable.Way(id=identifier, version=1, nodes=nodes, tags=tags)
                 )
@@ -173,7 +174,7 @@ def test_merge_selects_the_geographic_owner_and_attributes_shared_nodes(
                 osmium.osm.mutable.Relation(
                     id=20,
                     version=1,
-                    members=[("w", 11 if conflicting_relation and code == "BE" else 10, "")],
+                    members=[("w", 11 if conflicting_relation and code == "ZZ" else 10, "")],
                     tags={"type": "route", "route": "bicycle"},
                 )
             )
@@ -183,7 +184,7 @@ def test_merge_selects_the_geographic_owner_and_attributes_shared_nodes(
                     "country": code,
                     "rules_version": module.RULES_VERSION,
                     "enriched_sha256": digest(extract),
-                    "ways": 1 if missing_owner and code == "BE" else 2,
+                    "ways": 1 if missing_owner and code == "ZZ" else 2,
                 }
             )
         )
@@ -196,17 +197,17 @@ def test_merge_selects_the_geographic_owner_and_attributes_shared_nodes(
     objects = {}
     for obj in osmium.FileProcessor(result):
         objects[obj.id] = dict(obj.tags)
-    assert objects[3]["amgraph:country"] == "BE;NL"
+    assert objects[3]["amgraph:country"] == "NL;ZZ"
     assert objects[10]["amgraph:country"] == "NL"
-    assert "amgraph:bromfiets_klasse_a" not in objects[10]
+    assert "amgraph:light" not in objects[10]
     if missing_owner:
         assert objects[11]["amgraph:country"] == "unsupported"
-        access = Access("BE")
+        access = Access("ZZ")
         flags = dict(access.lua.carrier_flags(access.runtime.table_from(objects[11])))
         assert set(flags.values()) == {"false"}
         return
-    assert objects[11]["amgraph:country"] == "BE;NL"
-    access = Access("BE")
+    assert objects[11]["amgraph:country"] == "NL;ZZ"
+    access = Access("ZZ")
     flags = dict(access.lua.carrier_flags(access.runtime.table_from(objects[11])))
     assert flags["moped_forward"] == "false"
     assert flags["taxi_forward"] == "true"
@@ -215,12 +216,12 @@ def test_merge_selects_the_geographic_owner_and_attributes_shared_nodes(
 def test_an_external_border_is_not_assumed_to_be_supported_on_both_sides():
     from merge_countries import Territories
 
-    territories = Territories({"NL": box(0, 0, 1, 1), "BE": box(1, 0, 2, 1)})
+    territories = Territories({"NL": box(0, 0, 1, 1), "ZZ": box(1, 0, 2, 1)})
     assert territories.countries(Point(0, 0.5)) == ()
     assert territories.countries(LineString([(0, 0.2), (0, 0.8)])) == ()
 
 
-def test_package_contains_every_country_in_one_zip_and_rejects_tampering(tmp_path):
+def test_package_contains_every_country_in_one_zip_and_rejects_tampering(tmp_path, second_country):
     import json
     import zipfile
 
@@ -231,8 +232,8 @@ def test_package_contains_every_country_in_one_zip_and_rejects_tampering(tmp_pat
         "valhalla.json",
         "valhalla/tiles.tar",
         "valhalla/admin.sqlite",
-        "boundaries/be.geojson",
         "boundaries/nl.geojson",
+        "boundaries/zz.geojson",
         "boundaries/legal-zones.geojson",
     )
     for name in names:
@@ -257,11 +258,11 @@ def test_package_contains_every_country_in_one_zip_and_rejects_tampering(tmp_pat
     with zipfile.ZipFile(output) as archive:
         assert set(archive.namelist()) == {*names, "manifest.json", "NOTICE.md"}
     before = output.read_bytes()
-    (tmp_path / "boundaries/be.geojson").write_text("changed")
+    (tmp_path / "boundaries/zz.geojson").write_text("changed")
     with pytest.raises(ValueError, match="content changed"):
         package(tmp_path, output)
     assert output.read_bytes() == before
-    del manifest["countries"]["BE"]
+    del manifest["countries"]["ZZ"]
     (tmp_path / "manifest.json").write_text(json.dumps(manifest))
     with pytest.raises(ValueError, match="every supported country"):
         package(tmp_path, output)
@@ -270,7 +271,7 @@ def test_package_contains_every_country_in_one_zip_and_rejects_tampering(tmp_pat
 def test_batched_node_attribution_preserves_border_and_unknown_decisions():
     from merge_countries import Territories
 
-    territories = Territories({"NL": box(0, 0, 1, 1), "BE": box(1, 0, 2, 1)})
+    territories = Territories({"NL": box(0, 0, 1, 1), "ZZ": box(1, 0, 2, 1)})
     coordinates = [(0, 0.5), (0.5, 0.5), (1, 0.5), (1.5, 0.5), (2.1, 0.5)]
     assert territories.points(coordinates) == [
         territories.countries(Point(*p)) for p in coordinates
@@ -284,14 +285,14 @@ def test_compaction_preserves_access_nodes_roads_and_relation_members(tmp_path):
 
     source = tmp_path / "source.osm"
     source.write_text("""<osm version="0.6">
-      <node id="1" version="1" lat="50" lon="4"><tag k="traffic_sign" v="BE:C9"/></node>
+      <node id="1" version="1" lat="50" lon="4"><tag k="traffic_sign" v="ZZ:X1"/></node>
       <node id="2" version="1" lat="50" lon="4.1"/>
       <node id="3" version="1" lat="50.1" lon="4"/>
       <node id="4" version="1" lat="50.1" lon="4.1"/>
       <node id="5" version="1" lat="50.2" lon="4"/>
       <node id="6" version="1" lat="50.2" lon="4.1"/>
       <way id="10" version="1"><nd ref="1"/><nd ref="2"/>
-        <tag k="highway" v="residential"/><tag k="amgraph:country" v="BE"/></way>
+        <tag k="highway" v="residential"/><tag k="amgraph:country" v="ZZ"/></way>
       <way id="11" version="1"><nd ref="3"/><nd ref="4"/><tag k="building" v="yes"/></way>
       <way id="12" version="1"><nd ref="5"/><nd ref="6"/><tag k="building" v="yes"/></way>
       <way id="13" version="1"><nd ref="1"/><nd ref="2"/>
@@ -315,9 +316,9 @@ def test_compaction_preserves_access_nodes_roads_and_relation_members(tmp_path):
         else:
             relations[obj.id] = [(member.type, member.ref) for member in obj.members]
     assert set(nodes) == {1, 2, 5, 6}
-    assert nodes[1]["traffic_sign"] == "BE:C9"
+    assert nodes[1]["traffic_sign"] == "ZZ:X1"
     assert set(ways) == {10, 12, 13, 14}
-    assert ways[10]["amgraph:country"] == "BE"
+    assert ways[10]["amgraph:country"] == "ZZ"
     assert relations == {20: [("w", 12)], 21: [("r", 20)]}
     before = output.read_bytes()
     with pytest.raises(ValueError, match="audited highway"):
@@ -325,7 +326,7 @@ def test_compaction_preserves_access_nodes_roads_and_relation_members(tmp_path):
     assert output.read_bytes() == before
 
 
-def test_a_manifest_cannot_certify_two_disconnected_country_graphs(tmp_path):
+def test_a_manifest_cannot_certify_two_disconnected_country_graphs(tmp_path, second_country):
     import importlib
     import json
     import shutil
@@ -338,10 +339,10 @@ def test_a_manifest_cannot_certify_two_disconnected_country_graphs(tmp_path):
     (tmp_path / "valhalla").mkdir()
     (tmp_path / "boundaries").mkdir()
     (tmp_path / "valhalla/tiles.tar").write_text("a built graph")
-    names = ["access.lua", "amgraph.lua", "countries/be.lua", "countries/nl.lua"]
+    names = ["access.lua", "amgraph.lua", "countries/nl.lua"]
     for name in names:
         shutil.copyfile(ROOT / "valhalla/lua" / name, tmp_path / "lua" / name)
-    for name in ("be", "nl", "legal-zones"):
+    for name in ("nl", "zz", "legal-zones"):
         (tmp_path / f"boundaries/{name}.geojson").write_text("{}")
     stamp = {
         "countries": {c.code: {"rules_version": c.rules_version} for c in modelled_countries()},
@@ -401,14 +402,14 @@ def test_a_manifest_cannot_certify_two_disconnected_country_graphs(tmp_path):
     }
     (tmp_path / "routes.json").write_text(json.dumps(routes))
     result = manifest.build(1, "test", tmp_path)
-    assert set(result["countries"]) == {"BE", "NL"}
+    assert set(result["countries"]) == {"NL", "ZZ"}
+    assert result["route_checks"]["borders"]["ZZ-NL/taxi"] == {"attempted": 2, "passed": 2}
     assert "country" not in result
     published = json.dumps(result)
     assert not any(key in published for key in ("min_lat", "max_lon", "summary")), (
         "the manifest is copied into the release notes; it carries each gate's "
         "verdict, never the route geometry that produced it"
     )
-    assert result["route_checks"]["borders"]["NL-BE/taxi"] == {"attempted": 2, "passed": 2}
     assert result["route_checks"]["countries"]["NL"]["snorfiets"]["required"] == {
         "attempted": 3,
         "passed": 3,
@@ -425,7 +426,7 @@ def test_a_manifest_cannot_certify_two_disconnected_country_graphs(tmp_path):
         manifest.build(1, "test", tmp_path)
     routes["countries"]["NL"]["snorfiets"]["required"] = [route] * 3
     (tmp_path / "routes.json").write_text(json.dumps(routes))
-    del stamp["countries"]["BE"]
+    del stamp["countries"]["ZZ"]
     (tmp_path / "build.json").write_text(json.dumps(stamp))
     with pytest.raises(ValueError, match="supported country set"):
         manifest.build(1, "test", tmp_path)

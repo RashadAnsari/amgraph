@@ -1,6 +1,5 @@
 """Country attribution and a sidepath obligation need actual geometric evidence."""
 
-import importlib
 import json
 import sys
 from pathlib import Path
@@ -15,16 +14,12 @@ from amgraph_rules.countries import rules_for
 from prepare_country import Access, Sidepaths, checked_geometry, require_current
 
 
-def test_belgium_requires_an_explicit_vehicle_choice():
-    assert rules_for("BE").default_class is None
-
-
 def test_legal_review_deadline_is_exclusive():
     from dataclasses import replace
     from datetime import date
 
     with pytest.raises(ValueError, match="expired"):
-        require_current(replace(rules_for("BE"), valid_until=date(2026, 1, 1)))
+        require_current(replace(rules_for("NL"), valid_until=date(2026, 1, 1)))
 
 
 def test_invalid_authority_boundary_is_not_repaired_into_new_territory():
@@ -35,31 +30,27 @@ def test_invalid_authority_boundary_is_not_repaired_into_new_territory():
         checked_geometry(feature)
 
 
-def test_be_acc_03_a_crossing_path_is_not_a_sidepath():
-    paths = Sidepaths(
-        Access("BE"), importlib.import_module("amgraph_rules.countries.be"), box(2, 49, 7, 52)
-    )
+def test_a_crossing_path_is_not_a_sidepath(second_country):
+    paths = Sidepaths(Access("ZZ"), second_country, box(1, 0, 2, 1))
     paths.project = lambda x, y: (x, y)
     paths.lines = [LineString([(50, -50), (50, 50)]), LineString([(0, 10), (100, 10)])]
     paths.ids = [1, 2]
-    paths.permissions = [{"speed_pedelec": "mandatory"}, {"bromfiets_klasse_a": "mandatory"}]
+    paths.permissions = [{"pedelec": "mandatory"}, {"light": "mandatory"}]
     paths.finish()
     adjacent, evidence = paths.adjacent([(0, 0), (100, 0)])
-    assert adjacent == {"bromfiets_klasse_a": "mandatory"}
+    assert adjacent == {"light": "mandatory"}
     assert evidence == [2]
 
 
-def test_be_acc_03_an_unusable_path_never_becomes_an_obligation():
-    paths = Sidepaths(
-        Access("BE"), importlib.import_module("amgraph_rules.countries.be"), box(2, 49, 7, 52)
-    )
+def test_an_unusable_path_never_becomes_an_obligation(second_country):
+    paths = Sidepaths(Access("ZZ"), second_country, box(1, 0, 2, 1))
     paths.project = lambda x, y: (x, y)
     paths.finish()
     assert paths.adjacent([(0, 0), (100, 0)]) == ({}, [])
 
 
-def test_be_boundary_fixture_is_a_real_multipolygon():
-    feature = {"geometry": shapely.geometry.mapping(box(2, 49, 7, 52))}
+def test_a_boundary_fixture_is_a_real_multipolygon():
+    feature = {"geometry": shapely.geometry.mapping(box(1, 0, 2, 1))}
     assert checked_geometry(json.loads(json.dumps(feature))).geom_type == "MultiPolygon"
 
 
@@ -112,7 +103,7 @@ def test_native_passthrough_keeps_all_objects_and_way_locations(tmp_path):
     assert [obj.id for obj in osmium.FileProcessor(output)] == [1, 2, 3, 4, 5, 6]
 
 
-def test_be_acc_03_border_way_keeps_its_verified_sidepath_obligation(tmp_path):
+def test_a_border_way_keeps_its_verified_sidepath_obligation(tmp_path, second_country):
     from types import SimpleNamespace
 
     import osmium
@@ -121,28 +112,28 @@ def test_be_acc_03_border_way_keeps_its_verified_sidepath_obligation(tmp_path):
 
     source = tmp_path / "border.osm"
     source.write_text("""<osm version="0.6">
-      <node id="1" version="1" lat="50" lon="4"/>
-      <node id="2" version="1" lat="50" lon="4.1"/>
+      <node id="1" version="1" lat="0.5" lon="1"/>
+      <node id="2" version="1" lat="0.5" lon="1.1"/>
       <way id="3" version="1"><nd ref="1"/><nd ref="2"/>
         <tag k="highway" v="residential"/></way>
     </osm>""")
     output = tmp_path / "result.osm.pbf"
     paths = SimpleNamespace(
-        access=Access("BE"),
-        adjacent=lambda points: ({"bromfiets_klasse_a": "mandatory"}, [99]),
+        access=Access("ZZ"),
+        adjacent=lambda points: ({"light": "mandatory"}, [99]),
     )
     with osmium.SimpleWriter(output) as writer:
         Enrich(
             writer,
-            importlib.import_module("amgraph_rules.countries.be"),
-            rules_for("BE"),
-            box(3.9, 49.9, 4.05, 50.1),
+            second_country,
+            rules_for("ZZ"),
+            box(1.05, 0, 2, 1),
             paths,
             RestrictionClosures(),
         ).apply_file(str(source), locations=True)
     ways = [dict(obj.tags) for obj in osmium.FileProcessor(output) if obj.is_way()]
     assert ways[0]["amgraph:country"] == "unsupported"
-    assert ways[0]["amgraph:bromfiets_klasse_a"] == "no"
+    assert ways[0]["amgraph:light"] == "no"
     assert ways[0]["amgraph:sidepaths"] == "99"
 
 

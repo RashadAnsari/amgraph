@@ -30,4 +30,4 @@ def test_an_unsupported_country_has_no_rules(code: str) -> None:
 
 
 def test_only_researched_countries_are_listed() -> None:
-    assert [country.code for country in modelled_countries()] == ["BE", "NL"]
+    assert [country.code for country in modelled_countries()] == ["NL"]

@@ -27,11 +27,10 @@ a retrieval date per rule:
 
 | Country | Rules | Classes |
 | --- | --- | --- |
-| Belgium | [countries/be.md](countries/be.md) | `bromfiets_klasse_a`, `bromfiets_klasse_b`, `speed_pedelec`, `lichte_vierwieler` |
 | Netherlands | [countries/nl.md](countries/nl.md) | `snorfiets`, `bromfiets`, `speed_pedelec`, `brommobiel` |
 
 No country's classes or law stand in for another country's. A rule identifier is
-scoped to its country (`NL-ACC-02`, `BE-ACC-02`), and access assertions name the
+scoped to its country (`NL-ACC-02`), and access assertions name the
 identifier they pin.
 
 ## Working on this

@@ -43,12 +43,21 @@ def digest(path: Path) -> str:
     return result.hexdigest()
 
 
+def load_rules(runtime):
+    """access.lua, with every registered country's graph rules.
+
+    One function so the tests can register their invented second country in the
+    same runtime; the real registry is only ever access.lua's own.
+    """
+    return runtime.eval("function(p) return assert(loadfile(p))() end")(
+        str(ROOT / "valhalla/lua/access.lua")
+    )
+
+
 class Access:
     def __init__(self, code: str):
         self.runtime = LuaRuntime(unpack_returned_tuples=True)
-        self.lua = self.runtime.eval("function(p) return assert(loadfile(p))() end")(
-            str(ROOT / "valhalla/lua/access.lua")
-        )
+        self.lua = load_rules(self.runtime)
         self.country = self.lua.COUNTRIES[code]
         if self.country is None:
             raise ValueError(f"no graph rules for {code}")
@@ -271,7 +280,7 @@ class Enrich(osmium.SimpleHandler):
         points = coordinates(way)
         inside = points is not None and shapely.contains_properly(self.boundary, LineString(points))
         adjacent, evidence = ({}, [])
-        # A crossing road still has obligations beside its Belgian section.
+        # A crossing road still has obligations beside its section in this country.
         # The path index contains only verified usable domestic paths; final
         # country attribution decides which source's evidence applies.
         if points is not None and not self.paths.access.cycle(source):
@@ -320,7 +329,7 @@ def prepare(code: str, work: Path):
     require_current(country)
     module = importlib.import_module(f"amgraph_rules.countries.{country.code.lower()}")
     extract = work / Path(module.EXTRACT_URL).name
-    archive = work / "adminvector.zip"
+    archive = work / "boundary.zip"
     if not extract.is_file() or not archive.is_file():
         raise ValueError("missing country extract or official boundary archive; use --download")
     area = write_boundaries(module, country, archive, work)
@@ -375,7 +384,7 @@ if __name__ == "__main__":
         module = importlib.import_module(f"amgraph_rules.countries.{country.code.lower()}")
         for url, name in (
             (module.EXTRACT_URL, Path(module.EXTRACT_URL).name),
-            (module.BOUNDARY_URL, "adminvector.zip"),
+            (module.BOUNDARY_URL, "boundary.zip"),
         ):
             replace_atomically(work / name, lambda p, url=url: urllib.request.urlretrieve(url, p))
     prepare(country.code, work)

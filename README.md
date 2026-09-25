@@ -5,9 +5,11 @@
 [![Latest graph](https://img.shields.io/github/v/release/RashadAnsari/amgraph?label=graph&sort=semver&display_name=release)](https://github.com/RashadAnsari/amgraph/releases/latest)
 
 One routing graph for AM-licence vehicles across all supported countries.
-Belgium and the Netherlands participate in the same build and release, on equal
-terms. Country-specific rules, primary sources and retrieval dates are
-documented per country under [docs/countries/](docs/README.md#country-rules).
+The Netherlands is the one supported today. The build, merge, audit and release
+are built for several countries on equal terms, and a second is added by the
+procedure in [adding a country](docs/adding-country.md). Country-specific
+rules, primary sources and retrieval dates are documented per country under
+[docs/countries/](docs/README.md#country-rules).
 
 The build enriches each country's OpenStreetMap extract with its own authority
 data, audits every input, and merges the results by OSM identity and official
@@ -16,14 +18,15 @@ border crossing must satisfy every applicable country's rules; territory with
 no verified rules stays closed. Conflicting source versions stop the merge.
 
 A class borrows a stock [Valhalla](https://valhalla.github.io/valhalla/) access
-bit. The carrier stays stable across these countries:
+bit, its carrier. A class keeps its carrier across a border, so a country added
+later puts each of its classes on the carrier of the class it matches:
 
-| Carrier | Belgium | Netherlands | Valhalla costing |
-| --- | --- | --- | --- |
-| `moped` | `bromfiets_klasse_a` | `snorfiets` | `motor_scooter` |
-| `motorcycle` | `bromfiets_klasse_b` | `bromfiets` | `motorcycle` |
-| `taxi` | `speed_pedelec` | `speed_pedelec` | `taxi` |
-| `truck` | `lichte_vierwieler` | `brommobiel` | `truck` |
+| Carrier | Netherlands | Valhalla costing |
+| --- | --- | --- |
+| `moped` | `snorfiets` | `motor_scooter` |
+| `motorcycle` | `bromfiets` | `motorcycle` |
+| `taxi` | `speed_pedelec` | `taxi` |
+| `truck` | `brommobiel` | `truck` |
 
 Identifiers retain their statutory language. A carrier is storage for a
 vehicle's access decision; it does not give that vehicle the rights of a taxi,
@@ -41,7 +44,7 @@ A consumer not written in Python must reproduce that check, not skip it.
 - [The access model](docs/access-model.md)
 - [Build, verification and releases](docs/build-and-release.md)
 - [Shared country rules](docs/country-rules.md) and [adding a country](docs/adding-country.md)
-- Country rules: [Belgium](docs/countries/be.md), [Netherlands](docs/countries/nl.md)
+- Country rules: [Netherlands](docs/countries/nl.md)
 - [Contributor instructions](AGENTS.md)
 
 ## Licence

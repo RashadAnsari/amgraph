@@ -81,15 +81,17 @@ fixtures, not legal boundaries.
 ## Enrichment, and whether the Lua may trust raw OSM
 
 A country decides how much of its answer it derives before the graph is built,
-and the two already here sit at opposite ends.
+and there are two ends to choose between.
 
 The Netherlands reads raw OSM tags in the Lua and treats its authority overlay
 as extra evidence: a way with no overlay value is still decided, conservatively,
-from what the mapper wrote. Belgium does the opposite. Its Python enrichment
-resolves speeds and sidepath obligations, then stamps `amgraph:rules` with its
-`RULES_VERSION`, and `countries/be.lua` closes any way whose stamp does not
-match. Raw OSM is never enough for a Belgian way, and an enriched way built
-under older rules closes rather than being believed.
+from what the mapper wrote. The other end resolves speeds and sidepath
+obligations in the country's Python `enrich_way` (run by
+`infra/prepare_country.py`), stamps `amgraph:rules` with its `RULES_VERSION`, and
+has the country's Lua `restricts` close any way whose stamp does not match. Raw
+OSM is then never enough, and an enriched way built under older rules closes
+rather than being believed. The test country in
+`valhalla/lua/spec/fixture_country.lua` takes this end.
 
 Stamp the version if the Lua depends on a value the enrichment computed. Without
 it, an extract prepared under one version and built under another produces

@@ -77,7 +77,7 @@ class LegalZoneRule:
 #:
 #: Municipality names are the key, so two countries with a municipality of the
 #: same name would collide. That is caught here rather than discovered later,
-#: because the failure would be a Belgian by-law silently gating a Dutch trip.
+#: because the failure would be one country's by-law silently gating another's trip.
 def _country_zones() -> Mapping[str, tuple[CountryRules, MunicipalZone]]:
     zones: dict[str, tuple[CountryRules, MunicipalZone]] = {}
     for country in modelled_countries():

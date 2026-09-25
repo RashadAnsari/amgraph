@@ -23,8 +23,8 @@ class Carrier(StrEnum):
     """A stock Valhalla travel mode borrowed to carry one access class.
 
     Five, and the count is the ceiling on how many access classes a country may
-    have. Belgium needs four distinct carriers; see BE-ACC-02 in
-    docs/countries/be.md for the primary source and retrieval date.
+    have. The Netherlands uses four; a country whose law separates two classes
+    on the cycle network needs a carrier for each.
 
     ``TAXI`` and ``BUS`` are the two remaining Valhalla costings that read an
     access bit of their own: ``TaxiCost`` and ``BusCost`` both derive from

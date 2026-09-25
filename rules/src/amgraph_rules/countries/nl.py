@@ -242,13 +242,4 @@ REQUIRED_ROUTE_CHECKS = (
     ((52.0894, 5.1100), (52.3791, 4.9003)),  # Utrecht Centraal to Amsterdam Centraal
 )
 
-# Shared-carrier checks cross the official boundary rather than merely routing
-# two countries independently through the same process.
-BORDER_ROUTE_CHECKS = {
-    "BE": (
-        ((50.8500, 5.6900), (50.8900, 5.6500)),
-        ((50.8900, 5.6500), (50.8500, 5.6900)),
-    ),
-}
-
 ACCESS_PROBES = (("snorfiets", "bromfiets"), ("speed_pedelec", "brommobiel"))
