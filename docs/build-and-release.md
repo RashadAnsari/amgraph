@@ -75,7 +75,7 @@ in every country and across supported borders.
 ```toml
 [tool.uv.sources]
 amgraph-rules = { git = "https://github.com/RashadAnsari/amgraph",
-                  subdirectory = "rules", tag = "rules-v2.1.0" }
+                  subdirectory = "rules", tag = "rules-v3.0.0" }
 ```
 
 It holds the half of the access rules that has to be readable at run time as
@@ -90,4 +90,7 @@ An emission zone turns on the powertrain, which the graph cannot see, so every
 route is tested against `boundaries/legal-zones.geojson` after it is found. The
 check is here rather than left to each consumer because a route from this graph
 is not lawful without it, and it needs nothing beyond the standard library.
+A zone reads a vehicle from another country as its own class on the same
+carrier, which is how the tiles already treat that vehicle on the zone's side
+of the border, and refuses a vehicle with no class on that carrier.
 

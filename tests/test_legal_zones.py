@@ -6,6 +6,7 @@ import json
 import math
 import sys
 import time
+from dataclasses import replace
 from datetime import date
 from pathlib import Path
 
@@ -13,13 +14,19 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "infra"))
 
-from amgraph_rules.countries.nl import MUNICIPAL_ZONES
+from amgraph_rules.countries import rules_for
+from amgraph_rules.countries.be import BELGIUM
+from amgraph_rules.countries.nl import MUNICIPAL_ZONES, NETHERLANDS
 from amgraph_rules.legal_zones import LegalZoneFileError, LegalZoneRule, LegalZones, Point
-from amgraph_rules.profiles import Powertrain
+from amgraph_rules.profiles import Carrier, Powertrain
 from zones import zone_feature
 
 TODAY = date(2026, 9, 25)
 SQUARE = [[[[2, 2], [4, 2], [4, 4], [2, 4], [2, 2]]]]
+
+BROMFIETS = NETHERLANDS.vehicle("bromfiets")
+SNORFIETS = NETHERLANDS.vehicle("snorfiets")
+BROMMOBIEL = NETHERLANDS.vehicle("brommobiel")
 
 
 def _feature(coordinates, **properties) -> dict:
@@ -65,6 +72,7 @@ def _test_zone(
         ],
         expected_names={"test zone"},
         expected_ids={"test zone": "test-id"},
+        expected_countries={"test zone": NETHERLANDS},
         expected_rules={
             "test zone": LegalZoneRule(
                 powertrain_classes=frozenset(profiles),
@@ -78,14 +86,12 @@ def _test_zone(
 
 def test_a_combustion_route_inside_a_zone_is_blocked(tmp_path: Path) -> None:
     assert _test_zone(tmp_path).blocks(
-        "bromfiets", Powertrain.COMBUSTION, [(3, 3), (3.5, 3.5)], on=TODAY
+        BROMFIETS, Powertrain.COMBUSTION, [(3, 3), (3.5, 3.5)], on=TODAY
     )
 
 
 def test_a_segment_cannot_cross_a_zone_between_outside_shape_points(tmp_path: Path) -> None:
-    assert _test_zone(tmp_path).blocks(
-        "bromfiets", Powertrain.COMBUSTION, [(1, 3), (5, 3)], on=TODAY
-    )
+    assert _test_zone(tmp_path).blocks(BROMFIETS, Powertrain.COMBUSTION, [(1, 3), (5, 3)], on=TODAY)
 
 
 def test_a_segment_between_two_holes_cannot_cross_the_restricted_area(tmp_path: Path) -> None:
@@ -99,20 +105,20 @@ def test_a_segment_between_two_holes_cannot_cross_the_restricted_area(tmp_path: 
             ]
         ],
     )
-    assert zones.blocks("bromfiets", Powertrain.COMBUSTION, [(2, 5), (8, 5)], on=TODAY)
+    assert zones.blocks(BROMFIETS, Powertrain.COMBUSTION, [(2, 5), (8, 5)], on=TODAY)
 
 
 def test_an_electric_two_wheeler_is_allowed(tmp_path: Path) -> None:
-    assert not _test_zone(tmp_path).blocks("bromfiets", Powertrain.ELECTRIC, [(3, 3)], on=TODAY)
+    assert not _test_zone(tmp_path).blocks(BROMFIETS, Powertrain.ELECTRIC, [(3, 3)], on=TODAY)
 
 
 def test_a_blocked_class_is_refused_whatever_its_powertrain(tmp_path: Path) -> None:
     zones = _test_zone(tmp_path, profiles=("snorfiets", "bromfiets"), blocked=("snorfiets",))
-    assert zones.blocks("snorfiets", Powertrain.ELECTRIC, [(3, 3)], on=TODAY)
+    assert zones.blocks(SNORFIETS, Powertrain.ELECTRIC, [(3, 3)], on=TODAY)
 
 
 def test_a_class_the_rule_does_not_reach_passes(tmp_path: Path) -> None:
-    assert not _test_zone(tmp_path).blocks("brommobiel", Powertrain.COMBUSTION, [(3, 3)], on=TODAY)
+    assert not _test_zone(tmp_path).blocks(BROMMOBIEL, Powertrain.COMBUSTION, [(3, 3)], on=TODAY)
 
 
 def test_an_empty_zone_file_is_refused(tmp_path: Path) -> None:
@@ -163,6 +169,7 @@ def test_the_released_zone_file_shape_is_accepted_as_published(tmp_path: Path) -
         [zone_feature("Den Haag", zone, geometry, source="test")],
         expected_names={"Den Haag"},
         expected_ids={"Den Haag": zone.municipality_id},
+        expected_countries={"Den Haag": NETHERLANDS},
         expected_rules={
             "Den Haag": LegalZoneRule(
                 powertrain_classes=zone.powertrain_classes,
@@ -173,7 +180,95 @@ def test_the_released_zone_file_shape_is_accepted_as_published(tmp_path: Path) -
             )
         },
     )
-    assert zones.blocks("bromfiets", Powertrain.COMBUSTION, [(3, 3)], on=TODAY)
+    assert zones.blocks(BROMFIETS, Powertrain.COMBUSTION, [(3, 3)], on=TODAY)
+
+
+#: Made-up squares far apart, so each point is inside exactly one zone.
+AMSTERDAM_SQUARE = [[[[2, 2], [4, 2], [4, 4], [2, 4], [2, 2]]]]
+BRUSSELS_SQUARE = [[[[12, 12], [14, 12], [14, 14], [12, 14], [12, 12]]]]
+IN_AMSTERDAM: list[Point] = [(3.0, 3.0)]
+IN_BRUSSELS: list[Point] = [(13.0, 13.0)]
+
+
+class TestAVehicleFromAcrossTheBorder:
+    """A zone is written in its own country's class codes, and a vehicle
+    crossing into it arrives with another country's.
+
+    The graph gives a crossing vehicle the rights of the class that shares its
+    carrier on the far side, so the zone check must read the vehicle the same
+    way. Matching codes instead let a Dutch brommobiel into Brussels and a
+    Belgian klasse B moped into Amsterdam, both combustion, both unchecked.
+    """
+
+    def _zones(self, tmp_path: Path) -> LegalZones:
+        """Amsterdam and Brussels as their countries declare them, on made-up squares."""
+        declared = {
+            "Amsterdam": (NETHERLANDS, AMSTERDAM_SQUARE),
+            "Brussels-Capital Region": (BELGIUM, BRUSSELS_SQUARE),
+        }
+        features, ids, rules, countries = [], {}, {}, {}
+        for name, (country, coordinates) in declared.items():
+            zone = country.municipal_zones[name]
+            geometry = {"type": "MultiPolygon", "coordinates": coordinates}
+            features.append(zone_feature(name, zone, geometry, source="test"))
+            ids[name] = zone.municipality_id
+            rules[name] = LegalZoneRule(
+                powertrain_classes=zone.powertrain_classes,
+                allowed_powertrains=zone.allowed_powertrains,
+                blocked_classes=zone.blocked_classes,
+                valid_from=zone.valid_from,
+                valid_to=zone.valid_to,
+            )
+            countries[name] = country
+        return _load(
+            tmp_path,
+            features,
+            expected_names=set(declared),
+            expected_ids=ids,
+            expected_rules=rules,
+            expected_countries=countries,
+        )
+
+    @pytest.mark.parametrize(
+        ("country", "code", "shape"),
+        [
+            ("NL", "bromfiets", IN_AMSTERDAM),
+            ("BE", "bromfiets_klasse_b", IN_AMSTERDAM),
+            ("BE", "lichte_vierwieler", IN_BRUSSELS),
+            ("NL", "brommobiel", IN_BRUSSELS),
+        ],
+    )
+    def test_a_combustion_vehicle_is_refused_whichever_country_it_comes_from(
+        self, tmp_path: Path, country: str, code: str, shape: list[Point]
+    ) -> None:
+        vehicle = rules_for(country).vehicle(code)
+        assert self._zones(tmp_path).blocks(vehicle, Powertrain.COMBUSTION, shape, on=TODAY)
+
+    @pytest.mark.parametrize(
+        ("country", "code", "shape"),
+        [
+            ("BE", "bromfiets_klasse_b", IN_AMSTERDAM),
+            ("NL", "brommobiel", IN_BRUSSELS),
+        ],
+    )
+    def test_an_electric_one_is_admitted_as_the_local_class_would_be(
+        self, tmp_path: Path, country: str, code: str, shape: list[Point]
+    ) -> None:
+        vehicle = rules_for(country).vehicle(code)
+        assert not self._zones(tmp_path).blocks(vehicle, Powertrain.ELECTRIC, shape, on=TODAY)
+
+    def test_the_brommobiel_stays_outside_amsterdams_two_wheeler_rule(self, tmp_path: Path) -> None:
+        """Carried over as the class it is at home, not promoted to one the rule reaches."""
+        assert not self._zones(tmp_path).blocks(
+            BROMMOBIEL, Powertrain.COMBUSTION, IN_AMSTERDAM, on=TODAY
+        )
+
+    def test_a_vehicle_with_no_counterpart_in_the_zones_country_is_refused(
+        self, tmp_path: Path
+    ) -> None:
+        """No class to read it as means no rule can admit it."""
+        stranger = replace(BROMFIETS, code="bus_class", carrier=Carrier.BUS)
+        assert self._zones(tmp_path).blocks(stranger, Powertrain.ELECTRIC, IN_AMSTERDAM, on=TODAY)
 
 
 class TestARuleThatIsNotYetInForce:
@@ -188,7 +283,7 @@ class TestARuleThatIsNotYetInForce:
 
     def _blocks(self, tmp_path: Path, valid_from: str | None, on: date) -> bool:
         zones = _test_zone(tmp_path, valid_from=valid_from)
-        return zones.blocks("bromfiets", Powertrain.COMBUSTION, [(3, 3)], on=on)
+        return zones.blocks(BROMFIETS, Powertrain.COMBUSTION, [(3, 3)], on=on)
 
     def test_it_refuses_nothing_the_day_before(self, tmp_path: Path) -> None:
         assert not self._blocks(tmp_path, "2028-01-01", date(2027, 12, 31))
@@ -207,6 +302,7 @@ class TestARuleThatIsNotYetInForce:
                 [_feature(SQUARE, valid_from="the first of January")],
                 expected_names={"test zone"},
                 expected_ids={"test zone": "test-id"},
+                expected_countries={"test zone": NETHERLANDS},
                 expected_rules={
                     "test zone": LegalZoneRule(
                         powertrain_classes=frozenset({"bromfiets"}),
@@ -272,7 +368,7 @@ class TestADetailedBoundary:
 
     def _blocks(self, zones: LegalZones, shape: list[Point]) -> tuple[bool, float]:
         started = time.perf_counter()
-        blocked = zones.blocks("bromfiets", Powertrain.COMBUSTION, shape, on=TODAY)
+        blocked = zones.blocks(BROMFIETS, Powertrain.COMBUSTION, shape, on=TODAY)
         return blocked, time.perf_counter() - started
 
     def test_a_route_far_from_the_zone_is_answered_at_once(self, tmp_path: Path) -> None:

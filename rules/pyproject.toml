@@ -2,7 +2,7 @@
 name = "amgraph-rules"
 # Bumped with `RULES_VERSION` and tagged `rules-v<version>`: the tag is what a
 # consumer pins, and every release records the version it was built under.
-version = "2.1.0"
+version = "3.0.0"
 description = "Country-specific AM vehicle classes, carriers, limits and legal zones."
 requires-python = ">=3.11"
 # MIT, like the rest of the project. NOTICE.md says why the graph itself

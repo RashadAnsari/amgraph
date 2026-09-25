@@ -26,7 +26,7 @@ from typing import TypeAlias
 
 from amgraph_rules.countries import modelled_countries
 from amgraph_rules.profiles import Powertrain
-from amgraph_rules.rules import MunicipalZone
+from amgraph_rules.rules import CountryRules, MunicipalZone, VehicleClass
 
 __all__ = ["LegalZoneFileError", "LegalZoneRule", "LegalZones", "Point"]
 
@@ -64,6 +64,12 @@ class LegalZoneRule:
             return False
         return not (self.valid_to is not None and on >= self.valid_to)
 
+    def refuses(self, class_code: str, powertrain: Powertrain) -> bool:
+        """Whether this rule bars a class of its own country with this powertrain."""
+        if class_code in self.blocked_classes:
+            return True
+        return class_code in self.powertrain_classes and powertrain not in self.allowed_powertrains
+
 
 #: Municipal rules live in the country modules, with every other fact about
 #: that country's law. This module keeps the geometry engine, which is the same
@@ -72,8 +78,8 @@ class LegalZoneRule:
 #: Municipality names are the key, so two countries with a municipality of the
 #: same name would collide. That is caught here rather than discovered later,
 #: because the failure would be a Belgian by-law silently gating a Dutch trip.
-def _country_zones() -> Mapping[str, MunicipalZone]:
-    zones: dict[str, MunicipalZone] = {}
+def _country_zones() -> Mapping[str, tuple[CountryRules, MunicipalZone]]:
+    zones: dict[str, tuple[CountryRules, MunicipalZone]] = {}
     for country in modelled_countries():
         for name, zone in country.municipal_zones.items():
             if name in zones:
@@ -81,13 +87,19 @@ def _country_zones() -> Mapping[str, MunicipalZone]:
                     f"two modelled countries both have a municipality called {name!r}; "
                     "the zone file cannot tell them apart"
                 )
-            zones[name] = zone
+            zones[name] = (country, zone)
     return zones
 
 
 EXPECTED_ZONE_NAMES = frozenset(_country_zones())
 EXPECTED_ZONE_IDS: Mapping[str, str] = {
-    name: zone.municipality_id for name, zone in _country_zones().items()
+    name: zone.municipality_id for name, (_, zone) in _country_zones().items()
+}
+#: Which country declared each zone, and so whose class codes its rule is
+#: written in. Taken from the rules rather than from the file's own `country`
+#: property, so a file cannot move a by-law into another country's law.
+EXPECTED_ZONE_COUNTRIES: Mapping[str, CountryRules] = {
+    name: country for name, (country, _) in _country_zones().items()
 }
 EXPECTED_ZONE_RULES: Mapping[str, LegalZoneRule] = {
     name: LegalZoneRule(
@@ -97,7 +109,7 @@ EXPECTED_ZONE_RULES: Mapping[str, LegalZoneRule] = {
         valid_from=zone.valid_from,
         valid_to=zone.valid_to,
     )
-    for name, zone in _country_zones().items()
+    for name, (_, zone) in _country_zones().items()
 }
 
 
@@ -186,8 +198,26 @@ class Boundary:
 @dataclass(frozen=True)
 class LegalZone:
     name: str
+    country: CountryRules
     rule: LegalZoneRule
     boundaries: tuple[Boundary, ...]
+
+    def refuses(self, vehicle: VehicleClass, powertrain: Powertrain) -> bool:
+        """Whether the rule bars this vehicle, wherever it is registered.
+
+        The rule names this country's classes. A vehicle from across the border
+        is read as the class here that shares its carrier, which is the class
+        whose access the graph already gave it on every edge of this country.
+        Reading it by code instead would let it through every zone its own
+        country happens to spell differently.
+
+        No class here on its carrier means nothing to read it as, and so no
+        rule that could admit it.
+        """
+        counterparts = [c for c in self.country.classes if c.carrier is vehicle.carrier]
+        if not counterparts:
+            return True
+        return any(self.rule.refuses(c.code, powertrain) for c in counterparts)
 
 
 @dataclass(frozen=True)
@@ -200,9 +230,9 @@ class LegalZones:
     registration or engine cycle to test a transition rule against.
 
     This is the heaviest gate on a route from this graph and it refuses whole
-    trips, so it is for rules that genuinely cannot be expressed on an edge. A rule about
-    *which road* a rider belongs on is not one of those: it belongs in the
-    graph, where it costs a detour rather than a route.
+    trips, so it is for rules that genuinely cannot be expressed on an edge. A
+    rule about *which road* a rider belongs on is not one of those: it belongs
+    in the graph, where it costs a detour rather than a route.
     """
 
     zones: tuple[LegalZone, ...]
@@ -215,6 +245,7 @@ class LegalZones:
         expected_names: set[str] | frozenset[str] = EXPECTED_ZONE_NAMES,
         expected_ids: Mapping[str, str] = EXPECTED_ZONE_IDS,
         expected_rules: Mapping[str, LegalZoneRule] = EXPECTED_ZONE_RULES,
+        expected_countries: Mapping[str, CountryRules] = EXPECTED_ZONE_COUNTRIES,
     ) -> LegalZones:
         try:
             document = json.loads(path.read_text())
@@ -252,9 +283,13 @@ class LegalZones:
                     raise ValueError("legal-zone scope is not conservative")
                 if properties.get("municipality_id") != expected_ids.get(name):
                     raise ValueError(f"legal-zone municipality id does not match {name}")
+                country = expected_countries.get(name)
+                if country is None:
+                    raise ValueError(f"no modelled country declares {name}")
                 zones.append(
                     LegalZone(
                         name=name,
+                        country=country,
                         rule=rule,
                         boundaries=tuple(Boundary.of(polygon) for polygon in polygons),
                     )
@@ -270,7 +305,7 @@ class LegalZones:
 
     def blocks(
         self,
-        vehicle_code: str,
+        vehicle: VehicleClass,
         powertrain: Powertrain,
         shape: Sequence[Point],
         *,
@@ -278,8 +313,10 @@ class LegalZones:
     ) -> bool:
         """Whether a municipal rule refuses this route on the given day.
 
-        ``shape`` is the whole route as (lon, lat) points, not its waypoints: a
-        route between two points outside a zone can still pass through it.
+        ``vehicle`` is the class as its own country defines it; a zone in
+        another country reads it by carrier. ``shape`` is the whole route as
+        (lon, lat) points, not its waypoints: a route between two points outside
+        a zone can still pass through it.
 
         ``on`` has no default because the day is the caller's to know. A rule
         announced for a future date refuses nothing until that date arrives,
@@ -291,15 +328,7 @@ class LegalZones:
         points = tuple((float(lon), float(lat)) for lon, lat in shape)
         route = _bounds(points)
         for zone in self.zones:
-            rule = zone.rule
-            if not rule.in_force(on):
-                continue
-            class_is_blocked = vehicle_code in rule.blocked_classes
-            powertrain_is_blocked = (
-                vehicle_code in rule.powertrain_classes
-                and powertrain not in rule.allowed_powertrains
-            )
-            if not class_is_blocked and not powertrain_is_blocked:
+            if not zone.rule.in_force(on) or not zone.refuses(vehicle, powertrain):
                 continue
             if any(boundary.meets(points, route) for boundary in zone.boundaries):
                 return True
