@@ -1,6 +1,6 @@
 # Netherlands rules
 
-Primary sources last reviewed **2026-08-15**. The country module declares `nl-2026-08-15.1`.
+Primary sources last reviewed **2026-08-15**. The country module declares `nl-2026-08-15.2`.
 
 [Documentation](../README.md) · [Shared country rules](../country-rules.md) · [Belgium](be.md)
 
@@ -159,6 +159,17 @@ Doing only the first is a deadlock: Utrecht's OSM data carries a pre-decision
 `mofa=use_sidepath` on Amsterdamsestraatweg, Croeselaan and Vleutenseweg while
 the paths beside them correctly say `mofa=no`. Honouring both traps the
 snorfiets on a 1.5 km island in the city centre.
+
+"Every carriageway" is meant literally. Whether a way lies inside the boundary
+is not a geometric match, so the length floor that guards the matcher's
+judgements does not apply to it: a junction stub or a bridge a few metres long
+carries the stamp like the road it joins, because any one of them left out
+closes that road. The stamp also lifts a sidepath obligation mapped for one
+direction (`mofa:forward=use_sidepath`, or `bicycle:*` read through bicycle
+rules), which is the same obligation for half the carriageway; any other
+directional value still closes the class. `REQUIRED_ROUTE_CHECKS` routes every
+class into and across both city centres on each release, and one failure stops
+it.
 
 **Limit of the measure:** lid 8 reaches "het verkeersteken dat het verplichte
 fietspad aangeeft", which is the **G11 alone**. A fiets/bromfietspad is outside

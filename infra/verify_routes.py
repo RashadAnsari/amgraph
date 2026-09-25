@@ -50,6 +50,17 @@ def verify(url: str, output: Path, work: Path):
                 print(f"{country.code} {vehicle.code}: {successes}/{len(results)}", flush=True)
                 if successes / len(results) < 0.8:
                     failures.append(f"{country.code}/{vehicle.code} reachability below 80%")
+                # A ratio hides which routes failed. These name the places a
+                # country knows a deadlock would show first, and any one of
+                # them failing stops the release.
+                required_pairs = getattr(module, "REQUIRED_ROUTE_CHECKS", ())
+                required = [route(pair, vehicle) for pair in required_pairs]
+                report["countries"][country.code][vehicle.code]["required"] = required
+                for pair, result in zip(required_pairs, required, strict=True):
+                    if not result["ok"]:
+                        failures.append(
+                            f"{country.code}/{vehicle.code} required route {pair} failed"
+                        )
             for neighbour, border_pairs in getattr(module, "BORDER_ROUTE_CHECKS", {}).items():
                 target = rules_for(neighbour)
                 for vehicle in country.classes:

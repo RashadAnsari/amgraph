@@ -716,6 +716,39 @@ allows("NL-ACC-06", "nor a signed prohibition",
   { highway = "residential", moped = "use_sidepath", traffic_sign = "NL:C13",
     ["amgraph:bromfiets"] = "on_roadway" }, { false, false, true })
 
+-- A mandatory-use obligation mapped for one direction is the same statement
+-- as the plain tag, for half the carriageway. Directional keys otherwise close
+-- the class outright because one boolean cannot carry them, so without this
+-- the lift missed Stadhouderskade (`mofa:forward=use_sidepath`) and a snorfiets
+-- could not leave central Amsterdam, where NL-ACC-04 puts it on the rijbaan.
+
+allows("NL-ACC-04", "on_roadway lifts a one-direction sidepath obligation too",
+  { highway = "primary", ["mofa:forward"] = "use_sidepath",
+    ["amgraph:snorfiets"] = "on_roadway" }, { true, true, true })
+
+allows("NL-ACC-04", "including one read through bicycle rules",
+  { highway = "primary", ["bicycle:backward"] = "use_sidepath",
+    ["amgraph:snorfiets"] = "on_roadway" }, { true, true, true })
+
+allows("NL-ACC-02", "and a bromfiets's",
+  { highway = "primary", ["moped:forward"] = "use_sidepath",
+    ["amgraph:bromfiets"] = "on_roadway" }, { true, true, true })
+
+allows("NL-ACC-03", "without the overlay it still closes the class",
+  { highway = "primary", ["mofa:forward"] = "use_sidepath" }, { false, true, true })
+
+allows("NL-ACC-03", "and the overlay lifts it only for the class it names",
+  { highway = "primary", ["mofa:forward"] = "use_sidepath",
+    ["amgraph:bromfiets"] = "on_roadway" }, { false, true, true })
+
+allows("NL-ACC-03", "never any other directional value",
+  { highway = "primary", ["mofa:forward"] = "no",
+    ["amgraph:snorfiets"] = "on_roadway" }, { false, true, true })
+
+allows("NL-ACC-03", "nor a directional permission it cannot represent",
+  { highway = "primary", ["bicycle:forward"] = "use_sidepath", ["bicycle:backward"] = "yes",
+    ["amgraph:snorfiets"] = "on_roadway" }, { false, true, true })
+
 -- The overlay is matched onto OSM geometrically, so some of it lands on the
 -- wrong way. Every opening it can express is therefore bounded to the one case
 -- the law leaves no discretion in. Outside a mandatory-use closure on a

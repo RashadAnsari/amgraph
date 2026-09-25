@@ -75,7 +75,7 @@ in every country and across supported borders.
 ```toml
 [tool.uv.sources]
 amgraph-rules = { git = "https://github.com/RashadAnsari/amgraph",
-                  subdirectory = "rules", tag = "rules-v3.0.0" }
+                  subdirectory = "rules", tag = "rules-v3.1.0" }
 ```
 
 It holds the half of the access rules that has to be readable at run time as

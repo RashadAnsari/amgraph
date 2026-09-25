@@ -170,3 +170,51 @@ def test_dutch_authority_evidence_cannot_be_supplied_by_raw_osm(tmp_path):
     assert ways[3]["amgraph:country"] == "NL"
     assert ways[4]["amgraph:snorfiets"] == "yes"
     assert ways[4]["amgraph:bromfiets"] == "no"
+
+
+def test_nl_acc_04_every_carriageway_in_the_municipality_is_kept_on_the_roadway(tmp_path):
+    """NL-ACC-04 writes `on_roadway` on every carriageway inside the boundary.
+
+    The length floor exists because a geometric match onto a junction stub is
+    unreliable, and a wrong match would close a road. Whether a way lies inside
+    Amsterdam or Utrecht is not a match; it is as certain for 5 m as for 5 km.
+    Skipping the short pieces left 2,680 junction and bridge stubs in the two
+    cities carrying their pre-decision `mofa=use_sidepath`, each one closing
+    the only road the verkeersbesluit left the snorfiets, and trapped it in
+    about a square kilometre of each city centre.
+    """
+    from collections import defaultdict
+
+    from official_access import MIN_LENGTH_METRES, Match
+
+    # About 10 m and about 200 m of latitude.
+    short, long_ = 0.00009, 0.0018
+    source = tmp_path / "source.osm"
+    source.write_text(f"""<osm version="0.6">
+      <node id="1" version="1" lat="52.0" lon="5.0"/>
+      <node id="2" version="1" lat="{52.0 + short}" lon="5.0"/>
+      <node id="3" version="1" lat="{52.0 + long_}" lon="5.0"/>
+      <node id="4" version="1" lat="53.0" lon="6.0"/>
+      <node id="5" version="1" lat="{53.0 + short}" lon="6.0"/>
+      <way id="10" version="1"><nd ref="1"/><nd ref="2"/>
+        <tag k="highway" v="primary"/><tag k="mofa" v="use_sidepath"/></way>
+      <way id="11" version="1"><nd ref="1"/><nd ref="3"/>
+        <tag k="highway" v="primary"/><tag k="mofa" v="use_sidepath"/></way>
+      <way id="12" version="1"><nd ref="4"/><nd ref="5"/>
+        <tag k="highway" v="primary"/><tag k="mofa" v="use_sidepath"/></way>
+      <way id="13" version="1"><nd ref="1"/><nd ref="2"/>
+        <tag k="highway" v="cycleway"/></way>
+    </osm>""")
+    municipality = box(4.9, 51.9, 5.1, 52.1)
+    shapely.prepare(municipality)
+
+    match = Match(defaultdict(list), defaultdict(list), municipality)
+    match.apply_file(str(source), locations=True)
+
+    assert short * 111_000 < MIN_LENGTH_METRES < long_ * 111_000
+    assert match.verdict[10][0] == "on_roadway"  # the stub the floor used to skip
+    assert match.verdict[11][0] == "on_roadway"
+    # Outside the municipality the floor still guards every judgement it did.
+    assert 12 not in match.verdict
+    # A path is not a carriageway; lid 8 takes the snorfiets off it, not onto it.
+    assert 13 not in match.verdict

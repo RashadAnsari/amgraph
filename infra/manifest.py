@@ -62,7 +62,14 @@ def published_route_checks(routes: dict) -> dict:
         "passed": routes["passed"],
         "countries": {
             code: {
-                vehicle: {"attempted": result["attempted"], "successful": result["successful"]}
+                vehicle: {
+                    "attempted": result["attempted"],
+                    "successful": result["successful"],
+                    "required": {
+                        "attempted": len(result.get("required", ())),
+                        "passed": sum(bool(r["ok"]) for r in result.get("required", ())),
+                    },
+                }
                 for vehicle, result in measured.items()
             }
             for code, measured in routes["countries"].items()
@@ -106,6 +113,15 @@ def build(release: int, commit: str, work: Path) -> dict:
             r["attempted"] < 10 or r["successful"] / r["attempted"] < 0.8 for r in measured.values()
         ):
             raise ValueError("route gate failed its reachability floor")
+        # Re-checked here rather than trusted from `passed`, like the borders:
+        # the floor above is a ratio, and a ratio is what let a class ship
+        # unable to reach two city centres.
+        module = importlib.import_module(f"amgraph_rules.countries.{country.code.lower()}")
+        required = len(getattr(module, "REQUIRED_ROUTE_CHECKS", ()))
+        for vehicle, result in measured.items():
+            answers = result.get("required", ())
+            if len(answers) != required or not all(r.get("ok") is True for r in answers):
+                raise ValueError(f"required route gate failed: {country.code}/{vehicle}")
     required_borders = {}
     for country in countries:
         module = importlib.import_module(f"amgraph_rules.countries.{country.code.lower()}")

@@ -71,6 +71,7 @@ Data and fixtures, read by the build:
 | `AUDIT_TESTS` | Optional. Country-specific test modules the audit runs |
 | `SOURCE_RELEASE_FILES` | Optional. Authority release identifiers recorded in the manifest |
 | `ROUTE_CHECKS` | Domestic coordinate pairs the running router must answer |
+| `REQUIRED_ROUTE_CHECKS` | Optional. Pairs every class must answer, where `ROUTE_CHECKS` asks 80%. For places where a country knows a deadlock would show first |
 | `BORDER_ROUTE_CHECKS` | Optional. Pairs per neighbouring country code, crossing the official boundary in both directions |
 | `ACCESS_PROBES` | Class pairs whose carrier separation is checked on real cycle edges in the built tiles |
 

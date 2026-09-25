@@ -54,7 +54,7 @@ _BLUE = Plate(background="#1256B8", foreground="#FAFAF8")
 #: Bump on any change below. Kept internally rather than served, so the legal
 #: freshness gate can force a periodic re-read of the primary sources without
 #: the string reading to a rider as a build number.
-RULES_VERSION = "nl-2026-08-15.1"
+RULES_VERSION = "nl-2026-08-15.2"
 
 #: Separate carriers keep each vehicle identity stable across country boundaries.
 CLASSES: tuple[VehicleClass, ...] = (
@@ -229,6 +229,17 @@ ROUTE_CHECKS = (
     ((53.2150, 6.5600), (53.2250, 6.5800)),
     ((51.9850, 5.9150), (51.9950, 5.9300)),
     ((53.2000, 5.7900), (53.2100, 5.8050)),
+)
+
+# Routes every class must answer, where ROUTE_CHECKS only asks 80% of them. The
+# 80% let the snorfiets ship trapped in about a square kilometre of central
+# Amsterdam and of central Utrecht, answering 9 of 10: these two cities are
+# where RVV art. 5 lid 8 moves it onto the rijbaan (NL-ACC-04), and a deadlock
+# there leaves the other eight fixtures untouched.
+REQUIRED_ROUTE_CHECKS = (
+    ((52.3390, 4.8730), (52.3791, 4.9003)),  # Amsterdam Zuid to Centraal
+    ((52.1160, 5.1080), (52.0894, 5.1100)),  # Utrecht Overvecht to Centraal
+    ((52.0894, 5.1100), (52.3791, 4.9003)),  # Utrecht Centraal to Amsterdam Centraal
 )
 
 # Shared-carrier checks cross the official boundary rather than merely routing

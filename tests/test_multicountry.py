@@ -350,6 +350,11 @@ def test_a_manifest_cannot_certify_two_disconnected_country_graphs(tmp_path):
         "rules_package_version": version("amgraph-rules"),
     }
     (tmp_path / "build.json").write_text(json.dumps(stamp))
+
+    def required_pairs(country):
+        module = importlib.import_module(f"amgraph_rules.countries.{country.code.lower()}")
+        return getattr(module, "REQUIRED_ROUTE_CHECKS", ())
+
     # A fixture answer carries the bounding box of the route it found. The
     # manifest goes into the release notes verbatim, so it must publish the
     # verdict and not the geometry behind it.
@@ -362,7 +367,12 @@ def test_a_manifest_cannot_certify_two_disconnected_country_graphs(tmp_path):
         "tiles_sha256": stamp["tiles_sha256"],
         "countries": {
             c.code: {
-                v.code: {"attempted": 10, "successful": 10, "routes": [route] * 10}
+                v.code: {
+                    "attempted": 10,
+                    "successful": 10,
+                    "routes": [route] * 10,
+                    "required": [route] * len(required_pairs(c)),
+                }
                 for v in c.classes
             }
             for c in modelled_countries()
@@ -399,6 +409,22 @@ def test_a_manifest_cannot_certify_two_disconnected_country_graphs(tmp_path):
         "verdict, never the route geometry that produced it"
     )
     assert result["route_checks"]["borders"]["NL-BE/taxi"] == {"attempted": 2, "passed": 2}
+    assert result["route_checks"]["countries"]["NL"]["snorfiets"]["required"] == {
+        "attempted": 3,
+        "passed": 3,
+    }
+    # 80% of the fixtures is a floor for the country; a required route is not a
+    # sample, and one failure is the release failing.
+    routes["countries"]["NL"]["snorfiets"]["required"][0] = {"ok": False, "error": "no path"}
+    (tmp_path / "routes.json").write_text(json.dumps(routes))
+    with pytest.raises(ValueError, match="required route"):
+        manifest.build(1, "test", tmp_path)
+    routes["countries"]["NL"]["snorfiets"]["required"].pop()
+    (tmp_path / "routes.json").write_text(json.dumps(routes))
+    with pytest.raises(ValueError, match="required route"):
+        manifest.build(1, "test", tmp_path)
+    routes["countries"]["NL"]["snorfiets"]["required"] = [route] * 3
+    (tmp_path / "routes.json").write_text(json.dumps(routes))
     del stamp["countries"]["BE"]
     (tmp_path / "build.json").write_text(json.dumps(stamp))
     with pytest.raises(ValueError, match="supported country set"):

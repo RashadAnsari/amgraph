@@ -792,8 +792,15 @@ function M.classes(tags, country)
   end
 
   for index, class in ipairs(country.classes) do
+    -- The one directional value the overlay can speak for. `on_roadway` says
+    -- the carriageway is where this class belongs, which answers a sidepath
+    -- obligation whichever direction it was mapped for; see the roadway
+    -- branch of classes_from_tags for why it lifts that and nothing else.
+    -- Skipping a closure here cannot open anything that branch did not.
+    local lifted = class.overlay ~= nil and tags[class.overlay] == "on_roadway"
     for _, key in ipairs(class.closes_class_keys) do
-      if tags[key] ~= nil then
+      local value = tags[key]
+      if value ~= nil and not (lifted and value == "use_sidepath") then
         classes[index] = false
       end
     end

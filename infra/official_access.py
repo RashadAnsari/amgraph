@@ -469,7 +469,22 @@ class Match(osmium.SimpleHandler):
         length = sum(metres(a, b) for a, b in pairwise(points))
         self.seen += 1
 
+        # RVV art. 5 lid 8 is decided by where the way lies, not by a match, so
+        # the length floor below has nothing to guard here: a 5 m junction stub
+        # is as certainly inside Amsterdam as the 5 km road it joins. Letting the
+        # floor skip it left the stub carrying its pre-decision use_sidepath,
+        # which closed the one road the verkeersbesluit left the snorfiets.
+        middle = points[len(points) // 2]
+        art5_lid8 = (
+            want_road
+            and self.snorfiets_roadway is not None
+            and bool(shapely.contains_xy(self.snorfiets_roadway, middle[1], middle[0]))
+        )
+
         if length < MIN_LENGTH_METRES:
+            if art5_lid8:
+                self.verdict[w.id] = ("on_roadway", None)
+                self.counts["snorfiets kept on the roadway under art. 5 lid 8"] += 1
             return
 
         tries, hits, snor_votes, brom_votes = self._vote(points, self.grid, want_road)
@@ -504,11 +519,9 @@ class Match(osmium.SimpleHandler):
         # and the verkeersbesluit is what settles it. Utrecht is the clearest
         # case: with both honoured, a snorfiets could not leave a 1.5 km island
         # in the city centre.
-        if self.snorfiets_roadway is not None:
-            middle = points[len(points) // 2]
-            if shapely.contains_xy(self.snorfiets_roadway, middle[1], middle[0]):
-                verdict[0] = "on_roadway"
-                self.counts["snorfiets kept on the roadway under art. 5 lid 8"] += 1
+        if art5_lid8:
+            verdict[0] = "on_roadway"
+            self.counts["snorfiets kept on the roadway under art. 5 lid 8"] += 1
         for index in (0, 1):
             if verdict[index] is not None or not (closes[index] or sidepath_tag[index]):
                 continue
