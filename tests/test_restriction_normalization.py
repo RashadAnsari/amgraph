@@ -71,6 +71,36 @@ def test_only_u_turn_uses_valhallas_equivalent_only_to_member_semantics() -> Non
     }
 
 
+def test_a_proposed_restriction_is_enforced_before_it_takes_effect() -> None:
+    # Relation 17834348 at Rotonde De Tram, a turbo roundabout on the N215
+    # still under construction, which blocked the 2026-10-05 build.
+    assert conservative_restriction_tags(
+        {"type": "restriction", "proposed:restriction": "only_straight_on"}
+    ) == {"type": "restriction", "restriction": "only_straight_on"}
+    assert conservative_restriction_tags(
+        {"type": "restriction", "proposed:restriction:moped": "no_left_turn"}
+    ) == {"type": "restriction", "restriction": "no_left_turn"}
+
+
+def test_a_proposed_restriction_cannot_quietly_replace_the_current_one() -> None:
+    with pytest.raises(ValueError, match="conflicting"):
+        conservative_restriction_tags(
+            {
+                "type": "restriction",
+                "restriction": "no_left_turn",
+                "proposed:restriction": "only_straight_on",
+            }
+        )
+
+
+@pytest.mark.parametrize("prefix", ["disused", "was", "removed", "demolished"])
+def test_an_ended_restriction_alone_still_stops_the_build(prefix: str) -> None:
+    with pytest.raises(ValueError, match="no concrete"):
+        conservative_restriction_tags(
+            {"type": "restriction", f"{prefix}:restriction": "no_left_turn"}
+        )
+
+
 def test_unknown_or_conflicting_restrictions_stop_the_build() -> None:
     with pytest.raises(ValueError, match="no concrete"):
         conservative_restriction_tags({"type": "restriction"})

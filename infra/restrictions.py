@@ -46,9 +46,15 @@ def conservative_restriction_tags(source: Mapping[str, str]) -> dict[str, str]:
 
     codes: set[str] = set()
     restriction_keys: list[str] = []
-    for key, value in tags.items():
+    for tagged_key, value in tags.items():
+        # A `proposed:` restriction is one that is planned, often for a road
+        # still under construction, and Valhalla ignores it. Enforcing it now
+        # can only forbid a turn early. Other lifecycle prefixes such as
+        # `disused:` or `was:` say a rule has ended, so they are not read, and
+        # a relation carrying nothing else still stops the build.
+        key = tagged_key.removeprefix("proposed:")
         if key == "restriction" or key.startswith("restriction:"):
-            restriction_keys.append(key)
+            restriction_keys.append(tagged_key)
             if key in {"restriction:probable", "restriction:type"}:
                 continue
             if key.endswith(":conditional"):
