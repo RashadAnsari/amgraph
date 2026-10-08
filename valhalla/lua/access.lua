@@ -29,10 +29,9 @@ local M = {}
 -- (baldr/graphconstants.h), which nodes_proc clears when a class may not pass.
 --
 -- Five, and the count is the ceiling on how many classes a country may have.
--- The Netherlands uses four. A country whose law tells two classes apart on
--- the cycle network, where the Dutch law does not, needs a carrier for each.
--- `taxi` and `bus` read access bits of their own and are otherwise unused here
--- — both derive from AutoCost with kTaxiAccess and kBusAccess respectively,
+-- The Netherlands uses all five, so a later country maps each of its classes
+-- onto the Dutch class it matches. `taxi` and `bus` read access bits of their
+-- own — both derive from AutoCost with kTaxiAccess and kBusAccess respectively,
 -- verified against the 3.8.3 source. `auto` is deliberately left alone: it is
 -- the mode everything else in the toolchain assumes when it wants to know
 -- whether a road exists at all.

@@ -237,7 +237,7 @@ class DutchRules:
         #: themselves. See test_the_consulted_key_list_still_matches_the_rules.
         self.consulted = list(access.consulted_keys(self._country).values())
 
-    def __call__(self, tags: dict[str, str]) -> tuple[bool, bool, bool]:
+    def __call__(self, tags: dict[str, str]) -> tuple[bool, bool, bool, bool]:
         # NL-DEF-03 gives the pedelec the bromfiets's access rights. Its
         # separate cross-country carrier must preserve that answer on every
         # observed combination, in both directions.
@@ -248,6 +248,7 @@ class DutchRules:
             flags["moped_forward"] == "true",
             flags["motorcycle_forward"] == "true",
             flags["truck_forward"] == "true",
+            flags["bus_forward"] == "true",
         )
 
 
@@ -316,14 +317,40 @@ def test_no_tag_combination_in_the_netherlands_breaks_a_rule(rules) -> None:
     failures: list[str] = []
     for combo, count in combos.items():
         tags = {k: v for k, v in zip(CONSULTED, combo, strict=True) if v is not None}
-        snorfiets, bromfiets, brommobiel = rules(tags)
+        snorfiets, bromfiets, brommobiel, gehandicapt = rules(tags)
 
-        # RVV art. 42 admits only motorvoertuigen, and no bromfiets is one.
+        # RVV art. 42 admits only motorvoertuigen, and neither a bromfiets nor a
+        # gehandicaptenvoertuig is one.
         barred = (
             tags.get("highway") in {"motorway", "motorway_link"} or tags.get("motorroad") == "yes"
         )
-        if barred and (snorfiets or bromfiets or brommobiel):
+        if barred and (snorfiets or bromfiets or brommobiel or gehandicapt):
             failures.append(f"{tags} on an autosnelweg or autoweg ({count:,} ways)")
+
+        # NL-ACC-10. A gehandicaptenvoertuig "geen bromfiets is", so nothing
+        # written for mopeds may open a way closed to traffic in general. This
+        # is the check the Bromfiets setting failed on 452 ways.
+        blanket = any(
+            tags.get(k) is not None and tags.get(k) not in {"yes", "designated", "permissive"}
+            for k in ("access", "vehicle")
+        )
+        if blanket and gehandicapt:
+            failures.append(f"{tags} opened a closed way to a gehandicapt ({count:,} ways)")
+
+        # NL-ACC-06. Off the cycle network a moped or snorfiets refusal is how
+        # a C13 or C15 is usually mapped, and both bind it.
+        refused = any(
+            tags.get(k) is not None
+            and tags.get(k) not in {"yes", "designated", "permissive", "use_sidepath"}
+            for k in ("moped", "mofa")
+        )
+        if refused and tags.get("highway") not in {"cycleway", "path"} and gehandicapt:
+            failures.append(f"{tags} ignored a moped refusal on a road ({count:,} ways)")
+
+        signs = (tags.get("traffic_sign") or "").replace(",", ";").split(";")
+        for sign in ("C1", "C9", "C13", "C15", "G7", "G9"):
+            if f"NL:{sign}" in signs and gehandicapt:
+                failures.append(f"{tags} ignored {sign} ({count:,} ways)")
 
         # Art. 6 lid 3. A brommobiel is wider than 0.75 m, so it belongs on the
         # rijbaan and may never be routed onto cycle infrastructure.
@@ -357,6 +384,10 @@ def test_no_tag_combination_in_the_netherlands_breaks_a_rule(rules) -> None:
             register_opened = tags.get("amgraph:snorfiets") == "yes"
             if bromfiets:
                 failures.append(f"{tags} put a bromfiets on an unsigned cycleway ({count:,} ways)")
+            if gehandicapt:
+                failures.append(
+                    f"{tags} put a gehandicaptenvoertuig on an unsigned cycleway ({count:,} ways)"
+                )
             if snorfiets and not register_opened:
                 failures.append(f"{tags} opened an unsigned cycleway ({count:,} ways)")
 

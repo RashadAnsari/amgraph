@@ -53,6 +53,32 @@ local country = {
       -- cycle path.
       cycle_infrastructure = false,
     },
+    {
+      -- NL-DEF-06, NL-ACC-10. Art. 7 lets it choose between the trottoir, the
+      -- voetpad, the fietspad, the fiets/bromfietspad and the rijbaan, so no
+      -- sidepath obligation binds it and no overlay is needed.
+      code = "gehandicaptenvoertuig",
+      carrier = "bus",
+
+      -- OSM has no key for it, and borrowing `moped` would be the error this
+      -- class exists to avoid: art. 1 defines it as a vehicle that "geen
+      -- bromfiets is", so a road closed to traffic except bromfietsen stays
+      -- closed to it. 452 Dutch ways are tagged that way, measured 2026-10-08.
+      access_keys = {},
+
+      -- On a road, `moped=no` and `mofa=no` are what a C13 or C15 leaves when
+      -- it is mapped as tags rather than as the sign, and both bind this class.
+      -- They can also mean something that does not (a moped-only by-law, a
+      -- C14), and closing then costs a detour, never a fine.
+      roadway_refusal_keys = { "moped", "mofa" },
+
+      -- On a cycle path a moped permission means a G12a: NL-ACC-02 admits a
+      -- bromfiets to that sign and to no other, and the Netherlands marks it
+      -- `designated` 68,244 times. A G12a admits this class. `mofa` is not
+      -- evidence, because a snorfiets permission is also what a G13 carries.
+      cycle_evidence_keys = { "moped" },
+      cycle_infrastructure = true,
+    },
   },
 
   -- NL-ACC-01. RVV 1990 art. 42: use of an autosnelweg or autoweg is permitted
@@ -76,18 +102,20 @@ local country = {
   cycle_signs = {
     -- NL-ACC-02, NL-ACC-03. A fiets/bromfietspad: both two-wheeled classes
     -- belong here, and both are obliged to use it.
-    { sign = "G12a", admits = { snorfiets = true, bromfiets = true } },
+    -- NL-ACC-10: art. 7 names the fiets/bromfietspad for a gehandicaptenvoertuig.
+    { sign = "G12a", admits = { snorfiets = true, bromfiets = true, gehandicaptenvoertuig = true } },
 
     -- NL-ACC-03. A verplicht fietspad: bicycle rules, so the snorfiets belongs
-    -- and the bromfiets does not.
-    { sign = "G11", admits = { snorfiets = true, bromfiets = false } },
+    -- and the bromfiets does not. NL-ACC-10: art. 7 names the fietspad for a
+    -- gehandicaptenvoertuig.
+    { sign = "G11", admits = { snorfiets = true, bromfiets = false, gehandicaptenvoertuig = true } },
 
     -- An onverplicht fietspad. RVV art. 5 lid 3 admits a snorfiets, but a
     -- combustion-engined one only with the engine off, and the graph is built
     -- long before the rider picks a powertrain. Excluded for everyone: because
     -- using a G13 path is optional, never using it cannot make a route illegal,
     -- only longer.
-    { sign = "G13", admits = { snorfiets = false, bromfiets = false } },
+    { sign = "G13", admits = { snorfiets = false, bromfiets = false, gehandicaptenvoertuig = false } },
   },
 
   -- No sign in the data. 84,867 of the country's 258,625 cycleways carry
@@ -96,7 +124,7 @@ local country = {
   -- branch wins. (The 38% quoted here before was a different measurement:
   -- cycleways carrying no `moped` tag, which is a larger set because a way can
   -- be signed without one.)
-  unsigned_cycleway = { snorfiets = false, bromfiets = false },
+  unsigned_cycleway = { snorfiets = false, bromfiets = false, gehandicaptenvoertuig = false },
 
   -- NL-ACC-06. RVV 1990 bijlage I, current text read 2026-08-14.
   -- Art. 2a makes motor-vehicle signs apply to a brommobiel; art. 2b makes
@@ -178,4 +206,25 @@ for _, entry in ipairs(country.closed_signs) do
   entry.bars.speed_pedelec = entry.bars.bromfiets
 end
 country.unsigned_cycleway.speed_pedelec = country.unsigned_cycleway.bromfiets
+
+-- NL-ACC-06 for the gehandicaptenvoertuig, which follows neither the bromfiets
+-- column nor the brommobiel one. C9, C13 and C15 name it in their captions. C1
+-- names "voertuigen", which art. 1 says it is. C6, C10 and C12 bind
+-- motorvoertuigen, which art. 1 says it is not, and C14 binds only one "zonder
+-- motor". Every other sign bars it for the reason it bars the other classes.
+--
+-- Both lists are written out, and a sign in neither stops the build: a sign
+-- added to closed_signs must be decided for this class, not inherited.
+local gehandicapt_barred = {
+  C1 = true, C9 = true, C13 = true, C15 = true,
+  C17 = true, C18 = true, C19 = true, C20 = true, C21 = true, C22 = true,
+  G1 = true, G3 = true, G7 = true, G9 = true,
+  D1 = true, D2 = true, D4 = true, D5 = true, D6 = true, D7 = true, F7 = true,
+}
+local gehandicapt_not_barred = { C6 = true, C10 = true, C12 = true, C14 = true }
+for _, entry in ipairs(country.closed_signs) do
+  assert(gehandicapt_barred[entry.sign] or gehandicapt_not_barred[entry.sign],
+    "sign " .. entry.sign .. " is not decided for the gehandicaptenvoertuig")
+  entry.bars.gehandicaptenvoertuig = gehandicapt_barred[entry.sign] or false
+end
 return country

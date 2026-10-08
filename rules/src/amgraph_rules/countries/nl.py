@@ -54,7 +54,7 @@ _BLUE = Plate(background="#1256B8", foreground="#FAFAF8")
 #: Bump on any change below. Kept internally rather than served, so the legal
 #: freshness gate can force a periodic re-read of the primary sources without
 #: the string reading to a rider as a build number.
-RULES_VERSION = "nl-2026-08-15.2"
+RULES_VERSION = "nl-2026-10-08.1"
 
 #: Separate carriers keep each vehicle identity stable across country boundaries.
 CLASSES: tuple[VehicleClass, ...] = (
@@ -98,13 +98,32 @@ CLASSES: tuple[VehicleClass, ...] = (
         powertrain_matters=False,
         names={"en": "Microcar", "nl": "Brommobiel"},
     ),
+    # NL-DEF-06, NL-ACC-10. A Canta without a kenteken is the vehicle this
+    # exists for. WVW 1994 art. 36 exempts it from registration, so it has no
+    # plate to draw, and its construction ceiling is the definition's 45.
+    # Arts. 20 and 21 give it the bromfiets's 30 and 40 on the fietspad as well
+    # as on the fiets/bromfietspad.
+    VehicleClass(
+        code="gehandicaptenvoertuig",
+        carrier=Carrier.BUS,
+        construction_limit_kph=45,
+        speeds=ClassSpeeds(roadway=45, cycle_path_built_up=30, cycle_path_rural=40),
+        plate=None,
+        marker="microcar",
+        powertrain_matters=True,
+        names={"en": "Mobility car", "nl": "Gehandicaptenvoertuig"},
+    ),
 )
 
-#: The most restricted of the four on the cycle network: a bromfiets may use a
-#: G12a and nothing else. See docs/countries/nl.md NL-ACC-02 and CountryRules.
+#: The most restricted on the cycle network: a bromfiets may use a G12a and
+#: nothing else. See docs/countries/nl.md NL-ACC-02 and CountryRules.
 DEFAULT_CLASS = "bromfiets"
 
-_EMISSION_TWO_WHEELERS = frozenset({"snorfiets", "bromfiets", "speed_pedelec"})
+#: The gehandicaptenvoertuig is here although none of the by-laws below names
+#: it. Each was read as a brom- and snorfiets measure and none says whether it
+#: reaches a vehicle that "geen bromfiets is", so a combustion one is refused
+#: rather than assumed exempt. See docs/countries/nl.md NL-ACC-10.
+_EMISSION_CLASSES = frozenset({"snorfiets", "bromfiets", "speed_pedelec", "gehandicaptenvoertuig"})
 
 #: Municipal rules that turn on a vehicle fact the request does not carry.
 #:
@@ -139,20 +158,20 @@ _EMISSION_TWO_WHEELERS = frozenset({"snorfiets", "bromfiets", "speed_pedelec"})
 MUNICIPAL_ZONES: dict[str, MunicipalZone] = {
     "Amsterdam": MunicipalZone(
         municipality_id="GM0363",
-        powertrain_classes=_EMISSION_TWO_WHEELERS,
+        powertrain_classes=_EMISSION_CLASSES,
         allowed_powertrains=frozenset({Powertrain.ELECTRIC}),
         blocked_classes=frozenset(),
         roadway_only_classes=frozenset({"snorfiets"}),
     ),
     "Den Haag": MunicipalZone(
         municipality_id="GM0518",
-        powertrain_classes=_EMISSION_TWO_WHEELERS,
+        powertrain_classes=_EMISSION_CLASSES,
         allowed_powertrains=frozenset({Powertrain.ELECTRIC}),
         blocked_classes=frozenset(),
     ),
     "Nijmegen": MunicipalZone(
         municipality_id="GM0268",
-        powertrain_classes=_EMISSION_TWO_WHEELERS,
+        powertrain_classes=_EMISSION_CLASSES,
         allowed_powertrains=frozenset({Powertrain.ELECTRIC}),
         blocked_classes=frozenset(),
     ),
@@ -179,7 +198,7 @@ MUNICIPAL_ZONES: dict[str, MunicipalZone] = {
     # this router may act on.
     "Utrecht": MunicipalZone(
         municipality_id="GM0344",
-        powertrain_classes=_EMISSION_TWO_WHEELERS,
+        powertrain_classes=_EMISSION_CLASSES,
         allowed_powertrains=frozenset({Powertrain.ELECTRIC}),
         blocked_classes=frozenset(),
         roadway_only_classes=frozenset({"snorfiets"}),
@@ -242,4 +261,10 @@ REQUIRED_ROUTE_CHECKS = (
     ((52.0894, 5.1100), (52.3791, 4.9003)),  # Utrecht Centraal to Amsterdam Centraal
 )
 
-ACCESS_PROBES = (("snorfiets", "bromfiets"), ("speed_pedelec", "brommobiel"))
+# The third pair proves the bus carrier on a verplicht fietspad, where a
+# gehandicaptenvoertuig may ride and a bromfiets may not.
+ACCESS_PROBES = (
+    ("snorfiets", "bromfiets"),
+    ("speed_pedelec", "brommobiel"),
+    ("gehandicaptenvoertuig", "bromfiets"),
+)
