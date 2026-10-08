@@ -30,8 +30,13 @@ means does.
 5. **Roadway**: open unless something says otherwise, with the country's
    mandatory-use rule and the provision that returns the rider to the
    carriageway when no usable path is established. A class OSM has no key for
-   is closed by a refusal under another class's key that, on a road, is the
-   trace of a sign binding it too (`roadway_refusal_keys`).
+   is closed by a refusal under another class's key, or another class's
+   authority verdict, that could be the trace of a sign binding it too
+   (`roadway_refusal_keys`, `roadway_refusal_overlays`; `refusal_keys` on the
+   cycle network as well). Such a class also takes the restriction, never the
+   exemption, of a one-way stated for another vehicle
+   (`oneway_restriction_keys`), and may name barriers its borrowed carrier
+   would pass but it may not (`impassable_barriers`).
 6. **The country's authority overlay**, where it has one.
 7. **Conditional, directional and lane-scoped tags**, which close the affected
    class because the graph has no clock and cannot select a lane.

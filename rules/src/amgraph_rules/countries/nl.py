@@ -54,7 +54,7 @@ _BLUE = Plate(background="#1256B8", foreground="#FAFAF8")
 #: Bump on any change below. Kept internally rather than served, so the legal
 #: freshness gate can force a periodic re-read of the primary sources without
 #: the string reading to a rider as a build number.
-RULES_VERSION = "nl-2026-10-08.1"
+RULES_VERSION = "nl-2026-10-08.2"
 
 #: Separate carriers keep each vehicle identity stable across country boundaries.
 CLASSES: tuple[VehicleClass, ...] = (
@@ -111,7 +111,10 @@ CLASSES: tuple[VehicleClass, ...] = (
         plate=None,
         marker="microcar",
         powertrain_matters=True,
-        names={"en": "Mobility car", "nl": "Gehandicaptenvoertuig"},
+        # The label carries the condition, because the same Canta registered
+        # as a bromfiets is a brommobiel (NL-DEF-06) and must never be routed
+        # onto a fietspad. A rider picks by what is on the back of the car.
+        names={"en": "Mobility car, no plate", "nl": "Gehandicaptenvoertuig zonder kenteken"},
     ),
 )
 

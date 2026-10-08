@@ -66,17 +66,44 @@ local country = {
       -- closed to it. 452 Dutch ways are tagged that way, measured 2026-10-08.
       access_keys = {},
 
-      -- On a road, `moped=no` and `mofa=no` are what a C13 or C15 leaves when
-      -- it is mapped as tags rather than as the sign, and both bind this class.
-      -- They can also mean something that does not (a moped-only by-law, a
-      -- C14), and closing then costs a detour, never a fine.
-      roadway_refusal_keys = { "moped", "mofa" },
+      -- Every tag below closes it where the tag could be the trace of a sign
+      -- that binds it, even where the same tag usually means one that does
+      -- not. Each costs a detour when it is wrong; the other reading costs a
+      -- fine. See docs/countries/nl.md NL-ACC-10.
+      --
+      -- Off the cycle network: `moped=no` and `mofa=no` are what a C13 or C15
+      -- leaves when mapped as tags. `motor_vehicle=no` and `motorcar=no` are
+      -- usually a C12 or C6, which do not bind it, but OSM's motor_vehicle
+      -- covers mopeds, so either tag can also be a loosely mapped C13.
+      roadway_refusal_keys = { "moped", "mofa", "motor_vehicle", "motorcar" },
+
+      -- The road authority's verdict that mopeds may not use a carriageway,
+      -- which may be a prohibition binding this class as well as a sidepath
+      -- obligation binding only them.
+      roadway_refusal_overlays = { "amgraph:bromfiets", "amgraph:snorfiets" },
+
+      -- Everywhere: a bicycle refusal can be a C14 or a C15, on a path as on a
+      -- road, and the C15 binds it.
+      refusal_keys = { "bicycle" },
 
       -- On a cycle path a moped permission means a G12a: NL-ACC-02 admits a
       -- bromfiets to that sign and to no other, and the Netherlands marks it
       -- `designated` 68,244 times. A G12a admits this class. `mofa` is not
-      -- evidence, because a snorfiets permission is also what a G13 carries.
+      -- evidence, because a snorfiets permission is also what a G13 carries,
+      -- and a refusal of a vehicle a G12a admits means the path is not one.
       cycle_evidence_keys = { "moped" },
+      cycle_evidence_vetoes = { "bicycle", "mofa" },
+
+      -- A one-way mapped for another vehicle may be the only trace of a C2,
+      -- C3 or C4. Its exemption (`no`) names that vehicle and not this one.
+      -- It rides the bus carrier, and upstream passes a bus where these
+      -- stand. Both are built to stop everything else.
+      impassable_barriers = { bus_trap = true, sump_buster = true },
+
+      oneway_restriction_keys = {
+        "oneway:bicycle", "oneway:mofa", "oneway:moped",
+        "oneway:motor_vehicle", "oneway:motorcar",
+      },
       cycle_infrastructure = true,
     },
   },

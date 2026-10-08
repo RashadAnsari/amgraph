@@ -1,7 +1,7 @@
 # Netherlands rules
 
 Primary sources last reviewed **2026-10-08** for the gehandicaptenvoertuig and
-**2026-08-15** for everything else. The country module declares `nl-2026-10-08.1`.
+**2026-08-15** for everything else. The country module declares `nl-2026-10-08.2`.
 
 [Documentation](../README.md) · [Shared country rules](../country-rules.md)
 
@@ -364,8 +364,11 @@ uitgerust met een motor" 45 on the rijbaan and 30 or 40 on the
 fiets/bromfietspad, and add "op het fietspad, voor de hier bedoelde
 gehandicaptenvoertuigen, 30 km per uur" (40 outside the bebouwde kom).
 
-**No OSM key names it**, so the class reads the general keys and two others as
-evidence:
+**No OSM key names it.** Every tag rule below is a closure except the one
+inference in item 4, and each closure is taken wherever a tag *could* be the
+trace of a sign that binds it, even where the same tag usually means one that
+does not. A wrong closure costs a detour; a wrong opening costs a fine. Because
+art. 7 obliges it onto nothing, no set of closures can leave it nowhere lawful.
 
 1. **A moped exemption does not reach it.** A road tagged `vehicle=no` or
    `access=destination` with `moped=yes` is closed to traffic except
@@ -373,19 +376,37 @@ evidence:
    that way, measured against the openstreetmap.fr extract on 2026-10-08. It is
    why no existing class can stand in for this one: the bromfiets would be
    routed through them.
-2. **Off the cycle network, a moped or mofa refusal closes it.** A C13 or C15
-   is often mapped as the `moped=no` and `mofa=no` it implies rather than as a
-   sign, and both bind it. The same tags sometimes mean a rule that does not,
-   and then the cost is a detour. `use_sidepath` is the exception, for the reason
-   above. At a node, where the graph cannot tell a road from a path, the
-   refusal applies everywhere.
-3. **On a cycleway with no mapped sign, a moped permission opens it.** NL-ACC-02
-   admits a bromfiets to a G12a and nowhere else on the cycle network, so a
-   cycleway open to mopeds is a G12a, which admits this class. A snorfiets
-   permission is not evidence: a G13 carries one too.
-
-A one-way exemption for bromfietsen or snorfietsen (`oneway:moped=no`) does not
-reach it either, so it is held to the one-way.
+2. **Off the cycle network, a refusal for any vehicle near it closes it.**
+   `moped`, `mofa`: a C13 or C15 mapped as the tags it implies, and both bind
+   it. `motor_vehicle`, `motorcar`: usually a C12 or C6, which do not bind it
+   (NL-DEF-05), but OSM's `motor_vehicle` covers mopeds, so the tag can also be
+   a loosely mapped C13, and the tag cannot say which. The mapped sign itself is
+   read exactly: C6 and C12 as `traffic_sign` leave it open. `use_sidepath` is
+   the exception for every key, because it obliges the vehicle it names and
+   nobody else. On a cycle path these tags are the path's own nature and are
+   not read.
+3. **A bicycle refusal closes it everywhere**, paths included: it can be a C14,
+   which does not bind it, or a C15, which does.
+4. **On a cycleway with no mapped sign, a moped permission opens it**, unless
+   the same way refuses bicycles or snorfietsen. NL-ACC-02 admits a bromfiets
+   to a G12a and nowhere else on the cycle network, so a cycleway open to
+   mopeds is a G12a, which admits this class; a G12a admits bicycles and
+   snorfietsen too, so a way refusing either is not one. A snorfiets permission
+   is never evidence: a G13 carries one too.
+5. **The authority's moped verdict on a carriageway closes it.** `amgraph:bromfiets=no`
+   or `amgraph:snorfiets=no` off the cycle network does not say whether a
+   sidepath obliges mopeds, which binds nobody else, or a prohibition forbids
+   them, which may bind this class too. `on_roadway` places a snorfiets on the
+   road and says nothing against anybody.
+6. **A one-way for any nearby vehicle holds it.** `oneway:bicycle`, `oneway:mofa`,
+   `oneway:moped`, `oneway:motor_vehicle` and `oneway:motorcar` may be the only
+   trace of a C2, C3 or C4, so their restriction binds it; their exemption
+   (`no`) is an onderbord naming that vehicle and does not. A timed one closes
+   both directions.
+7. **At a node**, where a road and a path cannot be told apart, every refusal
+   above applies. A bus trap and a sump buster close it: it rides the bus
+   carrier, and upstream Valhalla passes a bus over a sump buster and does not
+   model a bus trap, so it would inherit a permission meant for buses.
 
 Signs: see the gehandicaptenvoertuig entries in NL-ACC-06. The difference from
 the brommobiel cuts both ways, which is why neither existing four-wheeled answer

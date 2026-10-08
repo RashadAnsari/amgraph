@@ -215,6 +215,8 @@ CONSULTED = [
     "oneway:moped:conditional",
     "oneway:motor_vehicle:conditional",
     "oneway:motorcar:conditional",
+    "oneway:bicycle",
+    "oneway:bicycle:conditional",
     "traffic_sign",
     "traffic_sign:forward",
     "traffic_sign:backward",
@@ -238,6 +240,10 @@ class DutchRules:
         self.consulted = list(access.consulted_keys(self._country).values())
 
     def __call__(self, tags: dict[str, str]) -> tuple[bool, bool, bool, bool]:
+        return self.flags(tags)[:4]
+
+    def flags(self, tags: dict[str, str]) -> tuple[bool, bool, bool, bool, bool]:
+        """The forward answer per class, and the gehandicaptenvoertuig's backward one."""
         # NL-DEF-03 gives the pedelec the bromfiets's access rights. Its
         # separate cross-country carrier must preserve that answer on every
         # observed combination, in both directions.
@@ -249,6 +255,7 @@ class DutchRules:
             flags["motorcycle_forward"] == "true",
             flags["truck_forward"] == "true",
             flags["bus_forward"] == "true",
+            flags["bus_backward"] == "true",
         )
 
 
@@ -317,7 +324,7 @@ def test_no_tag_combination_in_the_netherlands_breaks_a_rule(rules) -> None:
     failures: list[str] = []
     for combo, count in combos.items():
         tags = {k: v for k, v in zip(CONSULTED, combo, strict=True) if v is not None}
-        snorfiets, bromfiets, brommobiel, gehandicapt = rules(tags)
+        snorfiets, bromfiets, brommobiel, gehandicapt, gehandicapt_back = rules.flags(tags)
 
         # RVV art. 42 admits only motorvoertuigen, and neither a bromfiets nor a
         # gehandicaptenvoertuig is one.
@@ -337,15 +344,32 @@ def test_no_tag_combination_in_the_netherlands_breaks_a_rule(rules) -> None:
         if blanket and gehandicapt:
             failures.append(f"{tags} opened a closed way to a gehandicapt ({count:,} ways)")
 
-        # NL-ACC-06. Off the cycle network a moped or snorfiets refusal is how
-        # a C13 or C15 is usually mapped, and both bind it.
-        refused = any(
-            tags.get(k) is not None
-            and tags.get(k) not in {"yes", "designated", "permissive", "use_sidepath"}
-            for k in ("moped", "mofa")
-        )
-        if refused and tags.get("highway") not in {"cycleway", "path"} and gehandicapt:
-            failures.append(f"{tags} ignored a moped refusal on a road ({count:,} ways)")
+        # NL-ACC-10. Off the cycle network, any refusal that could trace a sign
+        # binding it closes it, and so does the authority's moped verdict on a
+        # carriageway. A bicycle refusal closes it everywhere.
+        def refuses(key: str, tags: dict[str, str] = tags) -> bool:
+            return tags.get(key) is not None and tags.get(key) not in {
+                "yes",
+                "designated",
+                "permissive",
+                "use_sidepath",
+            }
+
+        off_network = tags.get("highway") not in {"cycleway", "path"}
+        roadway_refusal = any(
+            refuses(k) for k in ("moped", "mofa", "motor_vehicle", "motorcar")
+        ) or any(tags.get(k) == "no" for k in ("amgraph:bromfiets", "amgraph:snorfiets"))
+        if off_network and roadway_refusal and gehandicapt:
+            failures.append(f"{tags} ignored a refusal on a road ({count:,} ways)")
+        if refuses("bicycle") and gehandicapt:
+            failures.append(f"{tags} ignored a bicycle refusal ({count:,} ways)")
+
+        # A one-way stated for any vehicle holds it, whatever exemption names
+        # another vehicle.
+        oneway_keys = ("oneway:bicycle", "oneway:mofa", "oneway:moped")
+        oneway_keys += ("oneway:motor_vehicle", "oneway:motorcar")
+        if any(tags.get(k) in {"yes", "true", "1"} for k in oneway_keys) and gehandicapt_back:
+            failures.append(f"{tags} let it ride against a one-way ({count:,} ways)")
 
         signs = (tags.get("traffic_sign") or "").replace(",", ";").split(";")
         for sign in ("C1", "C9", "C13", "C15", "G7", "G9"):

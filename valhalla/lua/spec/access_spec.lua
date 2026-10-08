@@ -968,8 +968,42 @@ equals("NL-ACC-10", "a moped sidepath obligation does not bind it: art. 7 oblige
 equals("NL-ACC-10", "nor does a bicycle one",
   gehandicapt({ highway = "secondary", maxspeed = "50", bicycle = "use_sidepath" }), true)
 
-equals("NL-DEF-05", "a motor-vehicle refusal does not reach it",
-  gehandicapt({ highway = "residential", motor_vehicle = "no" }), true)
+-- Legally a C12 does not bind it (NL-DEF-05), but OSM's motor_vehicle covers
+-- mopeds, so the same tag can be a C13 mapped loosely. The tag cannot say which
+-- sign it was, so it closes. The sign itself is read exactly: see below.
+equals("NL-ACC-10", "a motor-vehicle refusal closes it: the tag cannot name its sign",
+  gehandicapt({ highway = "residential", motor_vehicle = "no" }), false)
+
+equals("NL-ACC-10", "so does a motorcar refusal",
+  gehandicapt({ highway = "residential", motorcar = "no" }), false)
+
+equals("NL-ACC-10", "a motor-vehicle refusal on a cycleway is the path's own nature",
+  gehandicapt({ highway = "cycleway", traffic_sign = "NL:G11", motor_vehicle = "no" }), true)
+
+equals("NL-ACC-10", "a bicycle refusal closes a road",
+  gehandicapt({ highway = "residential", bicycle = "no" }), false)
+
+equals("NL-ACC-10", "and a signed cycle path: a C14 or C15 may stand there",
+  gehandicapt({ highway = "cycleway", traffic_sign = "NL:G11", bicycle = "no" }), false)
+
+equals("NL-ACC-10", "a moped permission is no G12a where bicycles are refused",
+  gehandicapt({ highway = "cycleway", moped = "designated", bicycle = "no" }), false)
+
+equals("NL-ACC-10", "nor where snorfietsen are",
+  gehandicapt({ highway = "cycleway", moped = "designated", mofa = "no" }), false)
+
+-- The road authority's verdict that mopeds may not use a carriageway does not
+-- say whether a sidepath obliges them or a sign forbids them, and the second
+-- binds this class.
+equals("NL-ACC-10", "an authority moped closure on a carriageway closes it",
+  gehandicapt({ highway = "secondary", maxspeed = "50", ["amgraph:bromfiets"] = "no" }), false)
+
+equals("NL-ACC-10", "and a snorfiets one",
+  gehandicapt({ highway = "secondary", maxspeed = "50", ["amgraph:snorfiets"] = "no" }), false)
+
+equals("NL-ACC-04", "a snorfiets placed on the roadway says nothing against it",
+  gehandicapt({ highway = "secondary", maxspeed = "50", ["amgraph:snorfiets"] = "on_roadway" }),
+  true)
 
 for _, sign in ipairs({ "C1", "C9", "C13", "C15", "G1", "G3", "G7", "G9" }) do
   equals("NL-ACC-06", "sign " .. sign .. " closes it",
@@ -996,6 +1030,20 @@ equals("NL-ACC-10", "a moped permission at a closed gate does not open it",
 equals("NL-ACC-10", "an ordinary node is open",
   node_gehandicapt({ highway = "crossing" }), true)
 
+equals("NL-ACC-10", "a motor-vehicle refusal at a node closes it",
+  node_gehandicapt({ barrier = "bollard", motor_vehicle = "no" }), false)
+
+equals("NL-ACC-10", "a bicycle refusal at a node closes it",
+  node_gehandicapt({ barrier = "gate", bicycle = "no" }), false)
+
+-- It rides the bus carrier, and upstream lets a bus through a sump buster and
+-- does not model a bus trap at all. Both exist to stop everything but a bus.
+equals("NL-ACC-10", "a bus trap closes it",
+  node_gehandicapt({ barrier = "bus_trap" }), false)
+
+equals("NL-ACC-10", "a sump buster closes it",
+  node_gehandicapt({ barrier = "sump_buster" }), false)
+
 -- A one-way exemption for bromfietsen or snorfietsen is an onderbord naming
 -- them, and this vehicle is neither.
 flags = access.carrier_flags(
@@ -1006,6 +1054,23 @@ equals("NL-ACC-10", "a moped one-way exemption does not reach it",
 flags = access.carrier_flags({ highway = "cycleway", traffic_sign = "NL:G11" }, NL)
 equals("NL-ACC-10", "a verplicht fietspad opens the bus carrier",
   flags.bus_forward, "true")
+
+-- A one-way mapped for another vehicle may be the only trace of a C2, C3 or C4
+-- that binds every vehicle. Its restriction binds; its exemption does not.
+for _, key in ipairs({ "oneway:bicycle", "oneway:mofa", "oneway:moped",
+  "oneway:motor_vehicle", "oneway:motorcar" }) do
+  flags = access.carrier_flags({ highway = "residential", [key] = "yes" }, NL)
+  equals("NL-ACC-10", key .. "=yes holds it to the one-way",
+    flags.bus_forward .. flags.bus_backward, "truefalse")
+end
+
+flags = access.carrier_flags({ highway = "cycleway", traffic_sign = "NL:G11", ["oneway:bicycle"] = "-1" }, NL)
+equals("NL-ACC-10", "a reversed cycle one-way holds it too",
+  flags.bus_forward .. flags.bus_backward, "falsetrue")
+
+flags = access.carrier_flags({ highway = "residential", ["oneway:bicycle:conditional"] = "yes @ (Mo-Fr)" }, NL)
+equals("NL-ACC-10", "a timed one-way for another vehicle closes both directions",
+  flags.bus_forward .. flags.bus_backward, "falsefalse")
 
 -- Result -----------------------------------------------------------------
 
