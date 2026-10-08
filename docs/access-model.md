@@ -24,11 +24,14 @@ means does.
    lifts them, and never lifting a bodied four-wheeler onto cycle
    infrastructure.
 4. **Cycle infrastructure**: the sign the mapper wrote, then the sign the
-   authority's register reports, then the country's unsigned default.
-   An explicit class-specific value beats all three.
+   authority's register reports, then a permission under another class's key
+   that implies a sign (`cycle_evidence_keys`), then the country's unsigned
+   default. An explicit class-specific value beats all of them.
 5. **Roadway**: open unless something says otherwise, with the country's
    mandatory-use rule and the provision that returns the rider to the
-   carriageway when no usable path is established.
+   carriageway when no usable path is established. A class OSM has no key for
+   is closed by a refusal under another class's key that, on a road, is the
+   trace of a sign binding it too (`roadway_refusal_keys`).
 6. **The country's authority overlay**, where it has one.
 7. **Conditional, directional and lane-scoped tags**, which close the affected
    class because the graph has no clock and cannot select a lane.

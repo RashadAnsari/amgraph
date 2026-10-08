@@ -219,6 +219,12 @@ function M.prepare(country)
     for _, key in ipairs(class.closing_keys or {}) do
       bound[#bound + 1] = key
     end
+    for _, key in ipairs(class.roadway_refusal_keys or {}) do
+      bound[#bound + 1] = key
+    end
+    for _, key in ipairs(class.cycle_evidence_keys or {}) do
+      consult(key)
+    end
     if class.bicycle_rules then
       bound[#bound + 1] = "bicycle"
     end
@@ -600,6 +606,19 @@ local function classes_from_tags(tags, country)
           classes[index] = true
         end
       end
+
+      -- A class OSM has no key for can still be told which sign stands here
+      -- by another class's tag. Only a permission counts, and only where no
+      -- sign was mapped: a mapped sign is better evidence than a tag implying
+      -- one, and a refusal under another class's key says nothing about this
+      -- one. See countries/nl.lua for the one class that uses it and why the
+      -- inference holds there.
+      for index, class in ipairs(country.classes) do
+        if class.cycle_evidence_keys
+          and M.access_value(tags, class.cycle_evidence_keys) == true then
+          classes[index] = true
+        end
+      end
     end
 
     -- An explicit access tag is better evidence than an inferred sign.
@@ -764,6 +783,21 @@ function M.classes(tags, country)
     for _, key in ipairs(class.closing_keys or {}) do
       if tags[key] ~= nil and M.access_value(tags, { key }) ~= true then
         classes[index] = false
+      end
+    end
+
+    -- A refusal written for another vehicle that, off the cycle network, is
+    -- the usual trace of a sign that binds this class too. On a cycle path the
+    -- same tag is usually the path's own sign speaking, which the sign rules
+    -- above already read. `use_sidepath` is an obligation on the vehicle the
+    -- key names, not a prohibition, and binds only that vehicle.
+    if not on_cycle_infrastructure then
+      for _, key in ipairs(class.roadway_refusal_keys or {}) do
+        local value = tags[key]
+        if value ~= nil and value ~= "use_sidepath"
+          and M.access_value(tags, { key }) ~= true then
+          classes[index] = false
+        end
       end
     end
   end
@@ -1011,6 +1045,18 @@ function M.node_classes(tags, country)
     end
     for _, key in ipairs(class.closing_keys or {}) do
       if tags[key] ~= nil and M.access_value(tags, { key }) ~= true then
+        classes[index] = false
+      end
+    end
+
+    -- A node cannot say whether it lies on the cycle network, so the refusal
+    -- the way rules apply only off it applies here everywhere. That can close
+    -- a bollard on a fietspad the class may use; the other reading can open a
+    -- barrier a C13 stands at.
+    for _, key in ipairs(class.roadway_refusal_keys or {}) do
+      local value = tags[key]
+      if value ~= nil and value ~= "use_sidepath"
+        and M.access_value(tags, { key }) ~= true then
         classes[index] = false
       end
     end
