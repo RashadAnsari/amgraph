@@ -114,7 +114,7 @@ CLASSES: tuple[VehicleClass, ...] = (
         # The label carries the condition, because the same Canta registered
         # as a bromfiets is a brommobiel (NL-DEF-06) and must never be routed
         # onto a fietspad. A rider picks by what is on the back of the car.
-        names={"en": "Mobility car, no plate", "nl": "Gehandicaptenvoertuig zonder kenteken"},
+        names={"en": "Mobility car without plate", "nl": "Gehandicaptenvoertuig zonder kenteken"},
     ),
 )
 
