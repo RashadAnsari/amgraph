@@ -34,7 +34,10 @@ the deadline, not the outage.
 ## The review, for any country
 
 Do it rule by rule from `docs/countries/<cc>.md`, never from memory or from
-the code.
+the code. The `legal-review` Claude skill (`.claude/skills/legal-review/`) walks
+through these steps, and its `check_statutes.py` does the mechanical part of
+steps 1, 2 and 4: which cited acts have a newer version or adopted amendments
+waiting for a date, and whether every quote is still word for word in the text.
 
 1. **Find the version in force.** For each act a rule cites, open the
    consolidated text in force today, not the version linked in the document.
@@ -104,8 +107,10 @@ by the build itself, and the gates decide whether the result may ship.
 
 Open items to look at in every Dutch review until they are settled:
 
-- **NL-DEF-06**: the gehandicaptenvoertuig regime. Rijksoverheid says the
-  cabinet is working out its plans in 2026.
+- **NL-DEF-06**: the gehandicaptenvoertuig regime. Stb. 2023, 377 replaces the
+  bromfiets definition it rests on and waits for a royal decree to set its
+  date; the day one does, set `valid_until` and re-research the class.
+  Rijksoverheid also says the cabinet is working out inspection plans in 2026.
 - **NL-ACC-06A**: whether the municipal moped zones reach a gehandicaptenvoertuig
   (`UNVERIFIED`, refused until settled), and Utrecht's brommobiel decision.
 - **NL-ACC-07**: the cyclist one-way exemption for a snorfiets (`UNVERIFIABLE`,
