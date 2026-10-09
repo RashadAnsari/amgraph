@@ -21,6 +21,8 @@ ground govern.
 - [Shared country rules](country-rules.md): what every country must supply, the
   evidence standard, and the validation each one has to pass.
 - [Adding a country](adding-country.md): the procedure, in order.
+- [Keeping the law current](legal-review.md): how to re-read each country's law,
+  how often, and how to prove everything still holds afterwards.
 
 Each supported country states its own law, with a verbatim quotation, a link and
 a retrieval date per rule:
