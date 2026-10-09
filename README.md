@@ -27,6 +27,7 @@ later puts each of its classes on the carrier of the class it matches:
 | `motorcycle` | `bromfiets` | `motorcycle` |
 | `taxi` | `speed_pedelec` | `taxi` |
 | `truck` | `brommobiel` | `truck` |
+| `bus` | `gehandicaptenvoertuig` | `bus` |
 
 Identifiers retain their statutory language. A carrier is storage for a
 vehicle's access decision; it does not give that vehicle the rights of a taxi,

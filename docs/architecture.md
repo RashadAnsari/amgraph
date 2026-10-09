@@ -60,7 +60,8 @@ Two classes may not share a carrier in the Lua. They would be indistinguishable
 in the graph, so the router would answer for whichever it happened to ask about;
 `access.prepare` refuses the country at load rather than letting that happen.
 
-A fourth access class is not an exception, because the ceiling is five.
+The Netherlands uses all five carriers. A country whose law separates two
+vehicles Dutch law does not cannot be added until a carrier is freed.
 `valhalla/lua/spec/second_country_spec.lua` pins all of this against an invented
 country that exists nowhere else, so a change that quietly moves a country's
 facts back into shared code fails rather than waits to be noticed.

@@ -113,12 +113,17 @@ class VehicleClass:
     code: str
     carrier: Carrier
 
-    #: What the plate on the back announces, in km/h.
+    #: What the plate on the back announces, in km/h, or for a class the law
+    #: registers without a plate, the ceiling its statutory definition sets.
     construction_limit_kph: int
 
     speeds: ClassSpeeds
 
-    plate: Plate
+    #: ``None`` for a class the law registers without a plate. Serving colours
+    #: it does not carry would state a fact about the vehicle that is false; a
+    #: client falls back to a treatment it has measured, as it does for a
+    #: served pair that fails its thresholds.
+    plate: Plate | None
 
     #: Which glyph stands for the class in a list: "scooter", "pedelec",
     #: "microcar", "motorcycle" or "bicycle". A key into a client's own shapes.

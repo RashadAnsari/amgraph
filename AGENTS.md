@@ -56,7 +56,8 @@ retrieval date. Match that standard or do not write the rule.
 
 Learn each country's classes before writing access code. Their definitions and
 road rights are in `docs/countries/<cc>.md`. The Netherlands declares
-`snorfiets`, `bromfiets`, `speed_pedelec` and `brommobiel`, and is the one
+`snorfiets`, `bromfiets`, `speed_pedelec`, `brommobiel` and
+`gehandicaptenvoertuig`, and is the one
 country modelled today. No country's classes or law ever stand in for another's:
 an unsupported country is refused, not approximated from a neighbour.
 
@@ -93,9 +94,10 @@ closes. Registering it puts it in every build, audit, gate and release alongside
 the others. [docs/adding-country.md](docs/adding-country.md) is the procedure.
 
 **Five access classes is the ceiling**, being the stock Valhalla travel modes
-that read an access bit of their own. The Netherlands uses four, and a country
-whose law tells two classes apart on the cycle network, where Dutch law does
-not, needs a carrier for each. The speed pedelec rides its own carrier for that
+that read an access bit of their own. The Netherlands uses all five, so a
+country added now must put each class on the carrier of the Dutch class it
+matches, and one whose law tells apart two classes Dutch law does not cannot be
+added without first freeing a carrier. The speed pedelec rides its own carrier for that
 reason, though the Netherlands gives it the bromfiets's rights.
 
 ## The two files that must agree
@@ -105,7 +107,7 @@ and `access.lua` writes it into that stock Valhalla travel mode at graph build
 time. `rules/src/amgraph_rules/countries/<cc>.py` names the same carrier per
 class, and whatever serves the graph maps a carrier to the costing model that
 reads its bit. For the Netherlands: snorfiets on moped, bromfiets on motorcycle, speed
-pedelec on taxi, brommobiel on truck.
+pedelec on taxi, brommobiel on truck, gehandicaptenvoertuig on bus.
 
 Change one without the other and routes stay plausible while becoming illegal.
 It is the only failure in this codebase that does not announce itself, and it is

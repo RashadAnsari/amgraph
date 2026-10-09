@@ -29,10 +29,9 @@ local M = {}
 -- (baldr/graphconstants.h), which nodes_proc clears when a class may not pass.
 --
 -- Five, and the count is the ceiling on how many classes a country may have.
--- The Netherlands uses four. A country whose law tells two classes apart on
--- the cycle network, where the Dutch law does not, needs a carrier for each.
--- `taxi` and `bus` read access bits of their own and are otherwise unused here
--- — both derive from AutoCost with kTaxiAccess and kBusAccess respectively,
+-- The Netherlands uses all five, so a later country maps each of its classes
+-- onto the Dutch class it matches. `taxi` and `bus` read access bits of their
+-- own — both derive from AutoCost with kTaxiAccess and kBusAccess respectively,
 -- verified against the 3.8.3 source. `auto` is deliberately left alone: it is
 -- the mode everything else in the toolchain assumes when it wants to know
 -- whether a road exists at all.
@@ -218,6 +217,25 @@ function M.prepare(country)
     end
     for _, key in ipairs(class.closing_keys or {}) do
       bound[#bound + 1] = key
+    end
+    for _, key in ipairs(class.refusal_keys or {}) do
+      bound[#bound + 1] = key
+    end
+    for _, key in ipairs(class.roadway_refusal_keys or {}) do
+      bound[#bound + 1] = key
+    end
+    for _, key in ipairs(class.cycle_evidence_keys or {}) do
+      consult(key)
+    end
+    for _, key in ipairs(class.cycle_evidence_vetoes or {}) do
+      consult(key)
+    end
+    for _, key in ipairs(class.roadway_refusal_overlays or {}) do
+      consult(key)
+    end
+    for _, key in ipairs(class.oneway_restriction_keys or {}) do
+      consult(key)
+      consult(key .. ":conditional")
     end
     if class.bicycle_rules then
       bound[#bound + 1] = "bicycle"
@@ -600,6 +618,28 @@ local function classes_from_tags(tags, country)
           classes[index] = true
         end
       end
+
+      -- A class OSM has no key for can still be told which sign stands here
+      -- by another class's tag. Only a permission counts, and only where no
+      -- sign was mapped: a mapped sign is better evidence than a tag implying
+      -- one, and a refusal under another class's key says nothing about this
+      -- one. See countries/nl.lua for the one class that uses it and why the
+      -- inference holds there.
+      -- The inference holds only while nothing on the way contradicts the
+      -- sign it implies: a path that refuses a vehicle the implied sign admits
+      -- is not that sign, whatever the permission says.
+      for index, class in ipairs(country.classes) do
+        if class.cycle_evidence_keys
+          and M.access_value(tags, class.cycle_evidence_keys) == true then
+          local vetoed = false
+          for _, key in ipairs(class.cycle_evidence_vetoes or {}) do
+            if tags[key] ~= nil and M.access_value(tags, { key }) ~= true then
+              vetoed = true
+            end
+          end
+          classes[index] = not vetoed
+        end
+      end
     end
 
     -- An explicit access tag is better evidence than an inferred sign.
@@ -763,6 +803,42 @@ function M.classes(tags, country)
     -- shared bit, but may never open a way the class's own rules refused.
     for _, key in ipairs(class.closing_keys or {}) do
       if tags[key] ~= nil and M.access_value(tags, { key }) ~= true then
+        classes[index] = false
+      end
+    end
+
+    -- A refusal written for another vehicle that, off the cycle network, is
+    -- the usual trace of a sign that binds this class too. On a cycle path the
+    -- same tag is usually the path's own sign speaking, which the sign rules
+    -- above already read. `use_sidepath` is an obligation on the vehicle the
+    -- key names, not a prohibition, and binds only that vehicle.
+    if not on_cycle_infrastructure then
+      for _, key in ipairs(class.roadway_refusal_keys or {}) do
+        local value = tags[key]
+        if value ~= nil and value ~= "use_sidepath"
+          and M.access_value(tags, { key }) ~= true then
+          classes[index] = false
+        end
+      end
+
+      -- Another class's authority verdict that it may not use this
+      -- carriageway. The verdict does not say why: a sidepath obliging that
+      -- class, which binds nobody else, or a prohibition that may bind this
+      -- class too. Only `no` is a verdict about the carriageway; `on_roadway`
+      -- places the other class here and says nothing against anybody.
+      for _, key in ipairs(class.roadway_refusal_overlays or {}) do
+        if tags[key] == "no" then
+          classes[index] = false
+        end
+      end
+    end
+
+    -- A refusal that binds this class wherever it stands, the cycle network
+    -- included, because the sign it may trace stands on paths as on roads.
+    for _, key in ipairs(class.refusal_keys or {}) do
+      local value = tags[key]
+      if value ~= nil and value ~= "use_sidepath"
+        and M.access_value(tags, { key }) ~= true then
         classes[index] = false
       end
     end
@@ -1014,6 +1090,27 @@ function M.node_classes(tags, country)
         classes[index] = false
       end
     end
+
+    -- A node cannot say whether it lies on the cycle network, so the refusal
+    -- the way rules apply only off it applies here everywhere. That can close
+    -- a bollard on a fietspad the class may use; the other reading can open a
+    -- barrier a C13 stands at.
+    -- A barrier built to let only a bus through. Upstream's own model passes
+    -- a bus over a sump buster and does not know a bus trap, so a class
+    -- riding the bus carrier would inherit a permission meant for buses.
+    if class.impassable_barriers and class.impassable_barriers[tags["barrier"]] then
+      classes[index] = false
+    end
+
+    for _, list in ipairs({ class.roadway_refusal_keys or {}, class.refusal_keys or {} }) do
+      for _, key in ipairs(list) do
+        local value = tags[key]
+        if value ~= nil and value ~= "use_sidepath"
+          and M.access_value(tags, { key }) ~= true then
+          classes[index] = false
+        end
+      end
+    end
   end
 
   for _, key in ipairs({
@@ -1235,6 +1332,23 @@ function M.carrier_flags(tags, country)
     -- than choosing one profile's answer for the other.
     for _, key in ipairs(class.closing_keys or {}) do
       if tags["oneway:" .. key] ~= nil then
+        forward, backward = false, false
+      end
+    end
+
+    -- A one-way stated for another vehicle may be the only trace of a sign
+    -- that binds every vehicle. Its restriction is taken and its exemption is
+    -- not: `no` is an onderbord naming that vehicle, and only that vehicle.
+    for _, key in ipairs(class.oneway_restriction_keys or {}) do
+      local value = tags[key]
+      if value == "yes" or value == "true" or value == "1" then
+        backward = false
+      elseif value == "-1" or value == "reverse" then
+        forward = false
+      elseif value ~= nil and value ~= "no" and value ~= "false" and value ~= "0" then
+        forward, backward = false, false
+      end
+      if tags[key .. ":conditional"] ~= nil then
         forward, backward = false, false
       end
     end

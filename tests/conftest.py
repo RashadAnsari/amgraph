@@ -36,11 +36,14 @@ RULES_VERSION = f"zz-{datetime.now(UTC).date().isoformat()}.1"
 
 #: The Dutch carriers under invented codes, so a border way is open to a carrier
 #: only where both countries have a class on it, and no Dutch code can stand in.
+#: The bus carrier is left out on purpose: a Dutch class with no ZZ counterpart
+#: is the case that proves a border way closes a carrier one side lacks.
 _CODES = {Carrier.MOPED: "light", Carrier.MOTORCYCLE: "heavy", Carrier.TAXI: "pedelec"}
 _CODES[Carrier.TRUCK] = "quad"
 CLASSES = tuple(
     replace(vehicle, code=_CODES[vehicle.carrier], names={"en": _CODES[vehicle.carrier]})
     for vehicle in NETHERLANDS.classes
+    if vehicle.carrier in _CODES
 )
 
 MUNICIPAL_ZONES = {

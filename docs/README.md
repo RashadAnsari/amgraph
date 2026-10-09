@@ -21,13 +21,15 @@ ground govern.
 - [Shared country rules](country-rules.md): what every country must supply, the
   evidence standard, and the validation each one has to pass.
 - [Adding a country](adding-country.md): the procedure, in order.
+- [Keeping the law current](legal-review.md): how to re-read each country's law,
+  how often, and how to prove everything still holds afterwards.
 
 Each supported country states its own law, with a verbatim quotation, a link and
 a retrieval date per rule:
 
 | Country | Rules | Classes |
 | --- | --- | --- |
-| Netherlands | [countries/nl.md](countries/nl.md) | `snorfiets`, `bromfiets`, `speed_pedelec`, `brommobiel` |
+| Netherlands | [countries/nl.md](countries/nl.md) | `snorfiets`, `bromfiets`, `speed_pedelec`, `brommobiel`, `gehandicaptenvoertuig` |
 
 No country's classes or law stand in for another country's. A rule identifier is
 scoped to its country (`NL-ACC-02`), and access assertions name the

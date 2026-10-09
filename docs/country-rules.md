@@ -14,7 +14,8 @@ identifier stable so access assertions can name the rule they verify. Record
 uncertainty explicitly and retain the conservative decision until the required
 evidence is established.
 
-Country rules are reviewed within 90 days of their version's research date.
+Country rules are reviewed within 90 days of their version's research date,
+by the procedure in [Keeping the law current](legal-review.md).
 An explicit legal-regime expiry also blocks builds at its exclusive deadline.
 Changes to legal rules require matching Python and Lua `RULES_VERSION` updates.
 The manifest records the versions used to build the tiles; consumers validate

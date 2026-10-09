@@ -152,7 +152,7 @@ def test_a_zone_with_the_wrong_official_municipality_id_is_refused(tmp_path: Pat
                     SQUARE,
                     name=name,
                     municipality_id=municipality_id,
-                    profiles=["snorfiets", "bromfiets", "speed_pedelec"],
+                    profiles=sorted(MUNICIPAL_ZONES[name].powertrain_classes),
                 )
                 for name, municipality_id in swapped.items()
             ],
@@ -271,9 +271,13 @@ class TestAVehicleFromAcrossTheBorder:
     def test_a_vehicle_with_no_counterpart_in_the_zones_country_is_refused(
         self, tmp_path: Path
     ) -> None:
-        """No class to read it as means no rule can admit it."""
+        """No class to read it as means no rule can admit it.
+
+        Zedland has no class on the bus carrier, where the Netherlands carries
+        its gehandicaptenvoertuig, so a Dutch one has nothing to be read as there.
+        """
         stranger = replace(BROMFIETS, code="bus_class", carrier=Carrier.BUS)
-        assert self._zones(tmp_path).blocks(stranger, Powertrain.ELECTRIC, IN_AMSTERDAM, on=TODAY)
+        assert self._zones(tmp_path).blocks(stranger, Powertrain.ELECTRIC, IN_ZEDTOWN, on=TODAY)
 
 
 class TestARuleThatIsNotYetInForce:
