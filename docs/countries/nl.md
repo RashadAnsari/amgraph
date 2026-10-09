@@ -68,7 +68,26 @@ gehandicaptenvoertuig") and then adds:
 So a Canta registered as a bromfiets is a brommobiel (NL-DEF-02) and must pick
 that class. One without a kenteken needs none (WVW art. 37 lid 1(a)(3°)) and its
 driver needs no licence (art. 108 lid 1(a)). Source:
-<https://wetten.overheid.nl/BWBR0006622/2026-07-01>, retrieved 2026-10-08.
+<https://wetten.overheid.nl/BWBR0006622/2026-09-01>, retrieved 2026-10-08 at
+version 2026-07-01 and re-read at version 2026-09-01 on 2026-10-09, whose only
+change touches an article no rule here cites.
+
+**Adopted, not yet in force: the definition this class rests on is replaced.**
+Stb. 2023, 377 (Wet van 26 oktober 2023, Kamerstukken 36269) rewrites WVW art.
+1(e) as:
+
+> "e. bromfiets: voertuig als bedoeld in artikel 4 van verordening (EU) 168/2013
+> met de voertuigclassificatie L1e, L2e of L6e;"
+
+The words "niet zijnde een gehandicaptenvoertuig" are not in the new text. Art.
+X: "Deze wet treedt in werking met ingang van een bij koninklijk besluit te
+bepalen tijdstip", and wetten.overheid.nl marks arts. 1, 37 and 108 "Wijziging(en)
+zonder datum inwerkingtreding aanwezig" on 2026-10-09. Source:
+<https://zoek.officielebekendmakingen.nl/stb-2023-377.html>, retrieved
+2026-10-09. The day a decree fixes the date, set `valid_until` to it and
+re-research this class: a vehicle type-approved as L6e may then be a bromfiets,
+and so a brommobiel, whatever it is adapted for. Until then the text in force
+governs and the class stands as written.
 
 The definition sets no condition on the driver. Rijksoverheid states it
 directly: "Ook als u geen lichamelijke beperking heeft, mag u met een
