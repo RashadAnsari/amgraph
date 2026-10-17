@@ -61,6 +61,8 @@ CONSULTED = [
     "vehicle:lanes",
     "vehicle:lanes:forward",
     "vehicle:lanes:backward",
+    "bus:lanes",
+    "psv:lanes",
     "mofa:forward",
     "mofa:backward",
     "bicycle:forward",
@@ -223,6 +225,7 @@ CONSULTED = [
     "amgraph:snorfiets",
     "amgraph:bromfiets",
     "amgraph:country",
+    "amgraph:bus_lane_turns",
 ]
 
 
@@ -375,6 +378,38 @@ def test_no_tag_combination_in_the_netherlands_breaks_a_rule(rules) -> None:
         for sign in ("C1", "C9", "C13", "C15", "G7", "G9"):
             if f"NL:{sign}" in signs and gehandicapt:
                 failures.append(f"{tags} ignored {sign} ({count:,} ways)")
+
+        # NL-ACC-11. Lane-level access opens a way only where every closed lane
+        # is a bus or psv lane on a forward one-way road, which art. 81 confines
+        # to its own lane, and where the junction pass found no road joining on
+        # a bus lane's side, so no turn crosses a line art. 76 may make solid.
+        # Restated here rather than imported, so a loosened rule in access.lua
+        # has something independent to disagree with.
+        general = [tags[k].split("|") for k in ("access:lanes", "vehicle:lanes") if k in tags]
+        if general and (snorfiets or bromfiets or brommobiel or gehandicapt or gehandicapt_back):
+            reserved = [tags[k].split("|") for k in ("bus:lanes", "psv:lanes") if k in tags]
+            one_way = tags.get("oneway") in {"yes", "true", "1"} or tags.get("junction") in {
+                "roundabout",
+                "circular",
+            }
+            allowed = {"yes", "designated", "permissive"}
+            confined = (
+                one_way
+                and tags.get("oneway") not in {"-1", "reverse"}
+                and tags.get("amgraph:bus_lane_turns") == "none"
+                and len(reserved) == 1
+                and all(len(lanes) == len(reserved[0]) for lanes in general)
+                and all(
+                    all(lanes[i] in allowed for lanes in general)
+                    or reserved[0][i] in {"yes", "designated"}
+                    for i in range(len(reserved[0]))
+                )
+                and any(
+                    all(lanes[i] in allowed for lanes in general) for i in range(len(reserved[0]))
+                )
+            )
+            if not confined:
+                failures.append(f"{tags} opened a way past a lane closure ({count:,} ways)")
 
         # Art. 6 lid 3. A brommobiel is wider than 0.75 m, so it belongs on the
         # rijbaan and may never be routed onto cycle infrastructure.

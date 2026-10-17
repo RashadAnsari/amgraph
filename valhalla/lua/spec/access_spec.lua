@@ -1072,6 +1072,119 @@ flags = access.carrier_flags({ highway = "residential", ["oneway:bicycle:conditi
 equals("NL-ACC-10", "a timed one-way for another vehicle closes both directions",
   flags.bus_forward .. flags.bus_backward, "falsefalse")
 
+-- NL-ACC-11: a bus lane closes its own lane ------------------------------
+-- RVV art. 1 makes a busstrook a marked "gedeelte van de rijbaan", and art. 81
+-- reserves that part alone. The rest of the rijbaan stays where every other
+-- rule here puts the rider, so a one-way road whose only closed lanes are bus
+-- lanes is decided as if the lane tags were absent. Art. 76 lid 1 still
+-- forbids crossing a solid line, so it holds only where infra/bus_lanes.py
+-- found no road joining on a bus lane's side.
+--
+-- Every case below carries that finding, so each closure is shown to survive
+-- it; the one without it is stated on its own.
+
+local function all_five(tags, untagged)
+  if not untagged then
+    tags["amgraph:bus_lane_turns"] = "none"
+  end
+  local classes = access.classes(tags, NL)
+  local out = {}
+  for index, class in ipairs(NL.classes) do
+    out[#out + 1] = class.code .. "=" .. (classes[index] and "yes" or "no")
+  end
+  return table.concat(out, " ")
+end
+
+local OPEN = "snorfiets=yes bromfiets=yes brommobiel=yes gehandicaptenvoertuig=yes speed_pedelec=yes"
+local CLOSED = "snorfiets=no bromfiets=no brommobiel=no gehandicaptenvoertuig=no speed_pedelec=no"
+
+equals("NL-ACC-11", "a one-way road with a bus lane on the right stays open beside it",
+  all_five({ highway = "secondary", oneway = "yes",
+    ["access:lanes"] = "yes|no", ["bus:lanes"] = "no|yes" }), OPEN)
+
+equals("NL-ACC-11", "a psv lane is a reserved strook like a bus lane",
+  all_five({ highway = "secondary", oneway = "yes",
+    ["access:lanes"] = "yes|no", ["psv:lanes"] = "|designated" }), OPEN)
+
+equals("NL-ACC-11", "vehicle:lanes reads the same as access:lanes",
+  all_five({ highway = "secondary", oneway = "yes",
+    ["vehicle:lanes"] = "no|yes", ["bus:lanes"] = "designated|" }), OPEN)
+
+equals("NL-ACC-11", "without the junction finding a turn may cross the bus lane",
+  all_five({ highway = "secondary", oneway = "yes",
+    ["access:lanes"] = "yes|no", ["bus:lanes"] = "no|yes" }, true), CLOSED)
+
+-- OSM lists lanes in the way's own direction, and a reversed one-way is ridden
+-- against it, so the side the junction pass checked is not the side it means.
+equals("NL-ACC-11", "a reversed one-way is not read",
+  all_five({ highway = "secondary", oneway = "-1",
+    ["vehicle:lanes"] = "no|yes", ["bus:lanes"] = "designated|" }), CLOSED)
+
+-- Jaagweg, Purmerend, OSM way 842123253. Closing it left the fiets/bromfietspad
+-- beside it and the carriageway both shut, which is the contradiction AGENTS.md
+-- forbids.
+equals("NL-ACC-11", "Jaagweg Purmerend opens to the classes its other tags allow",
+  all_five({ highway = "secondary", oneway = "yes", lanes = "2", maxspeed = "50",
+    bicycle = "no", foot = "no", surface = "asphalt",
+    ["access:lanes"] = "yes|no", ["bus:lanes"] = "no|yes" }),
+  "snorfiets=yes bromfiets=yes brommobiel=yes gehandicaptenvoertuig=no speed_pedelec=yes")
+
+-- Zeeweg (N200), OSM way 1305543223, the only road to Bloemendaal aan Zee. The
+-- two-wheelers stay off it for its moped tags; only the lane closure goes.
+equals("NL-ACC-11", "Zeeweg opens to the brommobiel and nobody its moped tags refuse",
+  all_five({ highway = "primary", oneway = "yes", lanes = "2", maxspeed = "50",
+    bicycle = "no", foot = "no", mofa = "no", moped = "no",
+    ["access:lanes"] = "no|yes", ["bus:lanes"] = "yes|" }),
+  "snorfiets=no bromfiets=no brommobiel=yes gehandicaptenvoertuig=no speed_pedelec=no")
+
+equals("NL-ACC-11", "a closed lane that is not a bus lane keeps the road closed",
+  all_five({ highway = "secondary", oneway = "yes", ["access:lanes"] = "yes|no" }), CLOSED)
+
+equals("NL-ACC-11", "a closed lane beside a bus lane keeps the road closed",
+  all_five({ highway = "secondary", oneway = "yes",
+    ["access:lanes"] = "no|yes|no", ["bus:lanes"] = "designated||" }), CLOSED)
+
+equals("NL-ACC-11", "a road whose every lane is closed stays closed",
+  all_five({ highway = "secondary", oneway = "yes",
+    ["access:lanes"] = "no|no", ["bus:lanes"] = "designated|designated" }), CLOSED)
+
+equals("NL-ACC-11", "a restricted open lane is not an open lane",
+  all_five({ highway = "secondary", oneway = "yes",
+    ["access:lanes"] = "destination|no", ["bus:lanes"] = "|designated" }), CLOSED)
+
+equals("NL-ACC-11", "a two-way road cannot say which direction its open lane runs",
+  all_five({ highway = "secondary",
+    ["access:lanes"] = "yes|no", ["bus:lanes"] = "|designated" }), CLOSED)
+
+equals("NL-ACC-11", "a lane count that disagrees across keys cannot be read",
+  all_five({ highway = "secondary", oneway = "yes",
+    ["access:lanes"] = "yes|yes|no", ["bus:lanes"] = "|designated" }), CLOSED)
+
+equals("NL-ACC-11", "the lane must be open under both general keys",
+  all_five({ highway = "secondary", oneway = "yes", ["vehicle:lanes"] = "no|yes",
+    ["access:lanes"] = "yes|no", ["bus:lanes"] = "|designated" }), CLOSED)
+
+equals("NL-ACC-11", "directional lane access stays unrepresentable",
+  all_five({ highway = "secondary", oneway = "yes",
+    ["access:lanes:forward"] = "yes|no", ["bus:lanes:forward"] = "|designated" }), CLOSED)
+
+equals("NL-ACC-11", "the bus-lane reading never reaches a cycle path",
+  all_five({ highway = "cycleway", traffic_sign = "NL:G12a", oneway = "yes",
+    ["access:lanes"] = "yes|no", ["bus:lanes"] = "|designated" }), CLOSED)
+
+-- The gehandicaptenvoertuig goes with the bromfiets: a moped refusal may be the
+-- trace of a sign that binds it too (NL-ACC-10).
+equals("NL-ACC-11", "a lane tag naming a class still closes that class",
+  all_five({ highway = "secondary", oneway = "yes",
+    ["access:lanes"] = "yes|no", ["bus:lanes"] = "|designated", ["moped:lanes"] = "yes|no" }),
+  "snorfiets=yes bromfiets=no brommobiel=yes gehandicaptenvoertuig=no speed_pedelec=no")
+
+flags = access.carrier_flags({ highway = "secondary", oneway = "yes",
+  ["access:lanes"] = "yes|no", ["bus:lanes"] = "|designated",
+  ["amgraph:bus_lane_turns"] = "none" }, NL)
+equals("NL-ACC-11", "the reopened road keeps its one-way",
+  flags.truck_forward .. flags.truck_backward, "truefalse")
+
 -- Result -----------------------------------------------------------------
 
 print(string.format("%d checks, %d failures", checks, failures))

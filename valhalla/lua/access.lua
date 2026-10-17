@@ -299,6 +299,7 @@ function M.prepare(country)
     "access:forward", "access:backward", "vehicle:forward", "vehicle:backward",
     "access:lanes", "access:lanes:forward", "access:lanes:backward",
     "vehicle:lanes", "vehicle:lanes:forward", "vehicle:lanes:backward",
+    "bus:lanes", "psv:lanes", "amgraph:bus_lane_turns",
     "access:conditional", "vehicle:conditional",
     "access:forward:conditional", "access:backward:conditional",
     "vehicle:forward:conditional", "vehicle:backward:conditional",
@@ -531,6 +532,67 @@ local function set_all(classes, value)
   for index = 1, #classes do
     classes[index] = value
   end
+end
+
+local function lanes_of(value)
+  local lanes = {}
+  for lane in (value .. "|"):gmatch("([^|]*)|") do
+    lanes[#lanes + 1] = lane
+  end
+  return lanes
+end
+
+--- Are the general lane-access tags closing nothing but bus lanes? NL-ACC-11.
+--
+-- RVV art. 1 makes a busstrook a marked "gedeelte van de rijbaan" and art. 81
+-- reserves that part alone, so the lane beside it is ordinary rijbaan and every
+-- other rule here still decides who may ride it. Read only where nothing else
+-- is uncertain: a forward one-way road, so every lane runs the one direction
+-- the graph can carry, in the order OSM lists them; lane counts that agree, so
+-- a lane is the same lane in every key; every closed lane reserved for buses
+-- or psv; and at least one lane open under every general key.
+--
+-- Getting there can still mean crossing the bus lane, which art. 76 lid 1
+-- forbids wherever its line is solid, and no data says where that is. So the
+-- way must also carry `amgraph:bus_lane_turns=none`, which
+-- infra/bus_lanes.py writes only where no road joins on a bus lane's side.
+-- Anything else keeps the whole-way closure.
+local function only_bus_lanes_closed(tags)
+  if tags["amgraph:bus_lane_turns"] ~= "none" then
+    return false
+  end
+  local forward, backward = M.directions(tags)
+  if not forward or backward then
+    return false
+  end
+  local reserved = tags["bus:lanes"] or tags["psv:lanes"]
+  if reserved == nil or (tags["bus:lanes"] and tags["psv:lanes"]) then
+    return false
+  end
+  local buses = lanes_of(reserved)
+  local general = {}
+  for _, key in ipairs({ "access:lanes", "vehicle:lanes" }) do
+    if tags[key] ~= nil then
+      general[#general + 1] = lanes_of(tags[key])
+      if #general[#general] ~= #buses then
+        return false
+      end
+    end
+  end
+
+  local open = false
+  for lane = 1, #buses do
+    local lane_open = true
+    for _, lanes in ipairs(general) do
+      lane_open = lane_open and ALLOW[lanes[lane]] == true
+    end
+    if lane_open then
+      open = true
+    elseif buses[lane] ~= "designated" and buses[lane] ~= "yes" then
+      return false
+    end
+  end
+  return open
 end
 
 --- May each class use this way at all? Returns one boolean per class.
@@ -855,6 +917,10 @@ function M.classes(tags, country)
   -- Directional and lane-level access cannot be represented by the class-wide
   -- access decision below. A whole-way refusal is conservative; ignoring the
   -- tag can permit the forbidden direction or put the class in a barred lane.
+  -- The one exception is a bus lane on a carriageway, whose closure the law
+  -- itself confines to the lane, on a road where no turn crosses it. Closing
+  -- the road for it shut the only road to Bloemendaal aan Zee.
+  local bus_lanes_only = not on_cycle_infrastructure and only_bus_lanes_closed(tags)
   for _, key in ipairs({
     "access:forward", "access:backward", "vehicle:forward", "vehicle:backward",
     "access:lanes", "access:lanes:forward", "access:lanes:backward",
@@ -862,7 +928,8 @@ function M.classes(tags, country)
     "access:forward:conditional", "access:backward:conditional",
     "vehicle:forward:conditional", "vehicle:backward:conditional",
   }) do
-    if tags[key] ~= nil then
+    local unscoped_lanes = key == "access:lanes" or key == "vehicle:lanes"
+    if tags[key] ~= nil and not (unscoped_lanes and bus_lanes_only) then
       set_all(classes, false)
     end
   end

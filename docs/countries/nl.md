@@ -1,7 +1,8 @@
 # Netherlands rules
 
-Primary sources last reviewed **2026-10-08** for the gehandicaptenvoertuig and
-**2026-08-15** for everything else. The country module declares `nl-2026-10-08.2`.
+Primary sources last reviewed **2026-10-17** for bus lanes (NL-ACC-11),
+**2026-10-08** for the gehandicaptenvoertuig and **2026-08-15** for everything
+else. The country module declares `nl-2026-10-08.3`.
 
 [Documentation](../README.md) · [Shared country rules](../country-rules.md)
 
@@ -431,6 +432,77 @@ Signs: see the gehandicaptenvoertuig entries in NL-ACC-06. The difference from
 the brommobiel cuts both ways, which is why neither existing four-wheeled answer
 was safe: C13 and C15 name it and do not bind a brommobiel (art. 2a), while C6
 and C12 bind motorvoertuigen and not it.
+
+### NL-ACC-11 — A bus lane closes its own lane `VERIFIED`
+
+> "busstrook : door doorgetrokken of onderbroken strepen gemarkeerd gedeelte
+> van de rijbaan waarop het woord «BUS» of «LIJNBUS» is aangebracht"
+
+> "Busbanen en busstroken waarop het woord «BUS» is aangebracht mogen slechts
+> worden gebruikt door bestuurders van een lijnbus, een autobus of een tram.
+> Busbanen en busstroken waarop het woord «LIJNBUS» is aangebracht mogen slechts
+> worden gebruikt door bestuurders van een lijnbus of een tram."
+
+RVV art. 1 and art. 81, <https://wetten.overheid.nl/BWBR0004825/2026-07-01>,
+retrieved 2026-10-17. Bijlage I describes F13, F17 and F19 the same way:
+"Rijbaan of -strook uitsluitend ten behoeve van" lijnbussen, lijnbussen en
+trams, and vrachtauto's en lijnbussen.
+
+A busstrook is a *part* of the rijbaan and art. 81 reserves that part alone. The
+lanes beside it are ordinary rijbaan, where every other rule in this document
+decides who rides. Closing the whole road for its bus lane closes the rijbaan
+that NL-ACC-05 makes mandatory for a brommobiel and that art. 5 lid 2 and art. 6
+lid 2 make mandatory for the two-wheelers where no path is established.
+
+**Turning across the bus lane.** Art. 81 forbids using the lane, not crossing
+it, but art. 76 lid 1 forbids crossing a solid line: "Een doorgetrokken streep
+die zich niet langs de rand van de rijbaanverharding bevindt, mag niet worden
+overschreden", unless lid 2(b) applies, "indien aan de zijde vanwaar men de
+streep overschrijdt een onderbroken streep is aangebracht". No source says
+which bus-lane lines are solid. The Uitvoeringsvoorschriften BABW inzake
+verkeerstekens (<https://wetten.overheid.nl/BWBR0009104>, version 2023-10-01,
+read 2026-10-17) set only a 20 m minimum length for that line; WKD Rijstroken
+counts bus lanes per section (`BUUSSTRK`) and records no line type; the BGT
+holds a bus lane only where it is physically separated. A turn across a bus
+lane therefore cannot be shown lawful, so a road where one could be made stays
+closed.
+
+**Router:** `access:lanes` and `vehicle:lanes` are read, and stop closing the
+way, only when all of these hold:
+
+- the road is a forward one-way (`oneway=yes` or a roundabout), so every lane
+  runs the direction the graph carries, in the order OSM lists them;
+- the way carries exactly one of `bus:lanes` and `psv:lanes`, with the same lane
+  count as every general lane key;
+- every lane a general key does not open (`yes`, `designated`, `permissive`) is
+  marked `yes` or `designated` for buses or psv;
+- at least one lane is open under every general key;
+- the way carries `amgraph:bus_lane_turns=none`, which `infra/bus_lanes.py`
+  writes only where no road a class could enter joins on a closed lane's side
+  at any node. A lane on the right is crossed by a right turn, one on the left
+  by a left turn, one between open lanes by both. At the first and last node the
+  one way within 25° of straight on is the road carrying on; every other join
+  is a turn, and one within 5° of the road's line, which cannot be put on a
+  side, closes the way.
+
+The way is then decided as if the lane tags were absent, so a moped refusal, a
+sign or the authority overlay closes it exactly as it would anywhere else.
+Everything else keeps the whole-way closure: directional `:lanes:forward` and
+`:lanes:backward`, a two-way or reversed one-way road, a lane closed for
+anything but a bus, any lane tag naming a class (`moped:lanes`,
+`motor_vehicle:lanes`), and every cycle path.
+
+Turn restrictions would reopen more and are not used. Valhalla 3.8.3
+(`CreateSimpleTurnRestriction` in `src/mjolnir/graphbuilder.cc`) blocks only the
+first edge whose way matches a restriction's `to` way, so where a side street
+runs through the junction it can block the lawful half and leave the turn
+across the bus lane open.
+
+Two examples. The Jaagweg in Purmerend, beside the old Amsterdam–Purmerend
+tram path, has its bus lane on the right and no road joining it, so it is
+reopened. The Zeeweg (N200) towards Bloemendaal aan Zee is reopened where its
+bus lane is on the left and nothing joins, and stays closed where the bus lane
+runs between two open lanes and a turning lane leaves beyond it.
 
 ## Signs
 

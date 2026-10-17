@@ -74,6 +74,8 @@ from pyproj import Transformer
 from shapely.geometry import LineString, shape
 
 from artifacts import replace_atomically
+from bus_lanes import TAG as BUS_LANE_TAG
+from bus_lanes import clear_bus_lane_ways
 from cycle_rules import (
     closes_class,
     cycle_sign_of,
@@ -598,11 +600,12 @@ class Inject(osmium.SimpleHandler):
     tool when a rider asks why a road was refused.
     """
 
-    def __init__(self, writer, closed, supported_area) -> None:
+    def __init__(self, writer, closed, supported_area, bus_lanes_clear=frozenset()) -> None:
         super().__init__()
         self.writer = writer
         self.closed = closed
         self.supported_area = supported_area
+        self.bus_lanes_clear = bus_lanes_clear
         self.tagged = 0
         self.dutch = 0
         self.unsupported = 0
@@ -646,6 +649,8 @@ class Inject(osmium.SimpleHandler):
                 tags[SNOR_TAG] = snor
             if brom:
                 tags[BROM_TAG] = brom
+        if w.id in self.bus_lanes_clear:
+            tags[BUS_LANE_TAG] = "none"
         self.writer.add_way(w.replace(tags=tags))
         self.tagged += 1
 
@@ -681,7 +686,7 @@ def validate_turn_restrictions(extract: str) -> int:
     return audit.seen
 
 
-def inject(extract: str, closed, supported_area, out: Path) -> None:
+def inject(extract: str, closed, supported_area, out: Path, bus_lanes_clear=frozenset()) -> None:
     # Never replace the last complete extract until the new one has survived a
     # full OSM pass. A newly encountered fail-closed tag can abort late in a
     # country-sized write, and build.sh must not find that partial PBF.
@@ -689,7 +694,7 @@ def inject(extract: str, closed, supported_area, out: Path) -> None:
 
     def write(candidate: Path) -> None:
         writer = osmium.SimpleWriter(str(candidate))
-        handler = Inject(writer, closed, supported_area)
+        handler = Inject(writer, closed, supported_area, bus_lanes_clear)
         try:
             handler.apply_file(extract, locations=True)
         finally:
@@ -834,12 +839,17 @@ def main(extract: str, out: Path) -> None:
             fh.write(f"{way_id}\t{snor or '-'}\t{brom or '-'}\n")
     print(f"\nwrote {out} ({len(overlay):,} ways)")
 
+    print("\nfinding bus-lane roads no turn crosses the bus lane on…", flush=True)
+    bus_lanes_clear = clear_bus_lane_ways(extract)
+    print(f"  cleared                 : {len(bus_lanes_clear):,}")
+
     print("\nwriting the enriched extract…", flush=True)
     inject(
         extract,
         overlay,
         supported_area,
         Path(extract).with_name(enriched_name(extract)),
+        bus_lanes_clear,
     )
 
 

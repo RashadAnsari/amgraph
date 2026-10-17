@@ -39,7 +39,11 @@ means does.
    would pass but it may not (`impassable_barriers`).
 6. **The country's authority overlay**, where it has one.
 7. **Conditional, directional and lane-scoped tags**, which close the affected
-   class because the graph has no clock and cannot select a lane.
+   class because the graph has no clock and cannot select a lane. One
+   exception: on a one-way carriageway whose only closed lanes are bus or psv
+   lanes, and where no road joins on a bus lane's side so that no turn crosses
+   it, the law confines the closure to that lane, so the way is decided as if
+   the lane tags were absent (NL-ACC-11).
 8. **Speed readability**, dimensions, hazmat, and the country's sign tables.
 
 ## Values
