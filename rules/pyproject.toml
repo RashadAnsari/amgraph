@@ -2,12 +2,12 @@
 name = "amgraph-rules"
 # Bumped with `RULES_VERSION` and tagged `rules-v<version>`: the tag is what a
 # consumer pins, and every release records the version it was built under.
-version = "5.0.2"
+version = "5.0.3"
 description = "Country-specific AM vehicle classes, carriers, limits and legal zones."
 requires-python = ">=3.11"
-# MIT, like the rest of the project. NOTICE.md says why the graph itself
-# carries different terms.
-license = "MIT"
+# Noncommercial, like the rest of the project. NOTICE.md says why the graph
+# itself carries different terms.
+license = "PolyForm-Noncommercial-1.0.0"
 # Deliberately none. This is the half of the access rules that has to be
 # readable at run time as well as at build time, and a dependency here would
 # land in the tree of everything that serves a graph. If something in here needs

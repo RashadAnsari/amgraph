@@ -51,13 +51,15 @@ A consumer not written in Python must reproduce that check, not skip it.
 ## Licence
 
 The **code** is Copyright Rashad Ansari under the
-[MIT License](LICENSE.md): use it, change it and redistribute it, keeping the
-copyright notice with it.
+[PolyForm Noncommercial License 1.0.0](LICENSE.md): use it, change it and
+redistribute it for any noncommercial purpose, keeping the licence and its
+required notice with it. Commercial use needs a separate licence.
 
 The **published graph** is derived from OpenStreetMap, © OpenStreetMap
 contributors, so it is offered under the
 [Open Database License 1.0](https://opendatacommons.org/licenses/odbl/1-0/),
-which asks for attribution and share-alike. Rijkswaterstaat's
-Wegkenmerkendatabase and the Kadaster BRK boundaries are public domain.
+which allows commercial use and asks for attribution and share-alike. The
+**boundary files** are © Kadaster under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
-[NOTICE.md](NOTICE.md) sets out both in full, and why they differ.
+[NOTICE.md](NOTICE.md) sets out all three in full, and why they differ.

@@ -684,8 +684,8 @@ a motorway.
 | Source | Role | Caveat |
 | --- | --- | --- |
 | Geofabrik NL extract (OSM, ODbL) | Routable topology, paths, turn restrictions, access tags | Crowd-sourced, not a legal authority; access tags can be missing or stale |
-| NDW verkeersborden v4 | The signs actually on the ground | ~1.9M of >3M physical signs; coordinates sometimes mark the photo position; `validated` is `n` on every cycle sign |
-| RWS WKD Verkeerstypen | Per-section class access, i.e. mandatory use | NDW warns sign-to-NWB coupling is often wrong; monthly |
+| NDW verkeersborden v4 (open data, no dataset licence named) | The signs actually on the ground | ~1.9M of >3M physical signs; coordinates sometimes mark the photo position; `validated` is `n` on every cycle sign |
+| RWS WKD Verkeerstypen and Komgrenzen (CC0) | Per-section class access, i.e. mandatory use, and which sections lie inside the bebouwde kom | NDW warns sign-to-NWB coupling is often wrong; monthly |
 | PDOK BRK Bestuurlijke Gebieden | National and municipal boundaries (CC BY 4.0) | Municipality ≠ bebouwde kom |
 
 Conflict stance: prefer the source that is closest to the thing the law turns

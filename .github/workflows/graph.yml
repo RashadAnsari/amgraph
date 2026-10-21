@@ -165,6 +165,10 @@ jobs:
             echo "Built from \`$GITHUB_SHA\`, gated on every access-tag"
             echo "combination in every supported country before it was published."
             echo
+            echo "The graph is © OpenStreetMap contributors under ODbL 1.0, the"
+            echo "boundary files © Kadaster under CC BY 4.0. NOTICE.md in the ZIP"
+            echo "carries the terms and attribution."
+            echo
             echo '```json'
             cat infra/work/manifest.json
             echo '```'

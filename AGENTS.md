@@ -139,6 +139,7 @@ docs/
   architecture.md     the registry, the carriers, the merged-graph invariants
   adding-country.md   the procedure
   build-and-release.md  the gates, the workflows, the release ZIP
+  legal-review.md     re-reading each country's law, and how often
 ```
 
 ## How to work
