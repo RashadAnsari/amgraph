@@ -94,6 +94,22 @@ local function limits(value)
   return value ~= nil and not NOT_A_LIMIT[value]
 end
 
+--- Could this dimension tag bind some class of the country? A sign binds only
+--- a vehicle larger than its value, so a number at or above the country's
+--- `unbound_from` cannot. Anything unreadable, or in another unit, binds.
+local function binds(tags, key, country)
+  local value = tags[key]
+  if not limits(value) then
+    return false
+  end
+  local family = key:match("^[^:]+")
+  local floor = (country.unbound_from or {})[family]
+  local number, unit = value:match("^%s*(%d+%.?%d*)%s*(%a*)%s*$")
+  local expected = (family == "maxweight" or family == "maxaxleload") and "t" or "m"
+  return floor == nil or number == nil or (unit ~= "" and unit ~= expected)
+    or tonumber(number) < floor
+end
+
 -- Ways no motorised class may ever use, whatever else is tagged.
 local NEVER = {
   footway = true,
@@ -391,7 +407,23 @@ end
 -- Values look like "NL:G12a", sometimes as a semicolon list with subplates.
 -- `prefix` is the country namespace; matching is on the whole token so that G11
 -- does not also match G110.
+--
+-- `accept_value` also matches a valued token such as "NL:C19[3.9]". As a
+-- function it receives the value and decides whether that token counts.
 function M.has_sign_in(tags, keys, wanted, prefix, accept_value)
+  -- The value of `token` as sign `code`, "" when it is unreadable (a comma
+  -- inside brackets splits the token), nil when it is not that valued sign.
+  local function value_of(token, code)
+    if code == nil or string.sub(token, 1, #code) ~= code then
+      return nil
+    end
+    local rest = string.sub(token, #code + 1)
+    if rest:sub(1, 1) ~= "[" and rest:sub(1, 1) ~= "-" then
+      return nil
+    end
+    return rest:match("^%[([^%]]*)%]$") or rest:match("^%-(.+)$") or ""
+  end
+
   for _, key in ipairs(keys) do
     local value = tags[key]
     if value ~= nil then
@@ -400,20 +432,30 @@ function M.has_sign_in(tags, keys, wanted, prefix, accept_value)
       for token in string.gmatch(value, "[^;,]+") do
         token = token:gsub("^%s*(.-)%s*$", "%1")
         local namespaced = prefix and prefix .. ":" .. wanted or nil
-        if token == wanted
-          or (namespaced and token == namespaced)
-          or (accept_value and string.sub(token, 1, #wanted + 1) == wanted .. "[")
-          or (accept_value and string.sub(token, 1, #wanted + 1) == wanted .. "-")
-          or (accept_value and namespaced
-            and string.sub(token, 1, #namespaced + 1) == namespaced .. "[")
-          or (accept_value and namespaced
-            and string.sub(token, 1, #namespaced + 1) == namespaced .. "-") then
+        if token == wanted or (namespaced and token == namespaced) then
           return true
+        end
+        if accept_value then
+          local sign_value = value_of(token, wanted) or value_of(token, namespaced)
+          if sign_value and (accept_value == true or accept_value(sign_value)) then
+            return true
+          end
         end
       end
     end
   end
   return false
+end
+
+--- What `has_sign_in` takes as `accept_value` for a closed-sign entry. A size
+--- sign with `unbound_by` counts only when its value could bind some class.
+local function sign_value(entry, country)
+  if entry.unbound_by == nil then
+    return entry.valued
+  end
+  return function(value)
+    return binds({ [entry.unbound_by] = value }, entry.unbound_by, country)
+  end
 end
 
 function M.has_sign(tags, wanted, prefix, accept_value)
@@ -542,41 +584,33 @@ local function lanes_of(value)
   return lanes
 end
 
---- Are the general lane-access tags closing nothing but bus lanes? NL-ACC-11.
+--- Do one family of general lane keys close nothing but bus lanes? NL-ACC-11.
 --
 -- RVV art. 1 makes a busstrook a marked "gedeelte van de rijbaan" and art. 81
 -- reserves that part alone, so the lane beside it is ordinary rijbaan and every
--- other rule here still decides who may ride it. Read only where nothing else
--- is uncertain: a forward one-way road, so every lane runs the one direction
--- the graph can carry, in the order OSM lists them; lane counts that agree, so
--- a lane is the same lane in every key; every closed lane reserved for buses
--- or psv; and at least one lane open under every general key.
---
--- Getting there can still mean crossing the bus lane, which art. 76 lid 1
--- forbids wherever its line is solid, and no data says where that is. So the
--- way must also carry `amgraph:bus_lane_turns=none`, which
--- infra/bus_lanes.py writes only where no road joins on a bus lane's side.
--- Anything else keeps the whole-way closure.
-local function only_bus_lanes_closed(tags)
-  if tags["amgraph:bus_lane_turns"] ~= "none" then
-    return false
-  end
-  local forward, backward = M.directions(tags)
-  if not forward or backward then
-    return false
-  end
-  local reserved = tags["bus:lanes"] or tags["psv:lanes"]
-  if reserved == nil or (tags["bus:lanes"] and tags["psv:lanes"]) then
-    return false
-  end
-  local buses = lanes_of(reserved)
+-- other rule here still decides who may ride it. `suffix` is "" for
+-- `access:lanes`, or ":forward" or ":backward". The lane counts must agree, so a
+-- lane is the same lane in every key; every closed lane must be reserved for
+-- buses or psv; and at least one lane must be open under every general key. A
+-- family with no general key closes nothing.
+local function bus_lanes_only_in(tags, suffix)
   local general = {}
   for _, key in ipairs({ "access:lanes", "vehicle:lanes" }) do
-    if tags[key] ~= nil then
-      general[#general + 1] = lanes_of(tags[key])
-      if #general[#general] ~= #buses then
-        return false
-      end
+    if tags[key .. suffix] ~= nil then
+      general[#general + 1] = lanes_of(tags[key .. suffix])
+    end
+  end
+  if #general == 0 then
+    return true
+  end
+  local bus, psv = tags["bus:lanes" .. suffix], tags["psv:lanes" .. suffix]
+  if (bus == nil) == (psv == nil) then
+    return false
+  end
+  local buses = lanes_of(bus or psv)
+  for _, lanes in ipairs(general) do
+    if #lanes ~= #buses then
+      return false
     end
   end
 
@@ -593,6 +627,34 @@ local function only_bus_lanes_closed(tags)
     end
   end
   return open
+end
+
+--- The lane keys whose only closures are bus lanes, and so close no way.
+--
+-- Read only where each lane's direction is known: `access:lanes` on a forward
+-- one-way, `:lanes:forward` and `:lanes:backward` on a two-way road. Getting
+-- there can still mean crossing the bus lane, which art. 76 lid 1 forbids
+-- wherever its line is solid, and no data says where that is. So the way must
+-- also carry `amgraph:bus_lane_turns=none`, which infra/bus_lanes.py writes only
+-- where no road joins on a bus lane's side. Anything else keeps the whole-way
+-- closure.
+local function bus_lane_keys(tags)
+  if tags["amgraph:bus_lane_turns"] ~= "none" then
+    return {}
+  end
+  local forward, backward = M.directions(tags)
+  if forward and not backward then
+    if bus_lanes_only_in(tags, "") then
+      return { ["access:lanes"] = true, ["vehicle:lanes"] = true }
+    end
+  elseif forward and backward and tags["access:lanes"] == nil and tags["vehicle:lanes"] == nil
+    and bus_lanes_only_in(tags, ":forward") and bus_lanes_only_in(tags, ":backward") then
+    return {
+      ["access:lanes:forward"] = true, ["vehicle:lanes:forward"] = true,
+      ["access:lanes:backward"] = true, ["vehicle:lanes:backward"] = true,
+    }
+  end
+  return {}
 end
 
 --- May each class use this way at all? Returns one boolean per class.
@@ -920,7 +982,7 @@ function M.classes(tags, country)
   -- The one exception is a bus lane on a carriageway, whose closure the law
   -- itself confines to the lane, on a road where no turn crosses it. Closing
   -- the road for it shut the only road to Bloemendaal aan Zee.
-  local bus_lanes_only = not on_cycle_infrastructure and only_bus_lanes_closed(tags)
+  local bus_lanes = on_cycle_infrastructure and {} or bus_lane_keys(tags)
   for _, key in ipairs({
     "access:forward", "access:backward", "vehicle:forward", "vehicle:backward",
     "access:lanes", "access:lanes:forward", "access:lanes:backward",
@@ -928,8 +990,7 @@ function M.classes(tags, country)
     "access:forward:conditional", "access:backward:conditional",
     "vehicle:forward:conditional", "vehicle:backward:conditional",
   }) do
-    local unscoped_lanes = key == "access:lanes" or key == "vehicle:lanes"
-    if tags[key] ~= nil and not (unscoped_lanes and bus_lanes_only) then
+    if tags[key] ~= nil and not bus_lanes[key] then
       set_all(classes, false)
     end
   end
@@ -1026,17 +1087,15 @@ function M.classes(tags, country)
     end
   end
 
-  -- The request has no dimensions, load or trailer facts for two-wheelers.
-  -- A static C17-C21-derived tag may therefore bind the actual vehicle even
-  -- when its borrowed Valhalla costing has no dimension fields. Refuse the way
-  -- for every class instead of assuming a representative vehicle fits.
+  -- The request has no dimensions, load or trailer facts, so a C17-C21-derived
+  -- tag that some class could exceed closes the way for every class.
   for _, key in ipairs({
     "maxwidth", "maxwidth:physical", "maxwidth:forward", "maxwidth:backward",
     "maxheight", "maxheight:forward", "maxheight:backward", "maxlength",
     "maxlength:forward", "maxlength:backward", "maxweight", "maxweight:forward",
     "maxweight:backward", "maxaxles", "maxaxleload",
   }) do
-    if limits(tags[key]) then
+    if binds(tags, key, country) then
       set_all(classes, false)
     end
   end
@@ -1079,7 +1138,7 @@ function M.classes(tags, country)
   -- they cannot accidentally close or open the opposite direction.
   for _, entry in ipairs(country.closed_signs or {}) do
     if M.has_sign_in(tags, { "traffic_sign" }, entry.sign,
-      country.sign_prefix, entry.valued) then
+      country.sign_prefix, sign_value(entry, country)) then
       for index, class in ipairs(country.classes) do
         classes[index] = classes[index] and not entry.bars[class.code]
       end
@@ -1238,7 +1297,7 @@ function M.node_classes(tags, country)
     "maxweight:backward:conditional", "maxaxles:conditional",
     "maxaxleload:conditional",
   }) do
-    if limits(tags[key]) then
+    if binds(tags, key, country) then
       set_all(classes, false)
     end
   end
@@ -1250,7 +1309,7 @@ function M.node_classes(tags, country)
   -- graph already carries, not an impassable point.
   for _, entry in ipairs(country.closed_signs or {}) do
     if entry.bars_entry
-      and M.has_sign(tags, entry.sign, country.sign_prefix, entry.valued) then
+      and M.has_sign(tags, entry.sign, country.sign_prefix, sign_value(entry, country)) then
       for index, class in ipairs(country.classes) do
         classes[index] = classes[index] and not entry.bars[class.code]
       end
@@ -1277,11 +1336,11 @@ local function close_from_directional_signs(tags, country, code, forward, backwa
   for _, entry in ipairs(country.closed_signs or {}) do
     if entry.bars[code] then
       if M.has_sign_in(tags, { "traffic_sign:forward" }, entry.sign,
-        country.sign_prefix, entry.valued) then
+        country.sign_prefix, sign_value(entry, country)) then
         forward = false
       end
       if M.has_sign_in(tags, { "traffic_sign:backward" }, entry.sign,
-        country.sign_prefix, entry.valued) then
+        country.sign_prefix, sign_value(entry, country)) then
         backward = false
       end
     end

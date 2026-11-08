@@ -1,8 +1,9 @@
 # Netherlands rules
 
-Primary sources last reviewed **2026-10-17** for bus lanes (NL-ACC-11),
+Primary sources last reviewed **2026-11-08** for dimension signs (NL-ACC-06),
+**2026-10-17** for bus lanes (NL-ACC-11),
 **2026-10-08** for the gehandicaptenvoertuig and **2026-08-15** for everything
-else. The country module declares `nl-2026-10-08.3`.
+else. The country module declares `nl-2026-10-08.4`.
 
 [Documentation](../README.md) · [Shared country rules](../country-rules.md)
 
@@ -263,7 +264,11 @@ signs apply to a snorfiets.
 | C13 | "Gesloten voor bromfietsen, snorfietsen en gehandicaptenvoertuigen, met in werking zijnde motor" | snorfiets, bromfiets, speed pedelec, gehandicaptenvoertuig |
 | C14 | "Gesloten voor fietsen en voor gehandicaptenvoertuigen zonder motor" | snorfiets (art. 2b). Not the motorised gehandicaptenvoertuig |
 | C15 | "Gesloten voor fietsen, bromfietsen en gehandicaptenvoertuigen" | snorfiets, bromfiets, speed pedelec, gehandicaptenvoertuig |
-| C17–C21 | Length / width / height / axle load / mass limits | all five, while actual dimensions are unknown |
+| C17 | "Gesloten voor voertuigen en samenstellen van voertuigen die, met inbegrip van de lading, langer zijn dan op het bord is aangegeven" | all five below 6.5 m; none from 6.5 m |
+| C18 | "Gesloten voor voertuigen die, met inbegrip van de lading, breder zijn dan op het bord is aangegeven" | all five below 2.0 m; none from 2.0 m |
+| C19 | "Gesloten voor voertuigen die, met inbegrip van de lading, hoger zijn dan op het bord is aangegeven" | all five below 2.5 m; none from 2.5 m |
+| C20 | "Gesloten voor voertuigen waarvan de aslast hoger is dan op het bord is aangegeven" | all five below 1 t; none from 1 t |
+| C21 | "Gesloten voor voertuigen en samenstellen van voertuigen, waarvan de totaalmassa of de som van de aslasten hoger is dan op het bord is aangegeven" | all five below 1 t; none from 1 t |
 | C22 | "Gesloten voor voertuigen met bepaalde gevaarlijke stoffen" | all five, while cargo is unknown |
 
 **Router:** an unscoped prohibition closes both directions when its physical
@@ -272,9 +277,42 @@ the named direction. C3/C4 without either a scope or an OSM `oneway` value close
 both rather than guessing which way the road runs.
 
 The request carries no trailer, cargo, width, height, length or axle load, so
-C10 closes the brommobiel and C17–C22 close every profile. Stricter than
+C10 closes the brommobiel, C22 closes every profile, and C17–C21 close every
+profile unless the value is one no class can exceed. Stricter than
 necessary when a particular vehicle fits; assuming it fits can issue a route
 barred by the value on the sign.
+
+C17–C21 bind only a vehicle larger than the sign, and the largest each class can
+be is written down:
+
+- Regulation (EU) 168/2013 Annex I, for every L-category vehicle: "length ≤ 4 000
+  mm or ≤ 3 000 mm for a L6e-B vehicle", "height ≤ 2 500
+  mm", "width ≤ 2 000 mm, or ≤ 1 000 mm for a L1e vehicle, or ≤ 1 500 mm for a
+  L6e-B or a L7e-C vehicle", and for L6e "the mass in running order ≤ 425 kg".
+  <https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:32013R0168>
+- Regeling voertuigen art. 5.18.27, the trailer a C21 counts with its
+  "samenstellen": behind a two-wheeler "de breedte … niet meer bedragen dan
+  1,00 m", "de hoogte … niet meer bedragen dan 1,00 m" and "de afstand van de
+  achteras van de trekkende bromfiets tot de achterzijde van de aanhangwagen met
+  inbegrip van de lading mag niet meer bedragen dan 2,00 m"; behind a moped on
+  more than two wheels 2,00 m, 1,50 m and 2,50 m; in both cases "de totale massa van het
+  voertuig mag niet meer bedragen dan de helft van de ledige massa van de
+  trekkende bromfiets".
+- Regeling voertuigen art. 5.18.30: "De breedte van gehandicaptenvoertuigen mag
+  met inbegrip van de lading niet meer bedragen dan 1,10 m" and "De hoogte van
+  gehandicaptenvoertuigen mag met inbegrip van de lading niet meer bedragen dan
+  2,00 m". <https://wetten.overheid.nl/BWBR0025798/2026-07-01>
+
+A width from 2.0 m, a height from 2.5 m and a length from 6.5 m (4 m of vehicle
+and 2.5 m of trailer behind its rear axle) therefore bind no L-category class. No
+law caps the mass of an L1e two-wheeler or of a gehandicaptenvoertuig, nor the
+length of a gehandicaptenvoertuig; 1 t for mass and axle load and 6.5 m for its
+length are the maintainer's decisions of 2026-11-08 that none of the five comes
+near either, a brommobiel with its trailer included. `unbound_from` in
+`countries/nl.lua` holds these values for the tags and for the value on a
+mapped sign, such as `NL:C19[3.9]`. A sign without a value, an unreadable value
+or another unit still closes the way. RVV 1990 bijlage 1 and both regulations
+read 2026-11-08.
 
 ### NL-ACC-07 — A cyclist one-way exception does not reach a snorfiets `UNVERIFIABLE`
 
@@ -467,29 +505,37 @@ holds a bus lane only where it is physically separated. A turn across a bus
 lane therefore cannot be shown lawful, so a road where one could be made stays
 closed.
 
-**Router:** `access:lanes` and `vehicle:lanes` are read, and stop closing the
-way, only when all of these hold:
+**Router:** the general lane keys are read, and stop closing the way, only when
+all of these hold:
 
-- the road is a forward one-way (`oneway=yes` or a roundabout), so every lane
-  runs the direction the graph carries, in the order OSM lists them;
-- the way carries exactly one of `bus:lanes` and `psv:lanes`, with the same lane
-  count as every general lane key;
+- each lane's direction is known: `access:lanes` and `vehicle:lanes` on a
+  forward one-way (`oneway=yes` or a roundabout), or `:lanes:forward` and
+  `:lanes:backward` on a two-way road with no unscoped lane key. OSM lists the
+  values "in left-to-right order as viewed in the respective driving direction
+  of those lanes" (<https://wiki.openstreetmap.org/wiki/Lanes>, read
+  2026-11-08), so each direction is read in its own travel order;
+- each family of lane keys carries exactly one of `bus:lanes` and `psv:lanes`
+  with the same suffix, with the same lane count as every general key;
 - every lane a general key does not open (`yes`, `designated`, `permissive`) is
   marked `yes` or `designated` for buses or psv;
 - at least one lane is open under every general key;
 - the way carries `amgraph:bus_lane_turns=none`, which `infra/bus_lanes.py`
   writes only where no road a class could enter joins on a closed lane's side
-  at any node. A lane on the right is crossed by a right turn, one on the left
-  by a left turn, one between open lanes by both. At the first and last node the
+  at any node. On a one-way road a lane on the right is crossed by a right turn,
+  one on the left by a left turn, one between open lanes by both. On a two-way
+  road a bus lane at its own direction's kerb is crossed by turns to that side
+  of the road, and any other bus lane by turns to both sides, because the
+  oncoming traffic turns across it too. At the first and last node the
   one way within 25° of straight on is the road carrying on; every other join
   is a turn, and one within 5° of the road's line, which cannot be put on a
   side, closes the way.
 
 The way is then decided as if the lane tags were absent, so a moped refusal, a
 sign or the authority overlay closes it exactly as it would anywhere else.
-Everything else keeps the whole-way closure: directional `:lanes:forward` and
-`:lanes:backward`, a two-way or reversed one-way road, a lane closed for
-anything but a bus, any lane tag naming a class (`moped:lanes`,
+Everything else keeps the whole-way closure: unscoped lane keys on a two-way
+road, directional lane keys on a one-way road, a reversed one-way road, a
+directional `access:forward` or `access:backward`, a lane closed for anything
+but a bus, any lane tag naming a class (`moped:lanes`,
 `motor_vehicle:lanes`), and every cycle path.
 
 Turn restrictions would reopen more and are not used. Valhalla 3.8.3
@@ -502,7 +548,11 @@ Two examples. The Jaagweg in Purmerend, beside the old Amsterdam–Purmerend
 tram path, has its bus lane on the right and no road joining it, so it is
 reopened. The Zeeweg (N200) towards Bloemendaal aan Zee is reopened where its
 bus lane is on the left and nothing joins, and stays closed where the bus lane
-runs between two open lanes and a turning lane leaves beyond it.
+runs between two open lanes and a turning lane leaves beyond it. On the
+two-way stretch of the Jaagweg (way 740662887) and on the Willemsbrug in
+Rotterdam the bus lane is at the kerb with no road joining on its side, so both
+reopen; on Alexanderplein in Amsterdam it runs beside the centre line and stays
+closed.
 
 ## Signs
 

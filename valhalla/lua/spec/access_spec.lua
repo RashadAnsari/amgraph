@@ -399,8 +399,23 @@ allows("NL-ACC-09", "F7 closes a junction whose prohibited U-turn is not modelle
 
 for _, sign in ipairs({ "C17", "C18", "C19", "C20", "C21" }) do
   allows("NL-ACC-06", sign .. " closes classes whose exact dimensions are not in the request",
-    { highway = "residential", traffic_sign = "NL:" .. sign .. "[2.0]" },
+    { highway = "residential", traffic_sign = "NL:" .. sign .. "[0.5]" },
     { false, false, false })
+  allows("NL-ACC-06", sign .. " without a value closes every class",
+    { highway = "residential", traffic_sign = "NL:" .. sign },
+    { false, false, false })
+end
+
+for _, sign in ipairs({ "NL:C17[12]", "NL:C18[2.2]", "NL:C19[3.9]", "NL:C20[4.8]",
+  "NL:C21[45]", "C21-12" }) do
+  allows("NL-ACC-06", sign .. " is larger than any class",
+    { highway = "residential", traffic_sign = sign }, { true, true, true })
+end
+
+for _, sign in ipairs({ "NL:C18[1.8]", "NL:C19[2.2]", "NL:C21[0.8]", "NL:C17[6]",
+  "NL:C19[3,9]", "NL:C21[800 kg]" }) do
+  allows("NL-ACC-06", sign .. " may bind a class, or cannot be read",
+    { highway = "residential", traffic_sign = sign }, { false, false, false })
 end
 
 allows("NL-ACC-06", "C22 closes vehicles whose regulated cargo is unknown",
@@ -435,6 +450,16 @@ equals("NL-ACC-06", "a backward C12 closes only the brommobiel backwards",
 equals("NL-ACC-06", "a backward C12 leaves every carrier forwards",
   flags.moped_forward .. flags.motorcycle_forward .. flags.truck_forward,
   "truetruetrue")
+
+flags = access.carrier_flags(
+  { highway = "residential", ["traffic_sign:forward"] = "NL:C19[4.0]",
+    ["traffic_sign:backward"] = "NL:C19[2.2]" }, NL)
+equals("NL-ACC-06", "a forward C19 no class reaches leaves every carrier forwards",
+  flags.moped_forward .. flags.motorcycle_forward .. flags.truck_forward,
+  "truetruetrue")
+equals("NL-ACC-06", "a backward C19 a class may exceed closes every carrier backwards",
+  flags.moped_backward .. flags.motorcycle_backward .. flags.truck_backward,
+  "falsefalsefalse")
 
 flags = access.carrier_flags(
   { highway = "residential", ["traffic_sign:forward"] = "NL:F7" }, NL)
@@ -541,6 +566,12 @@ equals("conservative", "directional node access has no safe adjacent edge",
 
 equals("NL-ACC-06", "a C13 sign mapped as a node closes both two-wheelers",
   node_allows({ traffic_sign = "NL:C13" }), classes_to_string(false, false, true))
+
+equals("NL-ACC-06", "a C21 node no class reaches stays open",
+  node_allows({ traffic_sign = "NL:C21[30]" }), classes_to_string(true, true, true))
+
+equals("NL-ACC-06", "a C18 node a class may exceed closes every class",
+  node_allows({ traffic_sign = "NL:C18[1.5]" }), classes_to_string(false, false, false))
 
 -- A one-way sign is a statement about direction, not a prohibition on being
 -- there, so on a node — where both directions meet — it closes a junction the
@@ -877,6 +908,41 @@ allows("NL-ACC-06", "a signed height limit still closes every class",
   { highway = "secondary", maxspeed = "50", maxheight = "2.2" },
   { false, false, false })
 
+-- C17-C21 bind only a vehicle larger than the sign. At or above these values
+-- no Dutch class can be: Regulation (EU) 168/2013 Annex I, Regeling voertuigen
+-- art. 5.18.27 and 5.18.30, and the maintainer's decision for unregulated mass
+-- and length.
+for _, case in ipairs({
+  { "maxweight", "120" }, { "maxweight", "15 t" }, { "maxweight", "1" },
+  { "maxaxleload", "7" }, { "maxheight", "4.0" }, { "maxheight", "2.5 m" },
+  { "maxwidth", "2.0" }, { "maxwidth:physical", "2.2" }, { "maxweight:forward", "30" },
+  { "maxlength", "12" }, { "maxlength:backward", "6.5" },
+}) do
+  allows("NL-ACC-06", case[1] .. "=" .. case[2] .. " is larger than any class",
+    { highway = "tertiary", maxspeed = "30", [case[1]] = case[2] },
+    { true, true, true })
+end
+
+for _, case in ipairs({
+  { "maxweight", "0.8" }, { "maxaxleload", "0.5" }, { "maxheight", "2.4" },
+  { "maxwidth", "1.8" }, { "maxlength", "6" }, { "maxaxles", "3" },
+  { "maxweight", "800 kg" }, { "maxweight", "2,5" }, { "maxheight", "13'" },
+}) do
+  allows("NL-ACC-06", case[1] .. "=" .. case[2] .. " may bind a class, or cannot be read",
+    { highway = "tertiary", maxspeed = "30", [case[1]] = case[2] },
+    { false, false, false })
+end
+
+allows("NL-ACC-06", "one binding limit closes a way whatever the others say",
+  { highway = "tertiary", maxspeed = "30", maxweight = "120", maxwidth = "1.8" },
+  { false, false, false })
+
+equals("NL-ACC-06", "a weight limit no class reaches leaves a node open",
+  node_allows({ maxweight = "120" }), classes_to_string(true, true, true))
+
+equals("NL-ACC-06", "a conditional weight limit on a node still closes it",
+  node_allows({ ["maxweight:conditional"] = "120 @ wet" }), classes_to_string(false, false, false))
+
 equals("NL-ACC-06", "a designated hazmat route does not close the node either",
   node_allows({ hazmat = "designated" }), classes_to_string(true, true, true))
 
@@ -1155,6 +1221,36 @@ equals("NL-ACC-11", "a restricted open lane is not an open lane",
 equals("NL-ACC-11", "a two-way road cannot say which direction its open lane runs",
   all_five({ highway = "secondary",
     ["access:lanes"] = "yes|no", ["bus:lanes"] = "|designated" }), CLOSED)
+
+-- Jaagweg, Purmerend, OSM way 740662887: two-way, with the bus lane in the
+-- backward direction only.
+equals("NL-ACC-11", "a two-way road whose only closed lane is a backward bus lane opens",
+  all_five({ highway = "secondary", lanes = "2", maxspeed = "50",
+    bicycle = "no", foot = "no", surface = "asphalt",
+    ["access:lanes:backward"] = "yes|no", ["bus:lanes:backward"] = "no|yes" }),
+  "snorfiets=yes bromfiets=yes brommobiel=yes gehandicaptenvoertuig=no speed_pedelec=yes")
+
+equals("NL-ACC-11", "bus lanes in both directions of a two-way road open it",
+  all_five({ highway = "secondary",
+    ["access:lanes:forward"] = "yes|no", ["bus:lanes:forward"] = "|designated",
+    ["vehicle:lanes:backward"] = "yes|no", ["psv:lanes:backward"] = "|designated" }), OPEN)
+
+equals("NL-ACC-11", "a two-way bus lane still needs the junction finding",
+  all_five({ highway = "secondary",
+    ["access:lanes:backward"] = "yes|no", ["bus:lanes:backward"] = "no|yes" }, true), CLOSED)
+
+equals("NL-ACC-11", "a closed lane that is no bus lane in the other direction keeps it closed",
+  all_five({ highway = "secondary",
+    ["access:lanes:forward"] = "yes|no", ["bus:lanes:forward"] = "|designated",
+    ["access:lanes:backward"] = "yes|no" }), CLOSED)
+
+equals("NL-ACC-11", "a one-way road's directional lane keys are not read",
+  all_five({ highway = "secondary", oneway = "yes",
+    ["access:lanes:forward"] = "yes|no", ["bus:lanes:forward"] = "|designated" }), CLOSED)
+
+equals("NL-ACC-11", "a directional access value is no lane and keeps the road closed",
+  all_five({ highway = "secondary", ["access:backward"] = "no",
+    ["access:lanes:forward"] = "yes|no", ["bus:lanes:forward"] = "|designated" }), CLOSED)
 
 equals("NL-ACC-11", "a lane count that disagrees across keys cannot be read",
   all_five({ highway = "secondary", oneway = "yes",

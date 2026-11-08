@@ -64,39 +64,73 @@ CONTINUATION_DEGREES = 25.0
 AMBIGUOUS_DEGREES = 5.0
 
 
-def closed_lane_sides(tags: Mapping[str, str]) -> frozenset[str] | None:
-    """Which sides of the road the closed lanes lie on, or None if unreadable.
+def _closed_lanes(tags: Mapping[str, str], suffix: str) -> tuple[list[int], int] | None:
+    """The closed lanes of one lane-key family and its lane count, or None if unreadable.
 
-    Only a forward one-way is read, because the lanes of `oneway=-1` and of a
-    two-way road cannot be put in travel order without guessing. Lanes are
-    counted left to right in the way's direction.
+    OSM lists the lanes left to right as their own direction drives. A family
+    with no general lane key closes nothing and answers no lanes.
     """
-    if tags.get("oneway") not in {"yes", "true", "1"} and tags.get("junction") not in {
-        "roundabout",
-        "circular",
-    }:
+    general = [
+        tags[key + suffix].split("|")
+        for key in ("access:lanes", "vehicle:lanes")
+        if key + suffix in tags
+    ]
+    if not general:
+        return [], 0
+    if ("bus:lanes" + suffix in tags) == ("psv:lanes" + suffix in tags):
         return None
-    if ("bus:lanes" in tags) == ("psv:lanes" in tags):
+    reserved = (tags.get("bus:lanes" + suffix) or tags["psv:lanes" + suffix]).split("|")
+    if any(len(lanes) != len(reserved) for lanes in general):
         return None
-    reserved = (tags.get("bus:lanes") or tags["psv:lanes"]).split("|")
-    general = [tags[key].split("|") for key in ("access:lanes", "vehicle:lanes") if key in tags]
-    if not general or any(len(lanes) != len(reserved) for lanes in general):
-        return None
-
     closed = [
         lane for lane in range(len(reserved)) if not all(lanes[lane] in ALLOW for lanes in general)
     ]
-    if not closed or len(closed) == len(reserved):
+    if len(closed) == len(reserved):
         return None
+    return closed, len(reserved)
+
+
+def closed_lane_sides(tags: Mapping[str, str]) -> frozenset[str] | None:
+    """Which sides of the way, in its own direction, the closed lanes lie on.
+
+    None if unreadable. A forward one-way is read from `access:lanes`, a two-way
+    road from `:lanes:forward` and `:lanes:backward`; a reversed one-way, and a
+    two-way road's unscoped lane keys, are not read.
+    """
+    one_way = tags.get("oneway") in {"yes", "true", "1"} or tags.get("junction") in {
+        "roundabout",
+        "circular",
+    }
+    two_way = not one_way and tags.get("oneway") in {None, "no", "false", "0"}
     sides: set[str] = set()
-    for lane in closed:
-        # A closed lane in the middle has open lanes on both sides of it, so a
-        # turn either way from the far side would cross it.
-        if lane < len(reserved) - 1:
-            sides.add("left")
-        if lane > 0:
-            sides.add("right")
-    return frozenset(sides)
+
+    if one_way:
+        found = _closed_lanes(tags, "")
+        if found is None:
+            return None
+        closed, count = found
+        for lane in closed:
+            # A closed lane in the middle has open lanes on both sides of it, so a
+            # turn either way from the far side would cross it.
+            if lane < count - 1:
+                sides.add("left")
+            if lane > 0:
+                sides.add("right")
+    elif two_way and "access:lanes" not in tags and "vehicle:lanes" not in tags:
+        for suffix, kerb in ((":lanes:forward", "right"), (":lanes:backward", "left")):
+            found = _closed_lanes(tags, suffix.removeprefix(":lanes"))
+            if found is None:
+                return None
+            closed, count = found
+            for lane in closed:
+                # Right-hand traffic: a direction's last lane is the kerb, which
+                # only turns to that side cross. Any other lane is crossed by the
+                # oncoming traffic's turns as well.
+                sides.update({kerb} if lane == count - 1 else {"left", "right"})
+    else:
+        return None
+
+    return frozenset(sides) or None
 
 
 Point = tuple[float, float]

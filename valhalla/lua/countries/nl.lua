@@ -153,6 +153,12 @@ local country = {
   -- be signed without one.)
   unsigned_cycleway = { snorfiets = false, bromfiets = false, gehandicaptenvoertuig = false },
 
+  -- NL-ACC-06. A C17-C21 value no class can exceed: tonnes for mass and axle
+  -- load, metres for length, height and width.
+  unbound_from = {
+    maxweight = 1.0, maxaxleload = 1.0, maxlength = 6.5, maxheight = 2.5, maxwidth = 2.0,
+  },
+
   -- NL-ACC-06. RVV 1990 bijlage I, current text read 2026-08-14.
   -- Art. 2a makes motor-vehicle signs apply to a brommobiel; art. 2b makes
   -- bicycle signs apply to a snorfiets.
@@ -173,11 +179,11 @@ local country = {
     { sign = "C13", bars = { snorfiets = true, bromfiets = true }, bars_entry = true },
     { sign = "C14", bars = { snorfiets = true }, bars_entry = true },
     { sign = "C15", bars = { snorfiets = true, bromfiets = true }, bars_entry = true },
-    { sign = "C17", bars = { snorfiets = true, bromfiets = true, brommobiel = true }, valued = true, bars_entry = true },
-    { sign = "C18", bars = { snorfiets = true, bromfiets = true, brommobiel = true }, valued = true, bars_entry = true },
-    { sign = "C19", bars = { snorfiets = true, bromfiets = true, brommobiel = true }, valued = true, bars_entry = true },
-    { sign = "C20", bars = { snorfiets = true, bromfiets = true, brommobiel = true }, valued = true, bars_entry = true },
-    { sign = "C21", bars = { snorfiets = true, bromfiets = true, brommobiel = true }, valued = true, bars_entry = true },
+    { sign = "C17", bars = { snorfiets = true, bromfiets = true, brommobiel = true }, valued = true, bars_entry = true, unbound_by = "maxlength" },
+    { sign = "C18", bars = { snorfiets = true, bromfiets = true, brommobiel = true }, valued = true, bars_entry = true, unbound_by = "maxwidth" },
+    { sign = "C19", bars = { snorfiets = true, bromfiets = true, brommobiel = true }, valued = true, bars_entry = true, unbound_by = "maxheight" },
+    { sign = "C20", bars = { snorfiets = true, bromfiets = true, brommobiel = true }, valued = true, bars_entry = true, unbound_by = "maxaxleload" },
+    { sign = "C21", bars = { snorfiets = true, bromfiets = true, brommobiel = true }, valued = true, bars_entry = true, unbound_by = "maxweight" },
     { sign = "C22", bars = { snorfiets = true, bromfiets = true, brommobiel = true }, valued = true, bars_entry = true },
 
     -- NL-ACC-08. G1/G3 mark the autosnelweg and autoweg, which art. 42 admits

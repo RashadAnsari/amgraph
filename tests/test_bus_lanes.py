@@ -66,6 +66,65 @@ def test_lanes_that_cannot_be_put_in_travel_order_are_not_read(change) -> None:
     assert closed_lane_sides(tags) is None
 
 
+TWO_WAY = {"highway": "secondary"}
+
+
+def test_a_backward_bus_lane_on_its_kerb_lies_on_the_ways_left() -> None:
+    # Jaagweg, Purmerend, OSM way 740662887: each direction lists its lanes
+    # left to right as that direction drives, so the backward kerb is the way's left.
+    tags = {**TWO_WAY, "access:lanes:backward": "yes|no", "bus:lanes:backward": "no|yes"}
+    assert closed_lane_sides(tags) == {"left"}
+
+
+def test_a_forward_bus_lane_on_its_kerb_lies_on_the_ways_right() -> None:
+    tags = {**TWO_WAY, "access:lanes:forward": "yes|yes|no", "bus:lanes:forward": "||yes"}
+    assert closed_lane_sides(tags) == {"right"}
+
+
+def test_a_two_way_bus_lane_off_the_kerb_is_crossed_both_ways() -> None:
+    # Beside the centre line, the oncoming traffic's turns cross it too.
+    tags = {**TWO_WAY, "access:lanes:forward": "no|yes", "bus:lanes:forward": "yes|"}
+    assert closed_lane_sides(tags) == {"left", "right"}
+
+
+def test_bus_lanes_on_both_kerbs_are_crossed_both_ways() -> None:
+    tags = {
+        **TWO_WAY,
+        "access:lanes:forward": "yes|no",
+        "bus:lanes:forward": "|designated",
+        "vehicle:lanes:backward": "yes|no",
+        "psv:lanes:backward": "|designated",
+    }
+    assert closed_lane_sides(tags) == {"left", "right"}
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"access:lanes:backward": "yes|yes|no"},
+        {"access:lanes": "yes|no"},
+        {"oneway": "yes"},
+        {"psv:lanes:backward": "no|yes"},
+        {"bus:lanes:backward": None},
+        {"access:lanes:backward": "no|no"},
+        {"access:lanes:backward": "yes|yes"},
+    ],
+    ids=[
+        "count-mismatch",
+        "unscoped",
+        "one-way",
+        "both-keys",
+        "no-bus",
+        "all-closed",
+        "none-closed",
+    ],
+)
+def test_two_way_lanes_that_cannot_be_read_are_not(change) -> None:
+    tags = {**TWO_WAY, "access:lanes:backward": "yes|no", "bus:lanes:backward": "no|yes", **change}
+    tags = {key: value for key, value in tags.items() if value is not None}
+    assert closed_lane_sides(tags) is None
+
+
 def test_a_road_with_nothing_joining_is_clear() -> None:
     assert not crosses_bus_lane(POINTS, NODES, frozenset({"right"}), {})
 
