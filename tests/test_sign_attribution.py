@@ -112,7 +112,18 @@ class TestWhoMayUseThePath:
         assert path_classes({"mofa": "no"}, "G12a") == (False, False)
 
     def test_an_explicit_permission_is_honoured(self) -> None:
-        assert path_classes({"moped": "designated"}, None) == (False, True)
+        """A cycle path open to a bromfiets is a G12a, which admits the snorfiets."""
+        assert path_classes({"moped": "designated"}, None) == (True, True)
+
+    def test_the_moped_inference_yields_to_a_refusal_of_what_a_g12a_admits(self) -> None:
+        assert path_classes({"moped": "designated", "bicycle": "no"}, None) == (False, True)
+        assert path_classes({"moped": "designated", "mofa": "no"}, None) == (False, True)
+
+    def test_a_mapped_sign_beats_the_moped_inference(self) -> None:
+        assert path_classes({"moped": "designated", "traffic_sign": "NL:G13"}, None) == (
+            False,
+            True,
+        )
 
     def test_use_sidepath_on_a_path_is_a_refusal_not_a_permission(self) -> None:
         assert path_classes({"traffic_sign": "NL:G12a", "moped": "use_sidepath"}, None) == (

@@ -188,6 +188,14 @@ rider picks a powertrain. Stricter than the statute for an electric snorfiets,
 but it cannot produce an illegal route. Opening it only for electric needs a
 distinct graph access class, not an API switch.
 
+**A cycle path open to the bromfiets admits the snorfiets.** The G12a is the
+only sign that admits a bromfiets to the cycle network (NL-ACC-02), and it
+admits a snorfiets. Art. 5 lid 8 reaches the G11 alone, so no municipality's
+measure takes the snorfiets off it. Where a mapper permits `moped` on a cycle
+path with no mapped sign, the path is therefore open to the snorfiets as well,
+unless the same way refuses bicycles or the snorfiets, which a G12a would
+admit. The same inference already admits the gehandicaptenvoertuig (NL-ACC-10).
+
 ### NL-ACC-04 — Snorfiets municipal override to the roadway `VERIFIED`
 
 > lid 8: "Bestuurders van snorfietsen gebruiken de rijbaan indien dit bij
@@ -231,6 +239,71 @@ it.
 **Limit of the measure:** lid 8 reaches "het verkeersteken dat het verplichte
 fietspad aangeeft", which is the **G11 alone**. A fiets/bromfietspad is outside
 its scope, so a snorfiets on an Amsterdam G12a is lawful.
+
+**An onderbord anywhere.** Lid 8 needs the onderbord on the G11, and the
+onderbord is what a rider sees. Wherever the mapper wrote one naming the
+snorfiets into the G11's `traffic_sign`, or the register G11 nearest the path
+carries one, the snorfiets comes off that path in any municipality, not only
+in Amsterdam and Utrecht. Searching every
+published decision for the measure on 2026-11-13 found it taken only by
+Amsterdam and Utrecht; elsewhere the register holds such plates without a
+decision behind them that the search found, and the plate decides.
+
+**Utrecht names its roads.** Gmb. 2021, 212045,
+<https://zoek.officielebekendmakingen.nl/gmb-2021-212045.html>, read
+2026-11-13, puts the onderbord on "de volgende locaties waar een verplicht
+fietspad aanwezig is" and lists each road and solitary path, and later
+decisions add Biltstraat, Vleutenseweg, Jutfaseweg, Paardenveld and Croeselaan.
+`ART5_LID8_LISTED` holds those names. Inside Utrecht a G11 loses the snorfiets
+only on a listed road, on an unnamed path (the list's solitary paths have no
+street of their own, so one may be listed), or where an onderbord is mapped or
+in the register. Every other Utrecht G11 admits and obliges it under art. 5
+lid 1, and only listed carriageways are stamped `on_roadway`.
+
+**Roads Amsterdam left out.** The Amsterdam decision does not reach its main
+through-routes:
+
+> "Echter op de belangrijkste doorstromingswegen voor auto en voor openbaar
+> vervoer wordt de maatregel voorlopig niet ingevoerd."
+
+Stcrt. 2018, 71559, p. 8,
+<https://zoek.officielebekendmakingen.nl/stcrt-2018-71559.pdf>, read
+2026-11-13. It lists Prins Hendrikkade between Centraal Station and the
+IJ-tunnel; Nieuwe Leeuwarderweg – IJ-tunnel – Valkenburgerstraat –
+Weesperstraat – Wibautstraat – Gooiseweg; Transformatorweg – Spaarndammerdijk –
+Tasmanstraat – Van Diemenstraat – Westerdoksdijk – De Ruijterkade – Piet
+Heinkade – Piet Heintunnel – IJburglaan; the S100 (Houtmankade – Nassaukade –
+Stadhouderskade – Mauritskade – Zeeburgerdijk – Panamalaan); Kattenburgerstraat
+and Prins Hendrikkade between the IJ-tunnel and Kattenburgerstraat; and the
+Schellingwouderbrug and Amsterdamsebrug. The exception still stands in 2025:
+
+> "de gemeente Amsterdam in 2019 diverse verkeersbesluiten heeft genomen
+> waarbij snorfietsen niet zijn toegestaan op verplichte fietspaden en zij
+> moeten rijden op de autorijbaan met helmplicht, met uitzondering van de De
+> Ruijterkade"
+
+Gmb. 2025, 474758, <https://zoek.officielebekendmakingen.nl/gmb-2025-474758.html>,
+read 2026-11-13. One road has since been brought under the measure:
+
+> "Door het plaatsen van verkeersborden conform model G11 van Bijlage I van het
+> RVV 1990, met onderborden met de tekst: “snorfietsen niet toegestaan”, te
+> bepalen dat snorfietsen op de hoofdrijbaan moeten rijden op de
+> Kattenburgerstraat."
+
+Gmb. 2023, 51567, <https://zoek.officielebekendmakingen.nl/gmb-2023-51567.html>,
+read 2026-11-13. Every Amsterdam verkeersbesluit after 2018-12-17 that
+repository.overheid.nl returns for a listed road together with the snorfiets
+was read on 2026-11-13, and none other puts the onderbord on a listed road.
+
+On these roads art. 5 lid 1 holds: the G11 admits the snorfiets and obliges it.
+`ART5_LID8_EXEMPT_ROADS` in the country module holds the list, each road with
+the box it applies in: Prins Hendrikkade only east of the station, the rest
+within Amsterdam, Kattenburgerstraat left out. `official_access.py` keeps the
+snorfiets on a G11 named for one of them, or running beside one, and stamps no
+`on_roadway` on their carriageways. A register G11 beside the path whose
+onderbord names the snorfiets still wins, because that plate is the measure.
+Where the authority then closes such a carriageway to the snorfiets, the
+closure is written as `sidepath` (see the authority overlay below).
 
 The rule decides which road a rider belongs on, not whether the trip may
 happen, so it must never be implemented as a refusal of routes touching either
@@ -333,7 +406,8 @@ rider the wrong way down a one-way street; this way costs them a longer ride.
 G1 and G3 mark the autosnelweg and autoweg, which art. 42 permits only to a
 motorvoertuig. G7 and G9 identify infrastructure that
 arts. 5, 6 and 10 do not permit these classes to use. Reading the sign prevents
-a contradictory generic highway tag from opening it.
+a contradictory generic highway tag from opening it. An onderbord can still
+admit a class to a G7; see NL-ACC-12.
 
 ### NL-ACC-09 — Mandatory movements and U-turn prohibition `VERIFIED`
 
@@ -372,14 +446,10 @@ waarschijnlijk in Utrecht blijven rijden" with a decision due in 2026, and a
 rule still being decided is not one this router may act on.
 
 **There is no national source for these.** NDW publishes emission zones at
-`https://data.ndw.nu/api/rest/static-road-data/emission-zones/v1/map` — 40 zones
-across 28 municipalities, with validity dates and the regulation id — but it
-covers cars, vans, lorries and buses only. Across the whole payload the strings
-`brom`, `snor`, `moped`, `l1e` and `scooter` appear **zero** times, and every
-exemption is `{vehicleType: CAR|VAN|TRUCK|BUS}`. Its Amsterdam and Den Haag
-entries link to the diesel-car and lorry pages, not the moped ones. Using it
-here would either lose the moped zones or apply lorry rules to mopeds. Measured
-2026-08-15.
+`https://data.ndw.nu/api/rest/static-road-data/emission-zones/v1/map`, but it
+covers cars, vans, lorries and buses only: no zone names a moped, and every
+exemption is `{vehicleType: CAR|VAN|TRUCK|BUS}`. Using it here would either lose
+the moped zones or apply lorry rules to mopeds.
 
 A missing or malformed zone file returns 503 rather than skipping the check, and
 a malformed validity date is a hard error rather than an ignored field: dropping
@@ -430,10 +500,8 @@ art. 7 obliges it onto nothing, no set of closures can leave it nowhere lawful.
 
 1. **A moped exemption does not reach it.** A road tagged `vehicle=no` or
    `access=destination` with `moped=yes` is closed to traffic except
-   bromfietsen, and this vehicle is not one. 452 Dutch ways (82 km) are tagged
-   that way, measured against the openstreetmap.fr extract on 2026-10-08. It is
-   why no existing class can stand in for this one: the bromfiets would be
-   routed through them.
+   bromfietsen, and this vehicle is not one. That is why no existing class can
+   stand in for this one: the bromfiets would be routed through them.
 2. **Off the cycle network, a refusal for any vehicle near it closes it.**
    `moped`, `mofa`: a C13 or C15 mapped as the tags it implies, and both bind
    it. `motor_vehicle`, `motorcar`: usually a C12 or C6, which do not bind it
@@ -455,7 +523,8 @@ art. 7 obliges it onto nothing, no set of closures can leave it nowhere lawful.
    or `amgraph:snorfiets=no` off the cycle network does not say whether a
    sidepath obliges mopeds, which binds nobody else, or a prohibition forbids
    them, which may bind this class too. `on_roadway` places a snorfiets on the
-   road and says nothing against anybody.
+   road and says nothing against anybody, and `sidepath` is a closure whose
+   cause is known to bind the snorfiets alone (see the authority overlay).
 6. **A one-way for any nearby vehicle holds it.** `oneway:bicycle`, `oneway:mofa`,
    `oneway:moped`, `oneway:motor_vehicle` and `oneway:motorcar` may be the only
    trace of a C2, C3 or C4, so their restriction binds it; their exemption
@@ -468,7 +537,7 @@ art. 7 obliges it onto nothing, no set of closures can leave it nowhere lawful.
 
 Signs: see the gehandicaptenvoertuig entries in NL-ACC-06. The difference from
 the brommobiel cuts both ways, which is why neither existing four-wheeled answer
-was safe: C13 and C15 name it and do not bind a brommobiel (art. 2a), while C6
+fits it: C13 and C15 name it and do not bind a brommobiel (art. 2a), while C6
 and C12 bind motorvoertuigen and not it.
 
 ### NL-ACC-11 — A bus lane closes its own lane `VERIFIED`
@@ -554,12 +623,93 @@ Rotterdam the bus lane is at the kerb with no road joining on its side, so both
 reopen; on Alexanderplein in Amsterdam it runs beside the centre line and stays
 closed.
 
+### NL-ACC-12 — A voetpad whose onderbord admits bromfietsen `VERIFIED`
+
+> "Verkeerstekens gaan boven verkeersregels, voor zover deze regels
+> onverenigbaar zijn met deze tekens."
+
+> "Indien het beoogde verkeersgedrag wordt aangegeven door middel van teksten of
+> tekens al dan niet in combinatie met symbolen, blijkt het beoogde
+> verkeersgedrag uit het onderbord."
+
+RVV arts. 63 and 67 lid 2, text in force from 2026-07-01, read 2026-11-13 at
+<https://wetten.overheid.nl/BWBR0004825/2026-07-01>. A G7 bars these classes
+(NL-ACC-08), but an onderbord reading "brom-fietsen toegestaan" admits
+bromfietsen to that voetpad, and a snorfiets is a bromfiets (NL-DEF-01). The
+square at the Centraal Station ferries is one: Stcrt. 2015, 6116 makes the
+pontsteiger area a voetgebied where "(brom)fietsen is toegestaan", the
+register photographs the plate at both ends, and the city's panorama of
+2025-06-17 shows it with an A1 of 15. Gmb. 2022, 27963 does the same south of
+the IJplein ferry landing ("met onderborden met de tekst: “(brom)fietsen
+toegestaan”").
+
+**Two sources, always.** `official_access.py` writes `footpath_onderbord` on a
+footway or pedestrian way for a class only when the mapper put a G7 on it, or no sign at all, and
+permits the class (`moped` or `mofa` `yes`, `designated` or `permissive`), and
+a placed register G7 within 20 m carries a plate from a closed list of
+admitting texts and no other plate. A G7 and its onderbord govern the voetpad behind them until the next sign, so the confirmation is carried over connected footways and pedestrian ways that carry no other sign and on which the mapper permits the class, with the register's A1, up to `SPREAD_METRES` from the confirmed way. Either source alone opens nothing: OSM
+carries moped permissions on voetpaden where no such plate stands, and the
+register's onderbord text is sometimes missing. A plate with hours or any
+other condition is not on the list, because this graph cannot hold one.
+`lifted_by_plate` on the G7 entry in
+`countries/nl.lua` lets the confirmed plate lift that sign's bar for the class
+it admits.
+
+**A G12a drawn as a footpath.** A G12a makes a fiets/bromfietspad (NL-ACC-03)
+whatever highway value the mapper chose. Where the mapper's G12a on a footway
+or pedestrian way is confirmed by the register's own G12a for it,
+`footpath_g12a` makes the way cycle infrastructure and the G12a rules apply in
+full.
+
+**Speed.** No article sets a bromfiets limit on a voetpad, so a posted A1
+binds. Where the register has an A1 within 20 m of an opened way and OSM has no
+lower `maxspeed`, its figure is written as `maxspeed`, because that is the only
+place the API reads a posted limit. Art. 20(c) does not reach an ordinary
+snorfiets here: its 6 km/h binds only "gehandicaptenvoertuigen, uitgerust met
+een motor, en snorfietsen als bedoeld in artikel 1, eerste lid, onderdeel e,
+subonderdeel d, van de wet", and WVW 1994 art. 1(1)(e)(d) is a light electric
+vehicle "met een door de constructie bepaalde maximumsnelheid van niet meer
+dan 25 km/h" that needs no EU type approval
+(<https://wetten.overheid.nl/BWBR0006622/2026-07-01>, read 2026-11-13). A
+type-approved blue-plate snorfiets falls under subonderdeel a.
+
+**Who stays out.** The brommobiel: art. 6 lid 3 puts it on the rijbaan, and
+GVB's rules for the ferries these squares serve say "Brommobielen mogen niet
+mee op onze IJ-veerponten"
+(<https://www.gvb.nl/reisinformatie/reisregels-en-voorwaarden>, read
+2026-11-13). Stcrt. 2015, 40478 does admit it to the (brom)fietspad east of the
+pontsteiger, but no plate on the square names it, so it is not admitted there.
+The gehandicaptenvoertuig: art. 20(c) does cap it at 6 km/h
+on a voetpad, a speed the API cannot report (NL-ACC-10).
+
+### NL-ACC-13 — A ferry carries what its operator admits `VERIFIED`
+
+No article of the RVV governs who boards a ferry; that is the operator's
+condition of carriage. The map's explicit permission for a class is the only
+trace of it the graph has, so a `route=ferry` way is open to a class exactly
+where `mofa`, `moped` or `motorcar`/`motor_vehicle` says `yes`, `designated`
+or `permissive`, and closed where the map is silent. The gehandicaptenvoertuig
+has no key and stays off every ferry. For the IJ ferries the map agrees with
+GVB's own rules:
+
+> "Op onze IJ-veerponten mogen voetgangers, (brom)fietsers en
+> gehandicaptenvoertuigen mee."
+
+> "Brommobielen mogen niet mee op onze IJ-veerponten."
+
+> "Op veerpont F9 Sporenburg – Zeeburgereiland zijn alleen voetgangers en
+> fietsers toegestaan."
+
+<https://www.gvb.nl/reisinformatie/reisregels-en-voorwaarden>, read 2026-11-13.
+The way onto a ferry is decided like any other way: a landing reached only
+over a voetpad without an admitting onderbord stays out of reach.
+
 ## Signs
 
 | Code | Caption | Meaning for us |
 | --- | --- | --- |
 | **G1 / G3** | Autosnelweg / Autoweg | Barred to all five: art. 42 admits only motorvoertuigen |
-| **G7 / G9** | Voetpad / Ruiterpad | Barred to all five. Art. 7 does admit a gehandicaptenvoertuig to a voetpad; see NL-ACC-10 |
+| **G7 / G9** | Voetpad / Ruiterpad | Barred to all five. Art. 7 does admit a gehandicaptenvoertuig to a voetpad; see NL-ACC-10. A confirmed "brom-fietsen toegestaan" onderbord admits the two-wheelers and the speed pedelec; see NL-ACC-12 |
 | **G11** | Verplicht fietspad | Snorfiets yes, bromfiets no, gehandicaptenvoertuig yes. Snorfiets no inside an art. 5 lid 8 municipality |
 | **G12** | Einde verplicht fietspad | End marker |
 | **G12a** | Fiets/bromfietspad | Snorfiets yes, bromfiets yes, gehandicaptenvoertuig yes, brommobiel no |
@@ -573,31 +723,14 @@ closed.
 | **D2** | Gebod voor alle bestuurders het bord voorbij te gaan aan de zijde die de pijl aangeeft | Pass on the side the arrow shows. Closes a way, never a node |
 | **D4–D7** | Gebod tot rijrichting | Mandatory direction. Closes a way |
 | **F7** | Keerverbod | No U-turn. Closes a way |
-| **H1 / H2** | Bebouwde kom begin / einde | Not usable: only 29 nodes nationwide carry it in OSM. See [Speeds](#speeds) |
+| **H1 / H2** | Bebouwde kom begin / einde | Not usable: almost never mapped in OSM. See [Speeds](#speeds) |
 
 An unsigned path is **none** of G11/G12a/G13, because those terms exist only as
 sign captions (NL-ACC-03). The country's `unsigned_cycleway` default is
 `false` for every class.
 
-How much of the network that reaches, measured against the extract on
-2026-08-15:
-
-| | |
-| --- | --- |
-| Dutch highway ways | 2,796,046 |
-| of which cycleways | 258,625 |
-| cycleways with `moped=designated` (a G12a) | 68,244 |
-| cycleways with `moped=no` (a G11 or G13) | 90,139 |
-| cycleways with `moped=yes` | 2,711 |
-| **cycleways with neither a sign nor a `moped`/`mofa` tag** | **84,867 — 32.8%** |
-| ways with `moped=use_sidepath` | 44,717 |
-| nodes carrying an H1 bebouwde-kom sign | **29** |
-| barrier nodes | 234,649 |
-
-`designated`, not `yes`, is how the Netherlands marks a bromfietspad — 68,244
-against 2,711 — so an access table missing `designated` locks bromfietsen out
-of the entire cycle network. The 29 H1 nodes are why the speed table always reports the
-built-up figure.
+`designated`, not `yes`, is how the Netherlands marks a bromfietspad, so an
+access table missing `designated` locks bromfietsen out of the cycle network.
 
 ## Speeds
 
@@ -616,10 +749,8 @@ A posted limit lower than the class limit binds too: a 30 zone is 30 for a
 bromfiets as much as for a car. Inside an *erf* (`highway=living_street`) art.
 45 caps every bestuurder at 15.
 
-**The bebouwde kom is not derivable from OpenStreetMap.** 29 nodes nationwide
-carry the H1 sign; this was measured, do not look for it again. So the
-built-up figure — 30 rather than 40 — is the one to report on a cycle path.
-That is permanent, not a placeholder, and it can never produce a fine.
+**The bebouwde kom is not derivable from OpenStreetMap**, which maps almost no
+H1 sign. So on a cycle path the built-up figure, 30 rather than 40, is the cap.
 
 Unlike access, a speed is **not** baked into the tiles. It depends on the road
 as well as the vehicle, so it is decided per request by whatever serves the
@@ -629,15 +760,13 @@ table itself, as `ClassSpeeds` in the country module.
 A consumer applying it should take the country's table as a **required**
 argument with no default: substituting one country's limits for another is
 exactly the mistake that requirement exists to make impossible. It should also
-be able to say it does not know. A country or a future data source may be unable
-to establish a limit for a particular edge, and absence must not be turned into
-a made-up number; the Netherlands module returns its conservative class and
-infrastructure cap when the road has no mapped posted limit, because that value
-is established independently of the missing tag.
+say when it does not know: where no posted limit is mapped, an unmapped sign may
+set one below the class cap, so the cap is not a known limit there. An erf's 15
+is known without a sign.
 
 ## Authority overlay
 
-`infra/official_access.py` writes four values into the extract, under keys
+`infra/official_access.py` writes seven values into the extract, under keys
 `amgraph:snorfiets` and `amgraph:bromfiets`. Each has exactly one job.
 
 | Value | Meaning | Where it may appear |
@@ -646,6 +775,9 @@ is established independently of the missing tag.
 | `on_roadway` | Nothing lawful runs beside this carriageway, so lid 2 keeps it open | Carriageways only |
 | `roadway_only` | Art. 5 lid 8: this verplicht fietspad does not admit a snorfiets | Cycle paths, snorfiets key only |
 | `yes` | The register says a G12a stands on this unsigned path | Cycle paths, snorfiets key only |
+| `sidepath` | The authority closes this carriageway to the snorfiets, and not to the bromfiets or only by a sidepath obligation resolved to `on_roadway`, and either the path beside is usable to the snorfiets only through the NL-ACC-03 moped reading or an NL-ACC-04 exception, or the carriageway lies in a lid 8 municipality on a road its measure does not reach: the closure places the snorfiets. Nothing that closes the snorfiets alone binds a gehandicaptenvoertuig (C14 does not reach it; C13 and C15 close the bromfiets too; NL-ACC-06), so it keeps the road. Every other snorfiets closure stays `no`, because a WKD section that leaves the bromfiets open is never read as permission | Carriageways only, snorfiets key only |
+| `footpath_onderbord` | The register's G7 beside this voetpad has an onderbord admitting the class, and the mapper permits it | Footway and pedestrian ways with a mapped G7 |
+| `footpath_g12a` | The register confirms the G12a mapped on this voetpad | Footway and pedestrian ways with a mapped G12a |
 
 A refusal is cheap to accept and an affirmation is not, so the two openings are
 each bounded to a case where the law leaves no discretion, and
@@ -676,42 +808,33 @@ For each carriageway the authority or OSM closes:
 - **no** path runs alongside → the refusal was never about mandatory use, so it
   is a prohibition in its own right and stays `no`.
 
-Measured on the 2026-08-15 extract: 93,313 closures kept with a usable path
-beside, 68,176 kept with no path beside, 19,734 deadlocks resolved to the
-roadway, and 30,199 carriageways kept open for the snorfiets under art. 5 lid 8.
-
 ### The sign register
 
-NDW's verkeersbordenbestand carries 181,765 *placed* cycle signs (G11 99,505 /
-G12a 65,035 / G13 17,225). Matching them to OSM ways at 20 m, with a 30 m
-no-conflicting-sign clearance, agrees with OSM on **96.1%** of the 103,094 ways
-where both sources speak.
+Register cycle signs are matched to OSM ways within 20 m, and only where no
+different cycle sign stands within 30 m. What decides the policy is the
+direction of a mix-up. A G11/G12a confusion is free for a snorfiets, because
+art. 5 lid 1 admits it to both, and opens a verplicht fietspad to a bromfiets,
+because G11 bars it and G12a admits it. So the register opens a path for the
+snorfiets only, and only on a G12a; a bromfiets gets the rijbaan from art. 6
+lid 2 instead.
 
-The headline accuracy is not what decides the policy — the confusion direction
-is. A G11/G12a mix-up is free for a snorfiets, because art. 5 lid 1 admits it
-to both, and a **3.00%** false-opening rate for a bromfiets, because G11 bars it
-and G12a admits it. So the register opens a path for the snorfiets only, and
-only on a G12a, where the measured disagreement is 0.47%. A bromfiets gets the
-rijbaan from art. 6 lid 2 instead, at no cost.
-
-**Gotcha:** `validated` is `n` on every one of the 181,765 signs, so filtering
-on it discards the whole source.
+The register's `validated` field is `n` on every sign, so it is not read.
 
 ## Data limitations
 
 | Not handled | Why | Effect on a rider |
 | --- | --- | --- |
 | Temporary or newly placed restrictions | No verified live closure feed is integrated | The graph cannot know it |
-| Mandatory use where OSM and WKD are both silent | Only 46.9% of the obligation is expressed in OSM | A rider may be routed on the carriageway where the sidepath was compulsory |
+| Mandatory use where OSM and WKD are both silent | OSM states only part of the obligation | A rider may be routed on the carriageway where the sidepath was compulsory |
 | A combustion vehicle's year, engine cycle or exemption | Not in the request | Emission-zone municipalities closed conservatively |
 | Actual vehicle dimensions, load or trailer | Not in the request | Dimension-controlled ways closed; C10 closes the brommobiel |
 | G13 for an electric snorfiets | One access bit, built before powertrain is chosen | Detours. Needs a distinct access class |
 | The trottoir and voetpad for a gehandicaptenvoertuig | Art. 7 admits it, at 6 km/h under pedestrian rules | Never routed there; longer routes |
 | A cycleway open to a gehandicaptenvoertuig by sign alone, with the sign unmapped | OSM has no key for the class, and only a moped permission implies a sign that admits it | Untagged G11s closed to it; longer routes |
 | Whether the municipal moped zones reach a gehandicaptenvoertuig | Not established (NL-ACC-06A) | Combustion ones refused in all four municipalities |
-| The bebouwde kom | 29 nodes nationwide | Always reports 30 on a cycle path |
+| The bebouwde kom | Almost no H1 is mapped | 30 is the cap on a cycle path |
 | Untagged cycle paths the register cannot resolve | Ambiguous between opposite answers | Treated as forbidden; longer routes |
-| Zeeland / Walcheren | The crossings are motorway, C9 or the Westerscheldetunnel, and whether a lawful moped route exists **has not been established from primary sources** | Middelburg is currently unreachable for every class |
+| Zeeland / Walcheren | The crossings are motorway, C9 or the Westerscheldetunnel, and whether a lawful moped route exists **has not been established from primary sources** | Middelburg is unreachable for every class |
 
 ### Honest answer to "is every route legally valid?"
 

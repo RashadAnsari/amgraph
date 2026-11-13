@@ -45,7 +45,7 @@ dev = [
 
 [[package]]
 name = "amgraph-rules"
-version = "5.0.4"
+version = "5.1.0"
 source = { editable = "rules" }
 
 [[package]]

@@ -34,6 +34,14 @@ local country = {
       -- register, because for a snorfiets a G11 and a G12a mean the same thing
       -- and confusing them costs nothing. See the long note in access.lua.
       overlay_opens_cycle_infrastructure = true,
+
+      -- NL-ACC-03. A cycle path a bromfiets may use is a G12a, the one sign
+      -- that admits it to the cycle network (NL-ACC-02), and a G12a admits a
+      -- snorfiets. Art. 5 lid 8 reaches the G11 alone, so no municipality's
+      -- measure undoes it. A refusal of bicycles or of the snorfiets on the
+      -- way says it is not a G12a, as for the gehandicaptenvoertuig below.
+      cycle_evidence_keys = { "moped" },
+      cycle_evidence_vetoes = { "bicycle", "mofa" },
     },
     {
       code = "bromfiets",
@@ -63,7 +71,7 @@ local country = {
       -- OSM has no key for it, and borrowing `moped` would be the error this
       -- class exists to avoid: art. 1 defines it as a vehicle that "geen
       -- bromfiets is", so a road closed to traffic except bromfietsen stays
-      -- closed to it. 452 Dutch ways are tagged that way, measured 2026-10-08.
+      -- closed to it.
       access_keys = {},
 
       -- Every tag below closes it where the tag could be the trace of a sign
@@ -88,7 +96,7 @@ local country = {
 
       -- On a cycle path a moped permission means a G12a: NL-ACC-02 admits a
       -- bromfiets to that sign and to no other, and the Netherlands marks it
-      -- `designated` 68,244 times. A G12a admits this class. `mofa` is not
+      -- `designated`. A G12a admits this class. `mofa` is not
       -- evidence, because a snorfiets permission is also what a G13 carries,
       -- and a refusal of a vehicle a G12a admits means the path is not one.
       cycle_evidence_keys = { "moped" },
@@ -145,12 +153,9 @@ local country = {
     { sign = "G13", admits = { snorfiets = false, bromfiets = false, gehandicaptenvoertuig = false } },
   },
 
-  -- No sign in the data. 84,867 of the country's 258,625 cycleways carry
-  -- neither a traffic_sign nor a moped or mofa tag — 32.8%, measured
-  -- 2026-08-15 — and the two readings are opposites, so the conservative
-  -- branch wins. (The 38% quoted here before was a different measurement:
-  -- cycleways carrying no `moped` tag, which is a larger set because a way can
-  -- be signed without one.)
+  -- No sign in the data. A large share of Dutch cycleways carry neither a
+  -- traffic_sign nor a moped or mofa tag, and the two readings are opposites,
+  -- so the conservative branch wins.
   unsigned_cycleway = { snorfiets = false, bromfiets = false, gehandicaptenvoertuig = false },
 
   -- NL-ACC-06. A C17-C21 value no class can exceed: tonnes for mass and axle
@@ -193,7 +198,11 @@ local country = {
     -- they mark a road type the class may not be on at all.
     { sign = "G1", bars = { snorfiets = true, bromfiets = true, brommobiel = true }, bars_entry = true },
     { sign = "G3", bars = { snorfiets = true, bromfiets = true, brommobiel = true }, bars_entry = true },
-    { sign = "G7", bars = { snorfiets = true, bromfiets = true, brommobiel = true }, bars_entry = true },
+    -- NL-ACC-12. RVV art. 67 lid 2: an onderbord's text decides what the sign
+    -- allows, so a confirmed "brom-fietsen toegestaan" lifts the G7 for the
+    -- class it admits. Only the overlay can say a plate is confirmed.
+    { sign = "G7", bars = { snorfiets = true, bromfiets = true, brommobiel = true }, bars_entry = true,
+      lifted_by_plate = true },
     { sign = "G9", bars = { snorfiets = true, bromfiets = true, brommobiel = true }, bars_entry = true },
 
     -- NL-ACC-09. These signs mandate a movement or prohibit a U-turn. A stock
@@ -203,9 +212,8 @@ local country = {
     --
     -- It must not close a node, and no `bars_entry` here says so. D1 is the
     -- roundabout sign and D2 is "keep right", so they stand at essentially
-    -- every roundabout and every divided-road island in the country. Applying
-    -- them to nodes made those junctions impassable to all three classes,
-    -- which is not what the sign says and cut the network to pieces.
+    -- every roundabout and every divided-road island in the country, and on a
+    -- node they would close the junction, which is not what the sign says.
     { sign = "D1", bars = { snorfiets = true, bromfiets = true, brommobiel = true } },
     { sign = "D2", bars = { snorfiets = true, bromfiets = true, brommobiel = true } },
     { sign = "D4", bars = { snorfiets = true, bromfiets = true, brommobiel = true } },

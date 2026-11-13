@@ -1,8 +1,7 @@
 """The road authority's overlay must actually change what the graph allows.
 
 Every other test here asks whether a rule is *correct*. This one asks whether
-it is *doing anything*, which is a different question and the one that nearly
-got past us.
+it is *doing anything*.
 
 The overlay writes three values and they carry very different risk. `no` is a
 closure and safe by construction: WKD's own documentation warns that signs are
@@ -34,9 +33,8 @@ WORK = ROOT / "infra" / "work"
 
 lupa = pytest.importorskip("lupa.lua54", reason="lupa provides the Lua runtime")
 
-#: Floors, not targets. The Netherlands has roughly 200,000 ways the authority
-#: closes; this sits far enough below the measured figures that the monthly
-#: refresh cannot trip it, and far enough above zero that a filter which guts
+#: Floors, not targets: far enough below the real figures that the monthly
+#: refresh cannot trip them, and far enough above zero that a filter which guts
 #: the overlay cannot pass.
 MIN_CLOSED = 100_000
 #: A closure that changes nothing is not a closure. Most of the ways the
@@ -51,7 +49,23 @@ COUNTRY = "amgraph:country"
 #: Every value access.lua reads from those keys. A typo in the writer would be
 #: silent: an unknown value parses, injects, builds and routes as though the
 #: overlay had never been written.
-KNOWN_VALUES = {"no", "on_roadway", "roadway_only", "yes"}
+KNOWN_VALUES = {
+    "no",
+    "on_roadway",
+    "roadway_only",
+    "yes",
+    "sidepath",
+    "footpath_onderbord",
+    "footpath_g12a",
+}
+
+#: NL-ACC-12 opens a voetpad only, and nothing else of the NEVER family.
+FOOTPATH_HIGHWAYS = {"footway", "pedestrian"}
+
+#: How many voetpaden NL-ACC-12 may open nationwide before somebody looks. Both
+#: sources agree on very few; a filter that starts trusting one source alone
+#: would open hundreds.
+MAX_FOOTPATHS_OPENED = 60
 
 #: OSM highway values that are cycle infrastructure, per access.lua's
 #: is_cycle_infrastructure. `path` needs a further tag and is checked in place.
@@ -202,6 +216,8 @@ def test_the_two_permissive_values_stay_inside_their_bounds() -> None:
                     stray[f"roadway_only on highway={highway}"] += 1
                 elif value == "roadway_only" and key.endswith("bromfiets"):
                     stray["roadway_only on the bromfiets key"] += 1
+                elif value == "sidepath" and (cycle or key.endswith("bromfiets")):
+                    stray[f"sidepath on highway={highway} key={key}"] += 1
                 elif value == "on_roadway" and cycle:
                     stray[f"on_roadway on highway={highway}"] += 1
                 elif value == "yes":
@@ -209,10 +225,46 @@ def test_the_two_permissive_values_stay_inside_their_bounds() -> None:
                         stray[f"yes on highway={highway}"] += 1
                     if key.endswith("bromfiets"):
                         stray["yes on the bromfiets key"] += 1
+                elif value in {"footpath_onderbord", "footpath_g12a"}:
+                    if highway not in FOOTPATH_HIGHWAYS:
+                        stray[f"{value} on highway={highway}"] += 1
+                    sign = w.tags.get("traffic_sign") or ""
+                    if value == "footpath_onderbord" and sign and "G7" not in sign:
+                        stray["footpath_onderbord without a mapped G7"] += 1
+                    if value == "footpath_g12a" and "G12a" not in (
+                        w.tags.get("traffic_sign") or ""
+                    ):
+                        stray["footpath_g12a without a mapped G12a"] += 1
 
     Collect().apply_file(str(extract))
     assert not stray, (
         f"the overlay opens something outside the bounds its rule reaches: {dict(stray)}"
+    )
+
+
+@pytest.mark.graph
+def test_the_voetpad_openings_stay_few() -> None:
+    """NL-ACC-12 needs the map and the register to agree, which is rare.
+
+    A count far above the usual one means a filter started trusting one source
+    alone, which is exactly the mistake the two-source rule exists for.
+    """
+    osmium = pytest.importorskip("osmium", reason="reads the extract")
+    extract = _extract()
+    if not extract.exists():
+        pytest.skip(f"no enriched extract at {extract}")
+
+    opened = 0
+
+    class Collect(osmium.SimpleHandler):
+        def way(self, w) -> None:
+            nonlocal opened
+            if any(w.tags.get(key) in {"footpath_onderbord", "footpath_g12a"} for key in OVERLAY):
+                opened += 1
+
+    Collect().apply_file(str(extract))
+    assert opened <= MAX_FOOTPATHS_OPENED, (
+        f"{opened} voetpaden opened by NL-ACC-12, over {MAX_FOOTPATHS_OPENED}"
     )
 
 

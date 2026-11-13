@@ -42,9 +42,8 @@ retrieval date. Match that standard or do not write the rule.
    *and* closing that path because it carries no sign, is not caution twice
    over: it asserts that the rider must be somewhere they may not be, and it is
    always wrong, because RVV art. 5 lid 2 and art. 6 lid 2 say the rijbaan is
-   mandatory precisely when no path is established. That pair alone made 96% of
-   ordinary snorfiets city pairs unroutable. Before adding a closure, ask what
-   it leaves open. A rule that can leave a rider nowhere lawful is a bug however
+   mandatory precisely when no path is established. Before adding a closure,
+   ask what it leaves open. A rule that can leave a rider nowhere lawful is a bug however
    conservative each half looks.
 
 2. **Where the law cannot be read from the data, choose the slower answer.**
@@ -152,17 +151,24 @@ docs/
   dependency rather than recalling one.
 - **Tests alongside code**, and for legal rules, tests **first**. Every access
   assertion names the rule it pins.
-- **Measure before believing.** The two largest defects of 2026-08-15 were
-  invisible to reading the code and obvious the moment something was counted. If
-  a claim about the network can be turned into a number, turn it into a number.
+- **Measure before believing.** Defects in network rules are often invisible to
+  reading the code and obvious once something is counted. If a claim about the
+  network can be turned into a number, turn it into a number, and keep the
+  number out of the docs.
 - **Match the surrounding style.** Comments here explain *why*, never *what*. If
-  a comment restates the code, delete it. If a line took an afternoon to get
-  right, say what the afternoon taught you.
+  a comment restates the code, delete it. If a line was hard to get right, state
+  the constraint that makes it so.
 - **Do not add abstraction for a consumer that does not exist.** A spec line is
   a hypothesis.
-- **Documentation describes the system as it is**, never how it got that way. A
-  lesson worth keeping is written as the constraint it imposes, not as the story
-  of the day it was learned.
+- **Docs and comments are not a diary.** They state the current state and
+  nothing else: what the rule is, its source, and why. No history, no "was",
+  "now", "used to", "found on", "fixed", no earlier setups and no story of the
+  day something was learned; a lesson is written as the constraint it imposes,
+  and the story belongs in the commit message. Be short and to the point, in
+  plain words, without filler or AI-style phrasing. Never write a number that
+  drifts with the data (way counts, matches, "measured on <date>: N"); legal
+  values, thresholds and retrieval dates stay. Delete what no longer describes
+  the system.
 
 ## Before you call anything done
 

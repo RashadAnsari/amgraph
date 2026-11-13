@@ -96,8 +96,9 @@ allows("NL-ACC-04", "the art. 5 lid 8 onderbord removes the snorfiets from the f
 allows("NL-ACC-03", "a cycle path barred to bicycles is barred to the snorfiets too",
   { highway = "cycleway", traffic_sign = "NL:G12a", bicycle = "no" }, { false, true, false })
 
-allows("NL-ACC-02", "a bare moped=yes cycleway admits the bromfiets",
-  { highway = "cycleway", moped = "yes" }, { false, true, false })
+-- A cycle path a bromfiets may use is a G12a, so it admits the snorfiets too.
+allows("NL-ACC-02", "a bare moped=yes cycleway admits the bromfiets and the snorfiets",
+  { highway = "cycleway", moped = "yes" }, { true, true, false })
 
 allows("NL-ACC-03", "a bare mofa=yes cycleway admits the snorfiets only",
   { highway = "cycleway", mofa = "yes" }, { true, false, false })
@@ -522,10 +523,8 @@ equals("conservative", "an ordinary routing node leaves every class open",
 -- nothing either. Whether the rider may be here is the road's access, read
 -- above; whether they can physically get past is upstream's parser, whose mask
 -- amgraph.lua intersects with this answer and which already models a bollard, a
--- wall and a gate per travel mode. Demanding an explicit permission here made
--- 192,800 nodes impassable to all three classes, against ~13,000 for every
--- access tag in the country combined, and it was the single largest reason a
--- bromfiets could not cross 500 metres of Utrecht while plain `auto` could.
+-- wall and a gate per travel mode. Demanding an explicit permission here would
+-- make most barriers in the country impassable to our classes alone.
 equals("conservative", "an untagged barrier is not itself a prohibition",
   node_allows({ barrier = "gate" }), classes_to_string(true, true, true))
 
@@ -1005,7 +1004,7 @@ equals("NL-ACC-10", "a moped refusal does not close a signed G11",
 equals("NL-ACC-10", "a blanket ban on a cycleway is not lifted by a moped permission",
   gehandicapt({ highway = "cycleway", access = "no", moped = "designated" }), false)
 
--- The 452 Dutch ways closed to traffic except mopeds, measured 2026-10-08.
+-- Ways closed to traffic except mopeds.
 -- The exemption names bromfietsen, and art. 1 says this vehicle "geen
 -- bromfiets is".
 equals("NL-ACC-10", "a moped exemption from a road closure does not reach it",
@@ -1280,6 +1279,105 @@ flags = access.carrier_flags({ highway = "secondary", oneway = "yes",
   ["amgraph:bus_lane_turns"] = "none" }, NL)
 equals("NL-ACC-11", "the reopened road keeps its one-way",
   flags.truck_forward .. flags.truck_backward, "truefalse")
+
+-- NL-ACC-12: a voetpad the authority confirms is open to bromfietsen -------
+-- RVV art. 67 lid 2 lets the text on an onderbord decide what a sign allows,
+-- and art. 63 puts a sign above the rules. A G7 with "brom-fietsen toegestaan"
+-- under it admits bromfietsen, and a snorfiets is one. Neither the map nor the
+-- register is trusted alone: infra/official_access.py writes the value only
+-- where both say so, and the map's own permission is checked again here.
+
+local SQUARE = { highway = "pedestrian", traffic_sign = "NL:G7", moped = "yes", mofa = "yes",
+  ["amgraph:snorfiets"] = "footpath_onderbord", ["amgraph:bromfiets"] = "footpath_onderbord" }
+
+local function with(base, changes)
+  local tags = {}
+  for key, value in pairs(base) do tags[key] = value end
+  for key, value in pairs(changes) do
+    if value == false then tags[key] = nil else tags[key] = value end
+  end
+  return tags
+end
+
+equals("NL-ACC-12", "a confirmed onderbord opens the voetpad to the two-wheelers and the pedelec",
+  all_five(with(SQUARE, {}), true),
+  "snorfiets=yes bromfiets=yes brommobiel=no gehandicaptenvoertuig=no speed_pedelec=yes")
+
+equals("NL-ACC-12", "the map's permission alone opens nothing",
+  all_five(with(SQUARE, { ["amgraph:snorfiets"] = false, ["amgraph:bromfiets"] = false }), true),
+  CLOSED)
+
+equals("NL-ACC-12", "the authority's confirmation alone opens nothing",
+  all_five(with(SQUARE, { moped = false, mofa = false }), true), CLOSED)
+
+equals("NL-ACC-12", "each class is opened by its own confirmation",
+  all_five(with(SQUARE, { ["amgraph:snorfiets"] = false }), true),
+  "snorfiets=no bromfiets=yes brommobiel=no gehandicaptenvoertuig=no speed_pedelec=yes")
+
+equals("NL-ACC-12", "an explicit refusal on the way wins over the confirmation",
+  all_five(with(SQUARE, { moped = "no" }), true),
+  "snorfiets=yes bromfiets=no brommobiel=no gehandicaptenvoertuig=no speed_pedelec=no")
+
+equals("NL-ACC-12", "the value means nothing off a voetpad",
+  all_five(with(SQUARE, { highway = "steps" }), true), CLOSED)
+
+-- A G12a defines a fiets/bromfietspad (NL-ACC-03) whatever highway value the
+-- mapper chose. Confirmed by the register, the way is read as the cycle path
+-- the sign makes it, so every class the G12a admits is admitted.
+local G12A_ON_PEDESTRIAN = { highway = "pedestrian", traffic_sign = "NL:G12a", moped = "yes",
+  mofa = "yes", ["amgraph:snorfiets"] = "footpath_g12a", ["amgraph:bromfiets"] = "footpath_g12a" }
+
+equals("NL-ACC-12", "a confirmed G12a on a pedestrian way is a fiets/bromfietspad",
+  all_five(with(G12A_ON_PEDESTRIAN, {}), true),
+  "snorfiets=yes bromfiets=yes brommobiel=no gehandicaptenvoertuig=yes speed_pedelec=yes")
+
+equals("NL-ACC-12", "unconfirmed, the pedestrian way stays closed",
+  all_five(with(G12A_ON_PEDESTRIAN,
+    { ["amgraph:snorfiets"] = false, ["amgraph:bromfiets"] = false }), true), CLOSED)
+
+-- NL-ACC-04: on a road the art. 5 lid 8 measure skipped, the G11 beside it is
+-- where the snorfiets must ride. That obligation binds it alone, so the
+-- gehandicaptenvoertuig keeps the carriageway.
+equals("NL-ACC-04", "sidepath closes the carriageway to the snorfiets alone",
+  all_five({ highway = "primary", ["amgraph:snorfiets"] = "sidepath" }, true),
+  "snorfiets=no bromfiets=yes brommobiel=yes gehandicaptenvoertuig=yes speed_pedelec=yes")
+
+equals("NL-ACC-04", "a plain refusal still closes the gehandicaptenvoertuig too",
+  all_five({ highway = "primary", ["amgraph:snorfiets"] = "no" }, true),
+  "snorfiets=no bromfiets=yes brommobiel=yes gehandicaptenvoertuig=no speed_pedelec=yes")
+
+-- NL-ACC-03: a cycle path a bromfiets may use is a G12a, the only sign that
+-- admits it to the cycle network (NL-ACC-02), and a G12a admits the snorfiets.
+equals("NL-ACC-03", "an unsigned cycleway open to mopeds is open to the snorfiets",
+  all_five({ highway = "cycleway", moped = "designated" }, true),
+  "snorfiets=yes bromfiets=yes brommobiel=no gehandicaptenvoertuig=yes speed_pedelec=yes")
+
+equals("NL-ACC-03", "unless the way refuses bicycles, which a G12a admits",
+  all_five({ highway = "cycleway", moped = "designated", bicycle = "no" }, true),
+  "snorfiets=no bromfiets=yes brommobiel=no gehandicaptenvoertuig=no speed_pedelec=yes")
+
+equals("NL-ACC-03", "or refuses the snorfiets itself",
+  all_five({ highway = "cycleway", moped = "designated", mofa = "no" }, true),
+  "snorfiets=no bromfiets=yes brommobiel=no gehandicaptenvoertuig=no speed_pedelec=yes")
+
+equals("NL-ACC-03", "a mapped sign still decides over the inference",
+  all_five({ highway = "cycleway", moped = "designated", traffic_sign = "NL:G13" }, true),
+  "snorfiets=no bromfiets=yes brommobiel=no gehandicaptenvoertuig=no speed_pedelec=yes")
+
+-- NL-ACC-13: a ferry carries what its operator admits, as the map states it.
+equals("NL-ACC-13", "a ferry open to mopeds carries the two-wheelers and the pedelec",
+  all_five({ route = "ferry", moped = "yes", mofa = "yes", motor_vehicle = "no" }, true),
+  "snorfiets=yes bromfiets=yes brommobiel=no gehandicaptenvoertuig=no speed_pedelec=yes")
+
+equals("NL-ACC-13", "a ferry that says nothing carries nobody",
+  all_five({ route = "ferry" }, true), CLOSED)
+
+equals("NL-ACC-13", "a car ferry carries the brommobiel",
+  all_five({ route = "ferry", motor_vehicle = "yes", moped = "yes", mofa = "yes" }, true),
+  "snorfiets=yes bromfiets=yes brommobiel=yes gehandicaptenvoertuig=no speed_pedelec=yes")
+
+equals("NL-ACC-13", "a ferry refusing mopeds carries none",
+  all_five({ route = "ferry", moped = "no", mofa = "no", bicycle = "yes" }, true), CLOSED)
 
 -- Result -----------------------------------------------------------------
 

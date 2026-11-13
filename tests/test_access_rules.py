@@ -358,7 +358,13 @@ def test_no_tag_combination_in_the_netherlands_breaks_a_rule(rules) -> None:
                 "use_sidepath",
             }
 
-        off_network = tags.get("highway") not in {"cycleway", "path"}
+        # NL-ACC-12: a voetpad whose G12a the register confirms is a
+        # fiets/bromfietspad, so it is on the network.
+        confirmed_g12a = "footpath_g12a" in (
+            tags.get("amgraph:bromfiets"),
+            tags.get("amgraph:snorfiets"),
+        )
+        off_network = tags.get("highway") not in {"cycleway", "path"} and not confirmed_g12a
         roadway_refusal = any(
             refuses(k) for k in ("moped", "mofa", "motor_vehicle", "motorcar")
         ) or any(tags.get(k) == "no" for k in ("amgraph:bromfiets", "amgraph:snorfiets"))

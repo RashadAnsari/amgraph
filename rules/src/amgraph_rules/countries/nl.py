@@ -54,7 +54,7 @@ _BLUE = Plate(background="#1256B8", foreground="#FAFAF8")
 #: Bump on any change below. Kept internally rather than served, so the legal
 #: freshness gate can force a periodic re-read of the primary sources without
 #: the string reading to a rider as a build number.
-RULES_VERSION = "nl-2026-10-08.4"
+RULES_VERSION = "nl-2026-10-08.5"
 
 #: Separate carriers keep each vehicle identity stable across country boundaries.
 CLASSES: tuple[VehicleClass, ...] = (
@@ -209,6 +209,139 @@ MUNICIPAL_ZONES: dict[str, MunicipalZone] = {
     ),
 }
 
+_AMSTERDAM = (52.27, 4.72, 52.44, 5.08)
+_UTRECHT = (52.02, 4.97, 52.15, 5.20)
+
+#: Roads whose bike paths a municipality's art. 5 lid 8 measure does not reach,
+#: as (name, (south, west, north, east)), for the municipalities whose measure
+#: the graph applies to their whole territory.
+#:
+#: Amsterdam. Stcrt. 2018, 71559, p. 8: "op de
+#: belangrijkste doorstromingswegen voor auto en voor openbaar vervoer wordt de
+#: maatregel voorlopig niet ingevoerd", and Gmb. 2025, 474758 restates it as
+#: "met uitzondering van de De Ruijterkade". A snorfiets keeps art. 5 lid 1
+#: there: the G11 admits it and obliges it. Both read 2026-11-13.
+#:
+#: Kattenburgerstraat is on the 2018 list and is not here: Gmb. 2023, 51567
+#: put the onderbord on it ("snorfietsen op de hoofdrijbaan moeten rijden op de
+#: Kattenburgerstraat"). Prins Hendrikkade is listed only "tussen Centraal
+#: Station en IJ-tunnel" and "tussen IJ-tunnel en Kattenburgerstraat", so its
+#: box starts east of the station and ends at Kattenburgerplein. The two
+#: tunnels on the list carry no bike path and are left out. A search of every
+#: later Amsterdam verkeersbesluit naming these roads found no other onderbord,
+#: and a register plate naming snorfietsen on a G11 still overrides this list.
+ART5_LID8_EXEMPT_ROADS: tuple[tuple[str, tuple[float, float, float, float]], ...] = (
+    ("Prins Hendrikkade", (52.3700, 4.9025, 52.3770, 4.9160)),
+    *(
+        (name, _AMSTERDAM)
+        for name in (
+            "Nieuwe Leeuwarderweg",
+            "Valkenburgerstraat",
+            "Weesperstraat",
+            "Wibautstraat",
+            "Gooiseweg",
+            "Transformatorweg",
+            "Spaarndammerdijk",
+            "Tasmanstraat",
+            "Van Diemenstraat",
+            "Westerdoksdijk",
+            "De Ruijterkade",
+            "Piet Heinkade",
+            "IJburglaan",
+            "Houtmankade",
+            "Nassaukade",
+            "Stadhouderskade",
+            "Mauritskade",
+            "Zeeburgerdijk",
+            "Panamalaan",
+            "Schellingwouderbrug",
+            "Amsterdamsebrug",
+        )
+    ),
+)
+
+#: Utrecht's art. 5 lid 8 measure, which names every road it reaches rather than
+#: taking the municipality: Gmb. 2021, 212045 lists "de volgende locaties waar
+#: een verplicht fietspad aanwezig is", and the onderbord stands only there.
+#: Later decisions put it on Biltstraat (Gmb. 2022, 579834), Vleutenseweg (Gmb.
+#: 2022, 415248 and others), Jutfaseweg (Gmb. 2024, 210227), Paardenveld (Gmb.
+#: 2025, 410033) and Croeselaan (Gmb. 2026, 309624). All read 2026-11-13. The
+#: list's solitary paths have no street of their own, so an unnamed G11 in the
+#: municipality stays closed to the snorfiets: missing one costs a detour,
+#: opening a listed one costs a fine. A register or mapped onderbord closes any
+#: other G11 as well.
+ART5_LID8_LISTED: dict[str, tuple[tuple[float, float, float, float], frozenset[str]]] = {
+    "Utrecht": (
+        _UTRECHT,
+        frozenset(
+            {
+                "Amsterdamsestraatweg",
+                "Catharijnesingel",
+                "Daalsesingel",
+                "Bleekstraat",
+                "Vondellaan",
+                "Ledig Erf",
+                "Tolsteegsingel",
+                "Royaards van den Hamkade",
+                "Ahornstraat",
+                "Nijenoord",
+                "Omloop",
+                "Anton Geesinkstraat",
+                "Oudenoord",
+                "Laan van Chartroise",
+                "Sint-Jacobsstraat",
+                "St.-Jacobsstraat",
+                "Weerdsingel W.Z.",
+                "Weerdsingel Westzijde",
+                "Blauwkapelseweg",
+                "Kleine Singel",
+                "Biltstraat",
+                "Kruisstraat",
+                "Nobelstraat",
+                "Vredenburg",
+                "Lange Viestraat",
+                "Potterstraat",
+                "Neude",
+                "Lange Jansstraat",
+                "Janskerkhof",
+                "Van Sijpesteijnkade",
+                "Daalsetunnel",
+                "Westplein",
+                "Vleutenseweg",
+                "Graadt van Roggenweg",
+                "Croeselaan",
+                "Van Zijstweg",
+                "Rijnlaan",
+                "Balijelaan",
+                "Waalstraat",
+                "Jutfaseweg",
+                "Baden-Powellweg",
+                "W.A. Vultostraat",
+                "Constant Erzeijstraat",
+                "Briljantlaan",
+                "Burgemeester Fockema Andreaelaan",
+                "Jacob Westerbaenstraat",
+                "Laan van Kovelswade",
+                "Laan van Soestbergen",
+                "Oosterkade",
+                "Oosterspoorbaan",
+                "Neptunusstraat",
+                "Mesdaglaan",
+                "Veeartsenijpad",
+                "Hoveniersbrug",
+                "Lauwerecht",
+                "Timmerstraat",
+                "Moreelsebrug",
+                "Van Sijpesteijntunnel",
+                "Catharijnekade",
+                "Wolvenstraat",
+                "Westerkade",
+                "Paardenveld",
+            }
+        ),
+    ),
+}
+
 #: A rectangle around the European Netherlands, for the PDOK Locatieserver.
 #: Wide enough to include Antwerp and a strip of Germany, which is why the
 #: app also refuses a reverse-geocode further than 250 m from the pin.
@@ -253,11 +386,10 @@ ROUTE_CHECKS = (
     ((53.2000, 5.7900), (53.2100, 5.8050)),
 )
 
-# Routes every class must answer, where ROUTE_CHECKS only asks 80% of them. The
-# 80% let the snorfiets ship trapped in about a square kilometre of central
-# Amsterdam and of central Utrecht, answering 9 of 10: these two cities are
-# where RVV art. 5 lid 8 moves it onto the rijbaan (NL-ACC-04), and a deadlock
-# there leaves the other eight fixtures untouched.
+# Routes every class must answer, where ROUTE_CHECKS only asks 80% of them.
+# These two cities are where RVV art. 5 lid 8 moves the snorfiets onto the
+# rijbaan (NL-ACC-04), and a deadlock there leaves the other fixtures
+# untouched.
 REQUIRED_ROUTE_CHECKS = (
     ((52.3390, 4.8730), (52.3791, 4.9003)),  # Amsterdam Zuid to Centraal
     ((52.1160, 5.1080), (52.0894, 5.1100)),  # Utrecht Overvecht to Centraal

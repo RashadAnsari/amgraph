@@ -71,17 +71,11 @@ local DENY = {
 -- goods, which is a permission for lorries and says nothing about anybody
 -- else; only `hazmat=no` and the conditional forms are prohibitions. Treating
 -- the designation as a refusal closed whole arterial roads to every class:
--- Utrecht's Ruimteweg, the western exit from the city, is tagged that way, and
--- with it shut a brommobiel could not leave the city at all.
+-- Utrecht's Ruimteweg, the western exit from the city, is tagged that way.
 --
 -- `maxheight=default` and `maxwidth=none` likewise say that the ordinary legal
 -- maximum applies, which is not a signed restriction to be conservative about.
---
--- Measured 2026-08-15: 5,734 ways reopened, of which 5,340 are
--- `maxheight=default`, 206 `hazmat=designated` and 196 `maxheight=none`. The
--- hazmat case is the one that cost a city its exit, but it is far from the
--- largest. 14,600 ways carry a dimensional value that *is* a limit and stay
--- closed, and the country contains exactly one genuine hazmat prohibition.
+-- A dimensional value that *is* a limit still closes.
 local NOT_A_LIMIT = {
   designated = true,
   yes = true,
@@ -110,7 +104,8 @@ local function binds(tags, key, country)
     or tonumber(number) < floor
 end
 
--- Ways no motorised class may ever use, whatever else is tagged.
+-- Ways no motorised class may use unless the road authority's overlay says
+-- the sign standing on it admits one. Nothing a mapper typed can open them.
 local NEVER = {
   footway = true,
   pedestrian = true,
@@ -126,6 +121,13 @@ local NEVER = {
   proposed = true,
   raceway = true,
 }
+
+-- The two NEVER values a sign can still open, and the overlay values that say
+-- one does. infra/official_access.py writes them only where the mapped sign
+-- and the authority's sign register agree; see NL-ACC-12.
+local FOOTPATH = { footway = true, pedestrian = true }
+local FOOTPATH_PLATE = "footpath_onderbord"
+local FOOTPATH_G12A = "footpath_g12a"
 
 -- Roadway values whose ordinary legal use is modelled. Everything outside
 -- this table is unknown infrastructure, not a new road type to open by
@@ -533,6 +535,16 @@ function M.is_cycle_infrastructure(tags, country)
   if highway == "cycleway" then
     return true
   end
+  -- A G12a makes a fiets/bromfietspad of whatever stands behind it, so a way a
+  -- mapper drew as a footpath is one when the register confirms the sign.
+  if FOOTPATH[highway] then
+    for _, class in ipairs(country and country.classes or {}) do
+      if class.overlay and tags[class.overlay] == FOOTPATH_G12A then
+        return true
+      end
+    end
+    return false
+  end
   if highway == "path" then
     -- A path is cycle infrastructure only when signed or designated for
     -- bicycles. Otherwise it is a track across a field.
@@ -672,11 +684,33 @@ local function classes_from_tags(tags, country)
     return classes
   end
 
-  if highway == nil or NEVER[highway] then
+  local on_cycle_infrastructure = M.is_cycle_infrastructure(tags, country)
+
+  -- NL-ACC-13. No traffic rule reaches a ferry: what it carries is the
+  -- operator's to say, and the map's explicit permission for a class is the
+  -- only trace of it here. Silence carries nobody.
+  if highway == nil and tags["route"] == "ferry" then
+    for index, class in ipairs(country.classes) do
+      classes[index] = #class.access_keys > 0
+        and M.access_value(tags, class.access_keys) == true
+    end
     return classes
   end
 
-  local on_cycle_infrastructure = M.is_cycle_infrastructure(tags, country)
+  if highway == nil or (NEVER[highway] and not on_cycle_infrastructure) then
+    -- NL-ACC-12. An onderbord can admit a class to a voetpad (RVV art. 67 lid
+    -- 2). The overlay says the register shows such a plate here; the mapper's
+    -- own permission for the class is the second source, and without both the
+    -- way stays shut.
+    if FOOTPATH[highway] then
+      for index, class in ipairs(country.classes) do
+        classes[index] = class.overlay ~= nil
+          and tags[class.overlay] == FOOTPATH_PLATE
+          and M.access_value(tags, class.access_keys) == true
+      end
+    end
+    return classes
+  end
 
   -- A blanket prohibition, unless a class-specific tag lifts it.
   if M.access_value(tags, { "access" }) == false
@@ -684,11 +718,9 @@ local function classes_from_tags(tags, country)
     -- NL-ACC-05 binds here too. A class-specific tag may lift a blanket ban for
     -- the two-wheelers, but nothing lifts a brommobiel onto cycle
     -- infrastructure: art. 6 lid 3 puts it on the rijbaan and is mandatory, not
-    -- permissive. Without this, `highway=cycleway` + `access=no` +
-    -- `motor_vehicle=yes` returned the path as open to a four-wheeler.
-    --
-    -- Six ways in the Netherlands do that, which is why only the exhaustive
-    -- pass in test_access_rules.py found it: no sampled route ever touched one.
+    -- permissive, so `highway=cycleway` + `access=no` + `motor_vehicle=yes`
+    -- stays closed to a four-wheeler. Only the exhaustive pass in
+    -- test_access_rules.py reaches such rare combinations.
     for index, class in ipairs(country.classes) do
       local lifted = M.access_value(tags, class.access_keys) == true
       classes[index] = lifted
@@ -733,8 +765,7 @@ local function classes_from_tags(tags, country)
     -- fietspad. It also gains nothing: art. 6 lid 2 puts a bromfiets on the
     -- rijbaan wherever no fiets/bromfietspad is established, which is exactly
     -- the case here, and the roadway is where the closure gating below leaves
-    -- it. Measured against the ways where OSM does state a sign, the register
-    -- disagrees on 0.47% of snorfiets openings and 3.00% of bromfiets ones.
+    -- it.
     if not signed then
       for index, class in ipairs(country.classes) do
         if class.overlay_opens_cycle_infrastructure
@@ -808,8 +839,7 @@ local function classes_from_tags(tags, country)
   -- roadway is not an option. Stock Valhalla ignores use_sidepath and routes
   -- riders along the roadway illegally; this is the fix.
   --
-  -- The rule has a second half, and leaving it out is what made whole regions
-  -- unroutable. Art. 5 lid 2 and art. 6 lid 2 are not silent about the case
+  -- The rule has a second half. Art. 5 lid 2 and art. 6 lid 2 are not silent about the case
   -- where no path exists: "Zij gebruiken de rijbaan indien een verplicht
   -- fietspad of een fiets/bromfietspad ontbreekt." The roadway is then
   -- *mandatory*, so refusing it as well is not the cautious reading — it
@@ -887,10 +917,8 @@ function M.classes(tags, country)
   -- with `moped=designated` has recorded the sign on the ground, which is the
   -- thing the law turns on, while the overlay reached this way by running a
   -- geometric match against a dataset whose own documentation warns that
-  -- sign-to-road coupling is often wrong. Letting the match win closed
-  -- fiets/bromfietspaden that the statute positively sends riders onto — the
-  -- Utrecht to Amsterdam corridor lost most of its length that way, on ways
-  -- signed G12a and tagged designated for both classes.
+  -- sign-to-road coupling is often wrong. Letting the match win would close
+  -- fiets/bromfietspaden that the statute positively sends riders onto.
   local on_cycle_infrastructure = M.is_cycle_infrastructure(tags, country)
   local signed = false
   if on_cycle_infrastructure then
@@ -906,7 +934,10 @@ function M.classes(tags, country)
     if class.overlay then
       local decided_by_osm = on_cycle_infrastructure
         and (signed or M.access_value(tags, class.access_keys) ~= nil)
-      if tags[class.overlay] == "no" and not decided_by_osm then
+      -- `sidepath` is the same closure with its cause known: art. 5 lid 1 on a
+      -- road the lid 8 measure skipped. Only this class reads it as one.
+      if (tags[class.overlay] == "no" or tags[class.overlay] == "sidepath")
+        and not decided_by_osm then
         classes[index] = false
       end
 
@@ -1140,7 +1171,11 @@ function M.classes(tags, country)
     if M.has_sign_in(tags, { "traffic_sign" }, entry.sign,
       country.sign_prefix, sign_value(entry, country)) then
       for index, class in ipairs(country.classes) do
-        classes[index] = classes[index] and not entry.bars[class.code]
+        -- NL-ACC-12. The confirmed onderbord is the exception to this very
+        -- sign, so it lifts the sign's bar for the class it admits and no other.
+        local plate = entry.lifted_by_plate and class.overlay ~= nil
+          and tags[class.overlay] == FOOTPATH_PLATE
+        classes[index] = classes[index] and (plate or not entry.bars[class.code])
       end
     end
   end
@@ -1191,11 +1226,9 @@ function M.node_classes(tags, country)
   -- result and which already models a bollard, a wall and a gate per travel
   -- mode.
   --
-  -- It would also be, by a wide margin, the largest thing closing the network:
-  -- 192,800 nodes nationwide against ~13,000 for every access tag combined. It
-  -- bites our classes alone because nodes_proc clears only the borrowed bits,
-  -- so plain `auto` keeps routing across a graph where a bromfiets cannot
-  -- cross 500 metres of Utrecht.
+  -- It would also be, by a wide margin, the largest thing closing the network,
+  -- and it would bite our classes alone because nodes_proc clears only the
+  -- borrowed bits, so plain `auto` would keep routing where a bromfiets cannot.
   --
   -- AGENTS.md's own rule decides it: never state a legal rule without a
   -- primary source. There is none for this one, so the conservative-looking

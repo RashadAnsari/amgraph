@@ -12,6 +12,8 @@ way a sign or a section belongs to is in official_access.py.
 
 from __future__ import annotations
 
+import re
+
 #: Cycle-path signs from RVV 1990 bijlage I, and which classes each admits, as
 #: {snorfiets, bromfiets}. The same table as `cycle_signs` in
 #: valhalla/lua/countries/nl.lua, and it must not drift from it.
@@ -46,6 +48,15 @@ def osm_cycle_sign(tags: dict) -> str | None:
     return None
 
 
+#: The voetpad values NL-ACC-12 can open, and what the overlay writes there.
+#: The same strings as FOOTPATH, FOOTPATH_PLATE and FOOTPATH_G12A in
+#: valhalla/lua/access.lua.
+FOOTPATH = {"footway", "pedestrian"}
+FOOTPATH_PLATE = "footpath_onderbord"
+FOOTPATH_G12A = "footpath_g12a"
+_OVERLAY_KEYS = ("amgraph:snorfiets", "amgraph:bromfiets")
+
+
 def is_cycle_infrastructure(tags: dict) -> bool:
     """Mirrors `M.is_cycle_infrastructure` in valhalla/lua/access.lua.
 
@@ -56,6 +67,8 @@ def is_cycle_infrastructure(tags: dict) -> bool:
     highway = tags.get("highway")
     if highway == "cycleway":
         return True
+    if highway in FOOTPATH:
+        return any(tags.get(key) == FOOTPATH_G12A for key in _OVERLAY_KEYS)
     return highway == "path" and (
         tags.get("bicycle") == "designated" or osm_cycle_sign(tags) is not None
     )
@@ -80,9 +93,8 @@ def cycle_sign_of(properties: dict) -> str | None:
     are planned, removed or unknown, and acting on a sign that is not yet up
     would open a path on the strength of somebody's intention.
 
-    `validated` is deliberately not consulted: the register carries the field
-    but not one of its 181,765 cycle signs is marked validated, so filtering on
-    it would discard the whole source. Measured 2026-08-15.
+    `validated` is not consulted: no cycle sign in the register is marked
+    validated, so filtering on it would discard the whole source.
     """
     if properties.get("status") != "PLACED":
         return None
@@ -90,12 +102,17 @@ def cycle_sign_of(properties: dict) -> str | None:
     return code if code in CYCLE_SIGNS else None
 
 
-def path_classes(tags: dict, register_sign: str | None) -> tuple[bool, bool]:
+def path_classes(
+    tags: dict, register_sign: str | None, *, infer_from_moped: bool = True
+) -> tuple[bool, bool]:
     """Which classes may use this path, as access.lua will decide it.
 
     Explicit OSM access tags beat a sign, an OSM sign beats the register, and
     the register reaches the snorfiets only — see the cycle branch in
     access.lua for why that asymmetry is what makes it safe.
+
+    `infer_from_moped=False` leaves out the NL-ACC-03 reading of a moped
+    permission, for the one caller that needs to know what it adds.
     """
     sign = osm_cycle_sign(tags)
     snorfiets, bromfiets = CYCLE_SIGNS.get(sign, (False, False))
@@ -104,6 +121,14 @@ def path_classes(tags: dict, register_sign: str | None) -> tuple[bool, bool]:
 
     mofa = stated_access(tags, ("mofa",))
     moped = stated_access(tags, ("moped",))
+    # NL-ACC-03: a cycle path a bromfiets may use is a G12a, which admits the
+    # snorfiets, unless the way refuses bicycles or the snorfiets. Mirrors
+    # cycle_evidence_keys on the snorfiets in countries/nl.lua.
+    vetoed = any(
+        key in tags and stated_access(tags, (key,)) is not True for key in ("bicycle", "mofa")
+    )
+    if infer_from_moped and sign is None and moped is True and not vetoed:
+        snorfiets = True
     if mofa is not None:
         snorfiets = mofa
     if moped is not None:
@@ -114,6 +139,102 @@ def path_classes(tags: dict, register_sign: str | None) -> tuple[bool, bool]:
         snorfiets = mofa is True
         bromfiets = moped is True
     return snorfiets, bromfiets
+
+
+def mapped_signs(tags: dict) -> set[str]:
+    """Every sign code on the unscoped `traffic_sign`, as access.lua reads it.
+
+    Directional signs are left out because the Lua reads the cycle signs and
+    the G7 from the unscoped key only.
+    """
+    value = tags.get("traffic_sign") or ""
+    return {token.strip().removeprefix("NL:") for token in value.replace(";", ",").split(",")}
+
+
+def _letters(text: str | None) -> str:
+    return re.sub(r"[^a-z]", "", (text or "").lower())
+
+
+#: Onderbord texts under a G7 that admit bromfietsen, letters only, as
+#: (snorfiets, bromfiets). RVV art. 67 lid 2: "Indien het beoogde verkeersgedrag
+#: wordt aangegeven door middel van teksten … blijkt het beoogde verkeersgedrag
+#: uit het onderbord." A snorfiets is a bromfiets (NL-DEF-01), so every one of
+#: these admits it. A closed list on purpose: the register holds thousands of
+#: free-text plates, and any text not listed here opens nothing.
+_PLATES_ADMITTING = {
+    "bromfietsentoegestaan": (True, True),
+    "bromfietserstoegestaan": (True, True),
+    "fietsenbromensnorfietsentoegestaan": (True, True),
+}
+
+
+def plate_admits(texts) -> tuple[bool, bool]:
+    """Which classes the plates under one register G7 admit.
+
+    Every plate on the sign must be one of the admitting texts. A second plate
+    usually carries hours or a further condition, which this graph cannot hold,
+    so a sign with one says nothing.
+    """
+    plates = [_letters(text) for text in texts if _letters(text)]
+    if not plates or any(plate not in _PLATES_ADMITTING for plate in plates):
+        return (False, False)
+    return (
+        all(_PLATES_ADMITTING[plate][0] for plate in plates),
+        all(_PLATES_ADMITTING[plate][1] for plate in plates),
+    )
+
+
+def plate_refuses_snorfiets(texts) -> bool:
+    """Whether any plate on a register sign names the snorfiets.
+
+    On a G11 that is the art. 5 lid 8 onderbord. Nothing on a plate naming the
+    snorfiets admits it to a G11 it would not already use, so any mention is
+    read as the refusal.
+    """
+    return any("snor" in _letters(text) for text in texts)
+
+
+def footpath_overlay(
+    tags: dict,
+    register_sign: str | None,
+    register_plate: tuple[bool, bool] | None,
+) -> tuple[str | None, str | None]:
+    """NL-ACC-12: what the overlay writes on a voetpad, as (snorfiets, bromfiets).
+
+    `register_sign` is the register's cycle sign for this way, `register_plate`
+    the classes a register G7 beside it admits by its plate. Each opening needs
+    the mapper and the register to say the same thing; neither is trusted alone.
+    """
+    if tags.get("highway") not in FOOTPATH:
+        return (None, None)
+    signs = mapped_signs(tags)
+    # NL-ACC-03: a G12a defines a fiets/bromfietspad, whatever was drawn.
+    if "G12a" in signs and register_sign == "G12a":
+        return (FOOTPATH_G12A, FOOTPATH_G12A)
+    # A voetpad the mapper left unsigned is still a voetpad; the register's G7
+    # beside it is the sign, and the mapper's permission the second source.
+    unsigned = not (tags.get("traffic_sign") or "").strip()
+    if ("G7" in signs or unsigned) and register_plate is not None:
+        return (
+            FOOTPATH_PLATE if register_plate[0] and stated_access(tags, ("mofa",)) else None,
+            FOOTPATH_PLATE if register_plate[1] and stated_access(tags, ("moped",)) else None,
+        )
+    return (None, None)
+
+
+def on_exempt_road(name: str | None, point: tuple[float, float], roads) -> bool:
+    """Whether a way named `name` at `point` (lat, lon) is on an excepted road.
+
+    `roads` is (name, (south, west, north, east)) pairs, as the country module
+    states them for art. 5 lid 8.
+    """
+    if not name:
+        return False
+    lat, lon = point
+    return any(
+        name == road and south <= lat <= north and west <= lon <= east
+        for road, (south, west, north, east) in roads
+    )
 
 
 def closes_class(

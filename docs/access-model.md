@@ -6,7 +6,8 @@
 no globals, no side effects, so every rule is unit-testable against a tag table.
 
 What is the same everywhere lives in `access.lua`: how to read an access tag,
-how a one-way binds, that a footway is never open to a motor. What differs by
+how a one-way binds, that a footway is open to a motor only where the
+authority's overlay confirms a sign admitting it. What differs by
 country lives in `valhalla/lua/countries/<cc>.lua`: the cycle-sign vocabulary,
 what an *unsigned* path is assumed to be, which roads are barred outright.
 
@@ -19,7 +20,10 @@ means does.
 
 1. **Country attribution.** A way must be wholly inside the union of verified
    territories. Every country touching it must admit the same carrier.
-2. **Outright prohibitions**: motorway, motorroad, footway and friends.
+2. **Outright prohibitions**: motorway, motorroad, footway and friends. A
+   footway or pedestrian way opens only on the overlay's confirmation of the
+   sign on it: a G12a, which makes it cycle infrastructure, or an onderbord
+   admitting a class under a G7, which opens that class alone.
 3. **Blanket bans**: `access=no`, `vehicle=no`, unless a class-specific tag
    lifts them, and never lifting a bodied four-wheeler onto cycle
    infrastructure.
@@ -70,24 +74,8 @@ anybody else; only `hazmat=no` and the conditional forms are prohibitions.
 `maxheight=default` and `maxwidth=none` say the ordinary legal maximum applies.
 
 Reading a designation as a prohibition closes whole arterial roads to every
-class. Utrecht's Ruimteweg, the western exit from the city, is tagged
-`hazmat=designated`; with it shut a brommobiel cannot leave Utrecht.
-
-Measured on the Dutch extract, 2026-08-15:
-
-| Value that states no limit | Ways |
-| --- | --- |
-| `maxheight=default` | 5,340 |
-| `hazmat=designated` | 206 |
-| `maxheight=none` | 196 |
-| **total reopened** | **5,734** |
-
-Two things worth noticing. The hazmat case is the one that costs a city its
-exit, but `maxheight=default` is twenty-six times larger: a handful of ways in
-the wrong place matters more than a large number in ordinary ones. And 14,600
-ways carry a dimensional value that genuinely *is* a limit and stay closed, so
-the conservative behaviour is intact; that whole country contains exactly **one**
-real hazmat prohibition.
+class: Utrecht's Ruimteweg, the western exit from the city, is tagged
+`hazmat=designated`. A dimension value that is a real limit still closes.
 
 ## Nodes are not short ways
 
@@ -110,9 +98,8 @@ a point:
   rule making an untagged bollard or gate forbid passage. Whether the rider may
   be there is the road's own access; whether they can physically get past is
   upstream Valhalla's parser, which models bollard, wall and gate per travel
-  mode. Demanding an explicit permission here makes **192,800 nodes**
-  impassable in the Netherlands alone, against ~13,000 for every access tag in
-  that country combined. An explicit `access=no` or a class-specific `no` on a
+  mode. Demanding an explicit permission here would make most barriers in the
+  country impassable. An explicit `access=no` or a class-specific `no` on a
   barrier still closes.
 
 `amgraph.lua` **intersects** our node answer with upstream's physical access
