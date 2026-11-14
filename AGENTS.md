@@ -152,6 +152,19 @@ docs/
   legal-review.md     re-reading each country's law, and how often
 ```
 
+## Talking to the maintainer
+
+The maintainer is not a routing or legal specialist. Every reply to them:
+
+- Starts with the answer in one or two plain sentences.
+- Explains what happens on the road, not in the code: which street, which
+  vehicle, what the app does and what it should do.
+- Avoids jargon. When a term is unavoidable, say what it means in a few words.
+- Is short. No filler, no lists of everything checked, no internal names
+  unless they are needed to act.
+- Says what was verified and how, in one line. Never presents a guess as a
+  finding.
+
 ## How to work
 
 - **Small, reviewable steps.** One change per commit, with the reasoning in the
