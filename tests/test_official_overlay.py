@@ -38,7 +38,7 @@ MIN_CLOSED = 100_000
 #: A closure that changes nothing is not a closure. Most of the ways the
 #: authority shuts are ones our tag rules would have allowed, so the overlay
 #: has to be the reason they are shut.
-MIN_DECISIVE = 20_000
+MIN_DECISIVE = 12_000
 
 #: The key the overlay writes.
 OVERLAY = ("amgraph:bromfiets",)
