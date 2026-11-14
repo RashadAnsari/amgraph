@@ -1,7 +1,7 @@
 # Netherlands rules
 
 Primary sources last reviewed **2026-11-14**. The country module declares
-`nl-2026-11-14.2`.
+`nl-2026-11-14.3`.
 
 [Documentation](../README.md) · [Shared country rules](../country-rules.md)
 
@@ -226,10 +226,25 @@ decision behind them that the search found, and the plate decides.
 2026-11-13, puts the onderbord on "de volgende locaties waar een verplicht
 fietspad aanwezig is" and lists each road and solitary path, and later
 decisions add Biltstraat, Vleutenseweg, Jutfaseweg, Paardenveld and Croeselaan.
-`ART5_LID8_LISTED` holds those names. Inside Utrecht a G11 loses the snorfiets
-only on a listed road, on an unnamed path that runs beside no road the
+Three more put a narrower onderbord on a G11:
+
+> "Vaststellen: begin en einde verplicht fietspad (G11, G12) met OB505 en
+> onderbord: “snorfietsen met verbrandingsmotor niet toegestaan”."
+
+Stcrt. 2020, 61451 (Haarzichtlaan),
+<https://zoek.officielebekendmakingen.nl/stcrt-2020-61451.html>, with the same
+onderbord in Stcrt. 2021, 12566 (Moreelsehoek),
+<https://zoek.officielebekendmakingen.nl/stcrt-2021-12566.html>, and Stcrt.
+2019, 54148 and Gmb. 2021, 289198 (Smakkelaarshoek),
+<https://zoek.officielebekendmakingen.nl/gmb-2021-289198.html>, all read
+2026-11-14. The graph is built before the rider names a powertrain, so these
+take the electric snorfiets off the path too. `ART5_LID8_LISTED` holds all
+these names. Inside Utrecht a G11 loses the snorfiets when it is named for a
+listed road; when it is unnamed, unless the road it runs nearest is one the
 decision leaves out (the list's solitary paths have no street of their own, so
-one may be listed), or where an onderbord is mapped or in the register. Every
+one may be listed), it is longer than a junction stub and no register
+onderbord stands within `PLATE_REACH_METRES` of it; and wherever an
+onderbord is mapped or in the register. Every
 other Utrecht G11 admits and obliges it under art. 5 lid 1, and only listed
 carriageways are stamped `on_roadway`.
 

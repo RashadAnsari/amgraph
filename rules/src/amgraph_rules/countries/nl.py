@@ -54,7 +54,7 @@ _BLUE = Plate(background="#1256B8", foreground="#FAFAF8")
 #: Bump on any change below. Kept internally rather than served, so the legal
 #: freshness gate can force a periodic re-read of the primary sources without
 #: the string reading to a rider as a build number.
-RULES_VERSION = "nl-2026-11-14.2"
+RULES_VERSION = "nl-2026-11-14.3"
 
 #: Separate carriers keep each vehicle identity stable across country boundaries.
 CLASSES: tuple[VehicleClass, ...] = (
@@ -234,7 +234,11 @@ ART5_LID8_EXEMPT_ROADS: tuple[tuple[str, tuple[float, float, float, float]], ...
 #: een verplicht fietspad aanwezig is", and the onderbord stands only there.
 #: Later decisions put it on Biltstraat (Gmb. 2022, 579834), Vleutenseweg (Gmb.
 #: 2022, 415248 and others), Jutfaseweg (Gmb. 2024, 210227), Paardenveld (Gmb.
-#: 2025, 410033) and Croeselaan (Gmb. 2026, 309624). All read 2026-11-13. The
+#: 2025, 410033) and Croeselaan (Gmb. 2026, 309624). All read 2026-11-13.
+#: Smakkelaarshoek (Stcrt. 2019, 54148; Gmb. 2021, 289198), Haarzichtlaan
+#: (Stcrt. 2020, 61451) and Moreelsehoek (Stcrt. 2021, 12566) carry the onderbord
+#: "snorfietsen met verbrandingsmotor niet toegestaan", read 2026-11-14; the
+#: graph cannot tell the powertrain, so both come off those paths. The
 #: list's solitary paths have no street of their own, so an unnamed G11 stays
 #: closed to the snorfiets unless it runs beside a road the decision does not
 #: name, where art. 5 lid 1 puts the snorfiets on it. A register or mapped
@@ -306,6 +310,9 @@ ART5_LID8_LISTED: dict[str, tuple[tuple[float, float, float, float], frozenset[s
                 "Wolvenstraat",
                 "Westerkade",
                 "Paardenveld",
+                "Smakkelaarshoek",
+                "Haarzichtlaan",
+                "Moreelsehoek",
             }
         ),
     ),

@@ -140,6 +140,23 @@ class TestTheArt5Lid8Exceptions:
         assert lid8_reaches(None, (52.0905, 5.1460))
         assert lid8_reaches("Damrak", (52.3750, 4.8960))
 
+    @pytest.mark.parametrize(
+        ("name", "point"),
+        [
+            ("Haarzichtlaan", (52.1121, 5.0075)),
+            ("Moreelsehoek", (52.0889, 5.1138)),
+            ("Smakkelaarshoek", (52.0919, 5.1099)),
+        ],
+    )
+    def test_utrechts_petrol_only_onderborden_are_in_the_measure(self, name, point) -> None:
+        """Stcrt. 2020, 61451; Stcrt. 2021, 12566; Stcrt. 2019, 54148 and Gmb.
+        2021, 289198: a G11 with the onderbord "snorfietsen met
+        verbrandingsmotor niet toegestaan". The graph cannot tell a petrol
+        snorfiets from an electric one, so it takes both off the path."""
+        from official_access import lid8_reaches
+
+        assert lid8_reaches(name, point)
+
     def test_the_onderbord_written_into_the_mapped_sign_is_read(self) -> None:
         assert plate_refuses_snorfiets(['NL:G11,"snorfietsen niet toegestaan"'])
         assert not plate_refuses_snorfiets(["NL:G11"])

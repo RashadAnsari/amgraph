@@ -157,6 +157,10 @@ SIGN_METRES = 20.0
 #: whatever the ranking.
 SIGN_CLEAR_METRES = 30.0
 
+#: A G11 and its onderbord govern the path behind the sign up to the next
+#: junction, so a register onderbord this near may be this path's.
+PLATE_REACH_METRES = 100.0
+
 #: How far off a carriageway a parallel path may lie and still be the sidepath
 #: that carriageway's mandatory-use verdict refers to. Wide enough for a berm
 #: and a parking strip, narrow enough not to reach the next street.
@@ -209,6 +213,14 @@ def lid8_reaches(name: str | None, point: tuple[float, float]) -> bool:
         if south <= lat <= north and west <= lon <= east:
             return not name or name in names
     return True
+
+
+def in_lid8_area(point: tuple[float, float], roads) -> bool:
+    """Inside a box where an art. 5 lid 8 measure names its roads or its
+    exceptions."""
+    lat, lon = point
+    boxes = [box for box, _ in ART5_LID8_LISTED.values()] + [box for _, box in roads]
+    return any(s <= lat <= n and w <= lon <= e for s, w, n, e in boxes)
 
 
 def load_signs(path: Path):
@@ -341,12 +353,13 @@ def _near(index, points, radius: float):
 
 
 class ExemptCarriageways(osmium.SimpleHandler):
-    """Where the carriageways of the roads art. 5 lid 8 does not reach run:
-    the roads a municipality excepted, and every road its decision does not
-    name where the decision names its roads.
+    """Where the named carriageways run in a municipality with an art. 5 lid 8
+    measure, and whether the measure skips each: the roads a municipality
+    excepted, and every road its decision does not name where the decision
+    names its roads.
 
-    A bike path along one of them is often unnamed, so the road beside it is
-    the only way to tell it is one; Paths asks this index.
+    A bike path is often unnamed, so the road it runs beside is the only way to
+    tell which one it serves; Paths asks this index.
     """
 
     def __init__(self, roads) -> None:
@@ -367,8 +380,12 @@ class ExemptCarriageways(osmium.SimpleHandler):
             return
         for a, b in pairwise(points):
             mid = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
-            if on_exempt_road(name, mid, self.roads) or not lid8_reaches(name, mid):
-                self.index[(int(mid[0] / CELL), int(mid[1] / CELL))].append((mid, bearing(a, b)))
+            if not in_lid8_area(mid, self.roads):
+                continue
+            skipped = on_exempt_road(name, mid, self.roads) or not lid8_reaches(name, mid)
+            self.index[(int(mid[0] / CELL), int(mid[1] / CELL))].append(
+                (mid, bearing(a, b), skipped)
+            )
 
 
 class Paths(osmium.SimpleHandler):
@@ -397,31 +414,60 @@ class Paths(osmium.SimpleHandler):
         self.usable: dict[tuple[int, int], list] = defaultdict(list)
         self.counts = Counter()
 
-    def _beside_exempt_road(self, points) -> bool:
-        """Does most of this path run beside a road art. 5 lid 8 leaves alone?"""
+    def _beside_exempt_road(self, points, nearest_only: bool) -> bool:
+        """Does most of this path run beside a road art. 5 lid 8 leaves alone?
+
+        With `nearest_only`, only the nearest road beside each stretch counts.
+        """
         samples = found = 0
         for a, b in pairwise(points):
             mid = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
             head = bearing(a, b)
             samples += 1
             cy, cx = int(mid[0] / CELL), int(mid[1] / CELL)
-            if any(
-                metres(mid, other) < SIDEPATH_METRES and aligned(head, other_head)
-                for dy in (-1, 0, 1)
-                for dx in (-1, 0, 1)
-                for other, other_head in self.exempt.get((cy + dy, cx + dx), ())
-            ):
-                found += 1
+            nearest, skipped, any_skipped = SIDEPATH_METRES, False, False
+            for dy in (-1, 0, 1):
+                for dx in (-1, 0, 1):
+                    for other, other_head, other_skipped in self.exempt.get((cy + dy, cx + dx), ()):
+                        d = metres(mid, other)
+                        if d < SIDEPATH_METRES and aligned(head, other_head):
+                            any_skipped = any_skipped or other_skipped
+                            if d < nearest:
+                                nearest, skipped = d, other_skipped
+            found += skipped if nearest_only else any_skipped
         return samples > 0 and found / samples >= COVERAGE
 
     def _exempt(self, tags, points) -> bool:
         """Is this G11 on a road the municipality's art. 5 lid 8 measure skipped?
 
-        Its own name or the carriageway it runs beside can say so.
+        Where the measure covers the municipality and names its exceptions, a
+        G11 named for one or beside one keeps the snorfiets. Where the measure
+        names the roads it reaches, the default runs the other way: a G11 named
+        for a listed road is reached, and an unnamed one goes with the road it
+        runs nearest, unless it is a junction stub too short to tell or a
+        register onderbord stands near enough to be its own.
         """
         middle = points[len(points) // 2]
-        listed = on_exempt_road(tags.get("name"), middle, ART5_LID8_EXEMPT_ROADS)
-        return listed or self._beside_exempt_road(points)
+        name = tags.get("name")
+        if on_exempt_road(name, middle, ART5_LID8_EXEMPT_ROADS):
+            return True
+        if not any(
+            s <= middle[0] <= n and w <= middle[1] <= e
+            for (s, w, n, e), _ in ART5_LID8_LISTED.values()
+        ):
+            return self._beside_exempt_road(points, nearest_only=False)
+        if name:
+            return False
+        length = sum(metres(a, b) for a, b in pairwise(points))
+        plate_near = any(
+            entry[2] == "G11" and plate_refuses_snorfiets(entry[3])
+            for entry in _near(self.plated, points, PLATE_REACH_METRES)
+        )
+        return (
+            length >= MIN_LENGTH_METRES
+            and not plate_near
+            and self._beside_exempt_road(points, nearest_only=True)
+        )
 
     def _plate_refuses(self, tags, points) -> bool:
         """Does an onderbord on this G11 send the snorfiets to the rijbaan?

@@ -237,7 +237,7 @@ def _road_and_path(tmp_path, lat, lon, road, path):
     return source
 
 
-def _overlay(source, municipality, register=None):
+def _overlay(source, municipality, register=None, plates=()):
     """Run the three passes of official_access.py the way main() does."""
     from collections import defaultdict
 
@@ -251,7 +251,10 @@ def _overlay(source, municipality, register=None):
         shapely.prepare(municipality)
     exempt = ExemptCarriageways(ART5_LID8_EXEMPT_ROADS)
     exempt.apply_file(str(source), locations=True)
-    paths = Paths(signs, municipality, {}, exempt.index)
+    plated = defaultdict(list)
+    for lat, lon, texts in plates:
+        plated[(int(lat / CELL), int(lon / CELL))].append((lat, lon, "G11", texts, None))
+    paths = Paths(signs, municipality, plated, exempt.index)
     paths.apply_file(str(source), locations=True)
     match = Match(defaultdict(list), paths.usable, municipality)
     match.apply_file(str(source), locations=True)
@@ -339,3 +342,108 @@ def test_nl_acc_04_a_register_g11_in_amsterdam_loses_the_snorfiets(tmp_path):
     assert paths.closed[21] == "roadway_only"
     assert 21 not in paths.opened
     assert match.verdict[20][0] == "on_roadway"
+
+
+def test_nl_acc_04_an_unnamed_g11_beside_a_road_a_later_utrecht_decision_names_loses_the_snorfiets(
+    tmp_path,
+):
+    """Stcrt. 2020, 61451 puts the onderbord on the G11 at Haarzichtlaan, which
+    the 2021 list does not name. OSM maps that path as mofa=yes."""
+    source = _road_and_path(
+        tmp_path,
+        52.1121,
+        5.0060,
+        {"highway": "residential", "name": "Haarzichtlaan"},
+        {**G11_PATH, "mofa": "yes"},
+    )
+    paths, _ = _overlay(source, box(4.97, 52.02, 5.20, 52.15))
+
+    assert paths.closed[21] == "roadway_only"
+
+
+def test_nl_acc_04_a_g11_named_for_a_listed_road_keeps_the_measure_beside_another_road(tmp_path):
+    lat, lon = UTRECHT_WEST
+    source = _road_and_path(
+        tmp_path,
+        lat,
+        lon,
+        {**OBLIGED_ROAD, "name": "Krommerijn"},
+        {**G11_PATH, "name": "Tolsteegsingel"},
+    )
+    paths, _ = _overlay(source, box(4.97, 52.02, 5.20, 52.15))
+
+    assert paths.closed[21] == "roadway_only"
+
+
+def test_nl_acc_04_an_unnamed_g11_goes_with_the_nearer_road(tmp_path):
+    """A path running between a listed road and a side street belongs to the
+    road it is nearer, so the side street cannot take the measure off it."""
+    lat, lon = UTRECHT_WEST
+    source = _road_and_path(tmp_path, lat, lon, {**OBLIGED_ROAD, "name": "Krommerijn"}, G11_PATH)
+    text = source.read_text()
+    nodes, refs = [], []
+    for i in range(7):
+        nodes.append(
+            f'<node id="{300 + i}" version="1" lat="{lat - 0.000225}" lon="{lon + i * 0.00025}"/>'
+        )
+        refs.append(f'<nd ref="{300 + i}"/>')
+    listed = (
+        f'<way id="22" version="1">{"".join(refs)}'
+        '<tag k="highway" v="secondary"/><tag k="name" v="Vleutenseweg"/></way>'
+    )
+    source.write_text(text.replace("</osm>", "".join(nodes) + listed + "</osm>"))
+    paths, _ = _overlay(source, box(4.97, 52.02, 5.20, 52.15))
+
+    assert paths.closed[21] == "roadway_only"
+
+
+def test_nl_acc_04_a_junction_stub_is_not_judged_by_the_road_beside_it(tmp_path):
+    """The length floor that guards every geometric match: a stub of a few
+    metres at a side street is too short to say which road it serves."""
+    lat, lon = UTRECHT_WEST
+    stub = tmp_path / "source.osm"
+    stub.write_text(f"""<osm version="0.6">
+      <node id="1" version="1" lat="{lat}" lon="{lon}"/>
+      <node id="2" version="1" lat="{lat}" lon="{lon + 0.0005}"/>
+      <node id="3" version="1" lat="{lat - 0.000135}" lon="{lon + 0.0001}"/>
+      <node id="4" version="1" lat="{lat - 0.000135}" lon="{lon + 0.0003}"/>
+      <way id="20" version="1"><nd ref="1"/><nd ref="2"/>
+        <tag k="highway" v="residential"/><tag k="name" v="Krommerijn"/></way>
+      <way id="21" version="1"><nd ref="3"/><nd ref="4"/>
+        <tag k="highway" v="cycleway"/><tag k="traffic_sign" v="NL:G11"/></way>
+    </osm>""")
+    paths, _ = _overlay(stub, box(4.97, 52.02, 5.20, 52.15))
+
+    assert paths.closed[21] == "roadway_only"
+
+
+def test_nl_acc_04_a_stub_beside_a_road_amsterdam_excepted_keeps_the_snorfiets(tmp_path):
+    """Amsterdam's measure covers the municipality except the roads it names, so
+    a G11 beside one of those keeps art. 5 lid 1, however short."""
+    lat, lon = 52.3618, 4.8819
+    stub = tmp_path / "source.osm"
+    stub.write_text(f"""<osm version="0.6">
+      <node id="1" version="1" lat="{lat}" lon="{lon}"/>
+      <node id="2" version="1" lat="{lat}" lon="{lon + 0.0005}"/>
+      <node id="3" version="1" lat="{lat - 0.000135}" lon="{lon + 0.0001}"/>
+      <node id="4" version="1" lat="{lat - 0.000135}" lon="{lon + 0.0003}"/>
+      <way id="20" version="1"><nd ref="1"/><nd ref="2"/>
+        <tag k="highway" v="primary"/><tag k="name" v="Stadhouderskade"/></way>
+      <way id="21" version="1"><nd ref="3"/><nd ref="4"/>
+        <tag k="highway" v="cycleway"/><tag k="traffic_sign" v="NL:G11"/></way>
+    </osm>""")
+    paths, _ = _overlay(stub, box(4.72, 52.27, 5.08, 52.44))
+
+    assert 21 not in paths.closed
+
+
+def test_nl_acc_04_an_unnamed_g11_near_a_registered_onderbord_stays_closed(tmp_path):
+    """A G11 and its onderbord govern the path behind the sign, not only the
+    20 m where a register sign is matched to a way. Near one, the road beside
+    the path cannot show that the measure skipped it."""
+    lat, lon = UTRECHT_WEST
+    source = _road_and_path(tmp_path, lat, lon, {**OBLIGED_ROAD, "name": "Vleutensebaan"}, G11_PATH)
+    plate = [(lat - 0.000135, lon - 0.0008, ["snorfietsen niet toegestaan"])]
+    paths, _ = _overlay(source, box(4.97, 52.02, 5.20, 52.15), plates=plate)
+
+    assert paths.closed[21] == "roadway_only"
