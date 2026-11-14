@@ -91,10 +91,8 @@ class ClassSpeeds:
 #: The vehicles amgraph supports in every country, each on its fixed carrier
 #: (AGENTS.md, "Vehicle classes"). The moped and the microcar up to 45 km/h are
 #: EU categories, Regulation (EU) 168/2013 art. 4 and Annex I, so every country
-#: declares both. The moped up to 25 km/h is national law, so a country declares
-#: `snorfiets` only where its own law sets that vehicle's rules.
+#: declares both.
 SUPPORTED_CLASSES: Mapping[str, Carrier] = {
-    "snorfiets": Carrier.MOPED,
     "bromfiets": Carrier.MOTORCYCLE,
     "brommobiel": Carrier.TRUCK,
 }
@@ -158,10 +156,7 @@ class MunicipalZone:
     rules that cannot be expressed on an edge at all.
 
     All three may be empty, and that is a real state rather than a mistake: a
-    municipality can appear here purely to carry its polygon for a rule applied
-    somewhere else. ``roadway_only_classes`` is the one such rule today — RVV
-    art. 5 lid 8, which is applied per edge at graph build time by
-    infra/official_access.py and never as an API gate.
+    rule dated in the future is written down before it gates anything.
 
     ``valid_from`` and ``valid_to`` bound the period the rule is in force, so a
     measure announced for a future date can be written down now and start
@@ -173,10 +168,6 @@ class MunicipalZone:
     powertrain_classes: frozenset[str]
     allowed_powertrains: frozenset[Powertrain]
     blocked_classes: frozenset[str]
-
-    #: Classes this municipality has moved off the cycle path and onto the
-    #: carriageway. Read by infra/official_access.py, not by the API.
-    roadway_only_classes: frozenset[str] = frozenset()
 
     #: Inclusive, and ``valid_to`` exclusive, which is how a measure that starts
     #: or ends on a date reads.
@@ -237,11 +228,7 @@ class CountryRules:
     #: What to route as before the rider has chosen anything.
     #:
     #: Stated rather than left to list order, because it is a safety choice and
-    #: not a presentation one. It must be the class with the most restrictive
-    #: access of those on offer: guessing a snorfiets for somebody actually on a
-    #: bromfiets would route them onto a verplicht fietspad a bromfiets may not
-    #: use, which is precisely the mistake this product exists to prevent.
-    #: Guessing the other way only costs a longer ride.
+    #: not a presentation one.
     #: ``None`` requires the rider to choose: some countries have no class
     #: whose routes are lawful for every other class.
     default_class: str | None

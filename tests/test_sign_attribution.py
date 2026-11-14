@@ -5,8 +5,8 @@ that is a statement about law rather than about geometry. It needs no extract,
 no shapefile and no projection library, so it runs in the fast gate.
 
 These are pure functions, so they can be pinned without an extract or a graph.
-The one they exist to protect is `path_classes`: it decides which class may use
-a path, and it has to give the same answer as the cycle branch of
+The one they exist to protect is `path_admits`: it decides whether the bromfiets
+may use a path, and it has to give the same answer as the cycle branch of
 `valhalla/lua/access.lua`. If the two drift, the writer indexes a path
 as usable that the graph refuses, and the mandatory-use gating built on that
 index starts keeping carriageways closed for a sidepath nobody may ride on.
@@ -23,12 +23,11 @@ INFRA = Path(__file__).resolve().parents[1] / "infra"
 sys.path.insert(0, str(INFRA))
 
 from cycle_rules import (  # noqa: E402
-    OPENS_FOR_SNORFIETS,
     closes_class,
     cycle_sign_of,
     is_cycle_infrastructure,
     osm_cycle_sign,
-    path_classes,
+    path_admits,
 )
 
 
@@ -81,62 +80,30 @@ class TestWhatCountsAsCycleInfrastructure:
 
 
 class TestWhoMayUseThePath:
-    def test_a_g12a_admits_both_two_wheeled_classes(self) -> None:
-        assert path_classes({"traffic_sign": "NL:G12a"}, None) == (True, True)
+    def test_a_g12a_admits_the_bromfiets(self) -> None:
+        assert path_admits({"traffic_sign": "NL:G12a"})
 
-    def test_a_g11_admits_the_snorfiets_alone(self) -> None:
-        assert path_classes({"traffic_sign": "NL:G11"}, None) == (True, False)
+    def test_a_g11_does_not(self) -> None:
+        assert not path_admits({"traffic_sign": "NL:G11"})
 
-    def test_a_g13_admits_neither(self) -> None:
-        """Optional, so never using it can only lengthen a route."""
-        assert path_classes({"traffic_sign": "NL:G13"}, None) == (False, False)
+    def test_a_g13_does_not(self) -> None:
+        assert not path_admits({"traffic_sign": "NL:G13"})
 
-    def test_an_unsigned_path_admits_neither(self) -> None:
-        assert path_classes({}, None) == (False, False)
-
-    @pytest.mark.parametrize("sign", sorted(OPENS_FOR_SNORFIETS))
-    def test_the_register_opens_a_g11_or_g12a_for_the_snorfiets_only(self, sign) -> None:
-        """NL-ACC-02: art. 5 lid 1 admits the snorfiets to both, so confusing
-        them costs nothing. Art. 5 lid 8 is applied to a register G11 as to a
-        mapped one, in Paths.way."""
-        assert path_classes({}, sign) == (True, False)
-
-    def test_the_register_never_opens_a_g13(self) -> None:
-        assert path_classes({}, "G13") == (False, False)
-
-    def test_the_mappers_sign_beats_the_register(self) -> None:
-        assert path_classes({"traffic_sign": "NL:G13"}, "G12a") == (False, False)
-
-    def test_an_explicit_refusal_beats_the_register(self) -> None:
-        assert path_classes({"mofa": "no"}, "G12a") == (False, False)
+    def test_an_unsigned_path_does_not(self) -> None:
+        assert not path_admits({})
 
     def test_an_explicit_permission_is_honoured(self) -> None:
-        """A cycle path open to a bromfiets is a G12a, which admits the snorfiets."""
-        assert path_classes({"moped": "designated"}, None) == (True, True)
+        assert path_admits({"moped": "designated"})
 
-    def test_the_moped_inference_yields_to_a_refusal_of_what_a_g12a_admits(self) -> None:
-        assert path_classes({"moped": "designated", "bicycle": "no"}, None) == (False, True)
-        assert path_classes({"moped": "designated", "mofa": "no"}, None) == (False, True)
-
-    def test_a_mapped_sign_beats_the_moped_inference(self) -> None:
-        assert path_classes({"moped": "designated", "traffic_sign": "NL:G13"}, None) == (
-            False,
-            True,
-        )
+    def test_an_explicit_permission_beats_the_sign(self) -> None:
+        assert path_admits({"moped": "designated", "traffic_sign": "NL:G13"})
 
     def test_use_sidepath_on_a_path_is_a_refusal_not_a_permission(self) -> None:
-        assert path_classes({"traffic_sign": "NL:G12a", "moped": "use_sidepath"}, None) == (
-            True,
-            False,
-        )
+        assert not path_admits({"traffic_sign": "NL:G12a", "moped": "use_sidepath"})
 
     def test_a_blanket_ban_leaves_only_a_class_specific_permission(self) -> None:
-        assert path_classes({"access": "no"}, "G12a") == (False, False)
-        assert path_classes({"access": "no", "mofa": "yes"}, None) == (True, False)
-
-    def test_a_bicycle_refusal_reaches_the_snorfiets(self) -> None:
-        """RVV art. 2b: it follows the bicycle rules."""
-        assert path_classes({"traffic_sign": "NL:G12a", "bicycle": "no"}, None) == (False, True)
+        assert not path_admits({"access": "no", "traffic_sign": "NL:G12a"})
+        assert path_admits({"access": "no", "moped": "yes"})
 
 
 class TestReadingADirectionalWkdRefusal:

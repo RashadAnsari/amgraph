@@ -7,9 +7,7 @@
 -- invented so that no Dutch answer can stand in for one of its answers by
 -- accident.
 --
--- It declares the two required vehicles and leaves out the 25 km/h moped, as a
--- country whose law has no rules for one would: a way on its border is then
--- closed to the `moped` carrier, which only the Dutch side uses. It trusts only
+-- It declares the two supported vehicles. It trusts only
 -- enriched ways, as a country without the Dutch authority overlay must, by
 -- requiring the `amgraph:rules` stamp its Python half writes.
 --

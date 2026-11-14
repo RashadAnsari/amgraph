@@ -46,7 +46,6 @@ CONSULTED = [
     "access",
     "vehicle",
     "bicycle",
-    "mofa",
     "moped",
     "motorcar",
     "motor_vehicle",
@@ -62,16 +61,6 @@ CONSULTED = [
     "vehicle:lanes:backward",
     "bus:lanes",
     "psv:lanes",
-    "mofa:forward",
-    "mofa:backward",
-    "bicycle:forward",
-    "bicycle:backward",
-    "mofa:lanes",
-    "mofa:lanes:forward",
-    "mofa:lanes:backward",
-    "bicycle:lanes",
-    "bicycle:lanes:forward",
-    "bicycle:lanes:backward",
     "moped:forward",
     "moped:backward",
     "moped:lanes",
@@ -93,12 +82,6 @@ CONSULTED = [
     "vehicle:conditional",
     "vehicle:forward:conditional",
     "vehicle:backward:conditional",
-    "bicycle:conditional",
-    "bicycle:forward:conditional",
-    "bicycle:backward:conditional",
-    "mofa:conditional",
-    "mofa:forward:conditional",
-    "mofa:backward:conditional",
     "moped:conditional",
     "moped:forward:conditional",
     "moped:backward:conditional",
@@ -123,18 +106,6 @@ CONSULTED = [
     "maxspeed:conditional",
     "maxspeed:forward:conditional",
     "maxspeed:backward:conditional",
-    "maxspeed:mofa:conditional",
-    "maxspeed:mofa:forward:conditional",
-    "maxspeed:mofa:backward:conditional",
-    "maxspeed:mofa",
-    "maxspeed:mofa:forward",
-    "maxspeed:mofa:backward",
-    "maxspeed:bicycle",
-    "maxspeed:bicycle:forward",
-    "maxspeed:bicycle:backward",
-    "maxspeed:bicycle:conditional",
-    "maxspeed:bicycle:forward:conditional",
-    "maxspeed:bicycle:backward:conditional",
     "maxspeed:moped:conditional",
     "maxspeed:moped:forward:conditional",
     "maxspeed:moped:backward:conditional",
@@ -190,20 +161,17 @@ CONSULTED = [
     "hazmat:backward:conditional",
     "oneway",
     "oneway:vehicle",
-    "oneway:mofa",
     "oneway:moped",
     "oneway:motor_vehicle",
     "oneway:motorcar",
     "oneway:conditional",
     "oneway:vehicle:conditional",
-    "oneway:mofa:conditional",
     "oneway:moped:conditional",
     "oneway:motor_vehicle:conditional",
     "oneway:motorcar:conditional",
     "traffic_sign",
     "traffic_sign:forward",
     "traffic_sign:backward",
-    "amgraph:snorfiets",
     "amgraph:bromfiets",
     "amgraph:country",
     "amgraph:bus_lane_turns",
@@ -223,17 +191,16 @@ class DutchRules:
         #: themselves. See test_the_consulted_key_list_still_matches_the_rules.
         self.consulted = list(access.consulted_keys(self._country).values())
 
-    def __call__(self, tags: dict[str, str]) -> tuple[bool, bool, bool]:
+    def __call__(self, tags: dict[str, str]) -> tuple[bool, bool]:
         return self.flags(tags)
 
-    def flags(self, tags: dict[str, str]) -> tuple[bool, bool, bool]:
+    def flags(self, tags: dict[str, str]) -> tuple[bool, bool]:
         """The forward answer per class. The carriers no vehicle uses stay closed."""
         flags = dict(self._access.carrier_flags(self._runtime.table_from(tags), self._country))
-        for carrier in ("taxi", "bus"):
+        for carrier in ("moped", "taxi", "bus"):
             for direction in ("forward", "backward"):
                 assert flags[f"{carrier}_{direction}"] == "false"
         return (
-            flags["moped_forward"] == "true",
             flags["motorcycle_forward"] == "true",
             flags["truck_forward"] == "true",
         )
@@ -251,9 +218,9 @@ def test_the_consulted_key_list_still_matches_the_rules(rules) -> None:
     below quietly stops covering it and nothing else notices.
 
     The rules answer for themselves rather than being read with a regular
-    expression over the source, which is how this worked until the per-class key
-    families became derived: `mofa` plus a suffix list produces
-    `mofa:lanes:forward` without that string appearing anywhere to match. A
+    expression over the source, which cannot see derived key families: `moped`
+    plus a suffix list produces `moped:lanes:forward` without that string
+    appearing anywhere to match. A
     pattern that cannot see a key reports no gap, so the weaker the rules got
     the greener this went.
     """
@@ -304,13 +271,13 @@ def test_no_tag_combination_in_the_netherlands_breaks_a_rule(rules) -> None:
     failures: list[str] = []
     for combo, count in combos.items():
         tags = {k: v for k, v in zip(CONSULTED, combo, strict=True) if v is not None}
-        snorfiets, bromfiets, brommobiel = rules.flags(tags)
+        bromfiets, brommobiel = rules.flags(tags)
 
         # RVV art. 42 admits only motorvoertuigen, and a bromfiets is not one.
         barred = (
             tags.get("highway") in {"motorway", "motorway_link"} or tags.get("motorroad") == "yes"
         )
-        if barred and (snorfiets or bromfiets or brommobiel):
+        if barred and (bromfiets or brommobiel):
             failures.append(f"{tags} on an autosnelweg or autoweg ({count:,} ways)")
 
         # NL-ACC-11. Lane-level access opens a way only where every closed lane
@@ -320,7 +287,7 @@ def test_no_tag_combination_in_the_netherlands_breaks_a_rule(rules) -> None:
         # Restated here rather than imported, so a loosened rule in access.lua
         # has something independent to disagree with.
         general = [tags[k].split("|") for k in ("access:lanes", "vehicle:lanes") if k in tags]
-        if general and (snorfiets or bromfiets or brommobiel):
+        if general and (bromfiets or brommobiel):
             reserved = [tags[k].split("|") for k in ("bus:lanes", "psv:lanes") if k in tags]
             one_way = tags.get("oneway") in {"yes", "true", "1"} or tags.get("junction") in {
                 "roundabout",
@@ -351,15 +318,9 @@ def test_no_tag_combination_in_the_netherlands_breaks_a_rule(rules) -> None:
             failures.append(f"{tags} put a brommobiel on a cycleway ({count:,} ways)")
 
         # The fail-safe. A cycleway nothing says anything about is ambiguous
-        # between G11 and G12a, which are opposite answers, so it admits
-        # nobody — with one exception, and the exception is bounded here rather
-        # than trusted. The road authority's sign register can say which sign
-        # stands on it, and `amgraph:snorfiets=yes` is that answer. It
-        # reaches the snorfiets alone: art. 5 lid 1 admits that class to a G11
-        # and a G12a alike, so the register only has to establish that one of
-        # the two is there. For a bromfiets they are opposite answers and no
-        # value of the overlay may open the way. See docs/countries/nl.md
-        # NL-ACC-02 and NL-ACC-03.
+        # between G11 and G12a, which are opposite answers for a bromfiets, so
+        # it admits nobody, and no value of the overlay may open it. See
+        # docs/countries/nl.md NL-ACC-02.
         says_something = any(
             tags.get(k)
             for k in (
@@ -367,18 +328,12 @@ def test_no_tag_combination_in_the_netherlands_breaks_a_rule(rules) -> None:
                 "traffic_sign:forward",
                 "traffic_sign:backward",
                 "moped",
-                "mofa",
-                "bicycle",
                 "access",
                 "vehicle",
             )
         )
-        if tags.get("highway") == "cycleway" and not says_something:
-            register_opened = tags.get("amgraph:snorfiets") == "yes"
-            if bromfiets:
-                failures.append(f"{tags} put a bromfiets on an unsigned cycleway ({count:,} ways)")
-            if snorfiets and not register_opened:
-                failures.append(f"{tags} opened an unsigned cycleway ({count:,} ways)")
+        if tags.get("highway") == "cycleway" and not says_something and bromfiets:
+            failures.append(f"{tags} put a bromfiets on an unsigned cycleway ({count:,} ways)")
 
     assert not failures, (
         f"{len(failures)} of {len(combos):,} combinations break a rule:\n"

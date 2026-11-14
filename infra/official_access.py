@@ -1,8 +1,8 @@
 """Turn the road authority's access refusals into an overlay for the graph.
 
 OpenStreetMap describes the Netherlands; Rijkswaterstaat's Wegkenmerkendatabase
-adds official access evidence. Its Verkeerstypen product carries, per NWB road section and per
-direction, whether a snorfiets or a bromfiets may be there at all — derived by
+adds official access evidence. Its Verkeerstypen product carries, per NWB road
+section and per direction, whether a bromfiets may be there at all — derived by
 NDW from the national traffic-sign register, parallel-path detection and the
 built-up-area topography. That is the mandatory-use obligation, which cannot be
 modelled from OSM tags because OSM states it on only a fraction of the roads it
@@ -12,30 +12,18 @@ NDW documents that the traffic-sign-to-NWB coupling is often wrong, including
 mandatory cycle-path signs attached to the ordinary carriageway, and the
 geometric match from that network onto OSM adds another source of error. So a
 refusal is cheap to accept and an affirmation is not, and this writer emits
-exactly three values:
+these values:
 
 `no`     — the class may not be here. Safe by construction: wrong costs a detour.
 
 `on_roadway` — this carriageway carries a mandatory-use closure, and a path was
     found running beside it that the rules refuse the class. That is a
     contradiction, not caution: the rider is being sent off the road and
-    refused the path they are being sent to. RVV art. 5 lid 2 and art. 6 lid 2
-    settle it — "Zij gebruiken de rijbaan indien een verplicht fietspad of een
-    fiets/bromfietspad ontbreekt" — so the closure is lifted and the roadway,
-    which the statute makes mandatory here, stays open. Where *no* path runs
+    refused the path they are being sent to. RVV art. 6 lid 2 settles it —
+    "Zij gebruiken de rijbaan indien een fiets/bromfietspad ontbreekt" — so the
+    closure is lifted and the roadway, which the statute makes mandatory here,
+    stays open. Where *no* path runs
     alongside, the refusal was never about mandatory use and stays `no`.
-
-`roadway_only` — a verplicht fietspad in a municipality that has used RVV art.
-    5 lid 8 to send snorfietsen to the rijbaan. The only refusal that overrides
-    an OSM cycle sign, because its whole content is that the sign does not mean
-    what it usually means.
-
-`yes`    — an unsigned cycle path that the authority's own sign register says
-    carries a G11 or a G12a. Snorfiets only. Art. 5 lid 1 admits it to both, so
-    the register needs only to establish that one of the two is there;
-    confusing them costs nothing. For a bromfiets they are opposite answers, so
-    the same evidence would be a coin flip and art. 6 lid 2 already gives it
-    the roadway.
 
 `footpath_onderbord` and `footpath_g12a` — NL-ACC-12, on a footway or
     pedestrian way only. The first says a register G7 beside the way carries an
@@ -44,13 +32,10 @@ exactly three values:
     both sources. Where the register's A1 beside such a way is lower than its
     maxspeed, or the way has none, the A1's figure is written as maxspeed.
 
-A G11 on a road the municipality left out of its art. 5 lid 8 measure keeps
-the snorfiets, unless the register shows an onderbord naming it beside the way.
-
-**It applies to snorfiets and bromfiets only.** WKD models SNRFTS and BRMFTS.
-A brommobiel is *not* covered: RVV art. 6 lid 3 puts it on the rijbaan, so a
-BRMFTS closure caused by a mandatory sidepath does not reach it, and applying
-one would shut roads it may lawfully use. It keeps the tag-derived rules.
+**It applies to the bromfiets only.** WKD models it as BRMFTS. A brommobiel is
+*not* covered: RVV art. 6 lid 3 puts it on the rijbaan, so a BRMFTS closure
+caused by a mandatory sidepath does not reach it, and applying one would shut
+roads it may lawfully use. It keeps the tag-derived rules.
 
 The join is geometric. NWB and OSM are independent networks with no shared
 identifier, so a section is matched to a way by running close beside it on the
@@ -78,7 +63,6 @@ import shapely
 from pyproj import Transformer
 from shapely.geometry import LineString, shape
 
-from amgraph_rules.countries.nl import ART5_LID8_EXEMPT_ROADS, ART5_LID8_LISTED
 from artifacts import replace_atomically
 from bus_lanes import TAG as BUS_LANE_TAG
 from bus_lanes import clear_bus_lane_ways
@@ -90,11 +74,8 @@ from cycle_rules import (
     footpath_overlay,
     is_cycle_infrastructure,
     mapped_signs,
-    on_exempt_road,
-    osm_cycle_sign,
-    path_classes,
+    path_admits,
     plate_admits,
-    plate_refuses_snorfiets,
     stated_access,
 )
 from restrictions import conservative_restriction_tags
@@ -153,14 +134,6 @@ CYCLE_LIKE = {"cycleway", "path", "footway", "bridleway", "steps", "track"}
 #: post, so this is looser than a survey would need.
 SIGN_METRES = 20.0
 
-#: A different cycle sign standing this near makes the attribution ambiguous,
-#: whatever the ranking.
-SIGN_CLEAR_METRES = 30.0
-
-#: A G11 and its onderbord govern the path behind the sign up to the next
-#: junction, so a register onderbord this near may be this path's.
-PLATE_REACH_METRES = 100.0
-
 #: How far off a carriageway a parallel path may lie and still be the sidepath
 #: that carriageway's mandatory-use verdict refers to. Wide enough for a berm
 #: and a parking strip, narrow enough not to reach the next street.
@@ -171,56 +144,9 @@ SIDEPATH_METRES = 25.0
 SPREAD_METRES = 150.0
 
 
-def load_snorfiets_roadway(path: Path):
-    """The municipalities that have moved snorfietsen onto the rijbaan.
-
-    Built by infra/legal_zones.py from the official BRK boundaries, and flagged
-    there rather than listed here so the municipal facts stay in one file.
-    """
-    try:
-        document = json.loads(path.read_text())
-    except (OSError, json.JSONDecodeError) as exc:
-        print(f"No legal zones at {path}: {exc}", file=sys.stderr)
-        print("Build them with: make infra-legal-zones", file=sys.stderr)
-        raise SystemExit(1) from exc
-    areas = [
-        shape(feature["geometry"])
-        for feature in document.get("features", ())
-        if "snorfiets" in ((feature.get("properties") or {}).get("roadway_only_profiles") or ())
-    ]
-    if not areas:
-        print(f"No snorfiets-roadway municipality in {path}.", file=sys.stderr)
-        raise SystemExit(1)
-    combined = shapely.union_all(areas)
-    shapely.prepare(combined)
-    print(f"  art. 5 lid 8 municipalities: {len(areas)}")
-    return combined
-
-
 #: Register signs whose onderborden or value the rules read, beside the cycle
-#: signs: the G7 for NL-ACC-12, the G11 for the art. 5 lid 8 onderbord, and the
-#: A1 for the limit on a voetpad NL-ACC-12 opens.
-PLATED = {"G7", "G11", "A1"}
-
-
-def lid8_reaches(name: str | None, point: tuple[float, float]) -> bool:
-    """Does the art. 5 lid 8 measure of the municipality at `point` reach a way
-    named `name`? Where the measure names its roads, only those and unnamed
-    paths, which may be its solitary ones; elsewhere every way it covers.
-    """
-    lat, lon = point
-    for (south, west, north, east), names in ART5_LID8_LISTED.values():
-        if south <= lat <= north and west <= lon <= east:
-            return not name or name in names
-    return True
-
-
-def in_lid8_area(point: tuple[float, float], roads) -> bool:
-    """Inside a box where an art. 5 lid 8 measure names its roads or its
-    exceptions."""
-    lat, lon = point
-    boxes = [box for box, _ in ART5_LID8_LISTED.values()] + [box for _, box in roads]
-    return any(s <= lat <= n and w <= lon <= e for s, w, n, e in boxes)
+#: signs: the G7 for NL-ACC-12, and the A1 for the limit on a voetpad it opens.
+PLATED = {"G7", "A1"}
 
 
 def load_signs(path: Path):
@@ -288,7 +214,7 @@ def load_closures(path: Path):
     names = [f[0] for f in reader.fields[1:]]
     idx = {name: i for i, name in enumerate(names)}
 
-    sections: list[tuple[list[tuple[float, float]], bool, bool, bool]] = []
+    sections: list[tuple[list[tuple[float, float]], bool, bool]] = []
     counts = Counter()
 
     # Streamed rather than reader.records() + reader.shapes(), which would pull
@@ -303,7 +229,6 @@ def load_closures(path: Path):
         # so any refusal closes the complete matched way.
         auto_head = rec[idx["AUTO_H"]]
         auto_tail = rec[idx["AUTO_T"]]
-        snor = closes_class(rec[idx["SNRFTS_H"]], rec[idx["SNRFTS_T"]], auto_head, auto_tail)
         brom = closes_class(rec[idx["BRMFTS_H"]], rec[idx["BRMFTS_T"]], auto_head, auto_tail)
         if len(shp.points) < 2:
             continue
@@ -313,19 +238,17 @@ def load_closures(path: Path):
 
         points = [(lat, lon) for lon, lat in (_to_wgs84.transform(x, y) for x, y in shp.points)]
 
-        if snor or brom:
-            sections.append((points, snor, brom, is_road))
+        if brom:
+            sections.append((points, brom, is_road))
             counts["carriageway" if is_road else "cycle-ish"] += 1
             counts["closing"] += 1
-            counts["snorfiets"] += snor
-            counts["bromfiets"] += brom
 
     grid: dict[tuple[int, int], list] = defaultdict(list)
-    for points, snor, brom, is_road in sections:
+    for points, brom, is_road in sections:
         for a, b in pairwise(points):
             mid = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
             grid[(int(mid[0] / CELL), int(mid[1] / CELL))].append(
-                (mid, bearing(a, b), snor, brom, is_road)
+                (mid, bearing(a, b), brom, is_road)
             )
 
     counts["segments"] = sum(len(v) for v in grid.values())
@@ -352,135 +275,26 @@ def _near(index, points, radius: float):
     return [entry for _, entry in sorted(best.values(), key=lambda item: item[0])]
 
 
-class ExemptCarriageways(osmium.SimpleHandler):
-    """Where the named carriageways run in a municipality with an art. 5 lid 8
-    measure, and whether the measure skips each: the roads a municipality
-    excepted, and every road its decision does not name where the decision
-    names its roads.
-
-    A bike path is often unnamed, so the road it runs beside is the only way to
-    tell which one it serves; Paths asks this index.
-    """
-
-    def __init__(self, roads) -> None:
-        super().__init__()
-        self.roads = roads
-        self.index: dict[tuple[int, int], list] = defaultdict(list)
-
-    def way(self, w) -> None:
-        highway = w.tags.get("highway")
-        if highway not in ROUTABLE or highway in CYCLE_LIKE:
-            return
-        name = w.tags.get("name")
-        if not name:
-            return
-        try:
-            points = [(n.lat, n.lon) for n in w.nodes if n.location.valid()]
-        except osmium.InvalidLocationError:
-            return
-        for a, b in pairwise(points):
-            mid = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
-            if not in_lid8_area(mid, self.roads):
-                continue
-            skipped = on_exempt_road(name, mid, self.roads) or not lid8_reaches(name, mid)
-            self.index[(int(mid[0] / CELL), int(mid[1] / CELL))].append(
-                (mid, bearing(a, b), skipped)
-            )
-
-
 class Paths(osmium.SimpleHandler):
-    """Read every cycle path: which sign stands on it, and who may use it.
+    """Read every cycle path and voetpad: who may use it.
 
-    Two products, and the second is what breaks the deadlock. The first is the
-    register's sign for a path OSM left unsigned. The second is an index of
-    where a path each class may lawfully use actually runs, which is the only
-    evidence that can justify closing the carriageway beside it.
+    The cycle paths become an index of where a path the bromfiets may lawfully
+    use actually runs, which is the only evidence that can justify closing the
+    carriageway beside it and what breaks the deadlock.
 
-    It also reads every voetpad for NL-ACC-12, which opens one only where the
-    mapper's sign and the register's sign or onderbord say the same thing.
+    Every voetpad is read for NL-ACC-12, which opens one only where the mapper's
+    sign and the register's sign or onderbord say the same thing.
     """
 
-    def __init__(self, signs, snorfiets_roadway=None, plated=None, exempt=None) -> None:
+    def __init__(self, signs, plated=None) -> None:
         super().__init__()
         self.signs = signs
-        self.snorfiets_roadway = snorfiets_roadway
         self.plated = plated or {}
-        self.exempt = exempt or {}
-        self.opened: dict[int, str] = {}
-        self.closed: dict[int, str] = {}
-        self.footpath: dict[int, tuple[str | None, str | None]] = {}
+        self.footpath: dict[int, str] = {}
         self.voetpaden: dict[int, tuple[dict, tuple[int, ...], float]] = {}
         self.speed: dict[int, str] = {}
         self.usable: dict[tuple[int, int], list] = defaultdict(list)
         self.counts = Counter()
-
-    def _beside_exempt_road(self, points, nearest_only: bool) -> bool:
-        """Does most of this path run beside a road art. 5 lid 8 leaves alone?
-
-        With `nearest_only`, only the nearest road beside each stretch counts.
-        """
-        samples = found = 0
-        for a, b in pairwise(points):
-            mid = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
-            head = bearing(a, b)
-            samples += 1
-            cy, cx = int(mid[0] / CELL), int(mid[1] / CELL)
-            nearest, skipped, any_skipped = SIDEPATH_METRES, False, False
-            for dy in (-1, 0, 1):
-                for dx in (-1, 0, 1):
-                    for other, other_head, other_skipped in self.exempt.get((cy + dy, cx + dx), ()):
-                        d = metres(mid, other)
-                        if d < SIDEPATH_METRES and aligned(head, other_head):
-                            any_skipped = any_skipped or other_skipped
-                            if d < nearest:
-                                nearest, skipped = d, other_skipped
-            found += skipped if nearest_only else any_skipped
-        return samples > 0 and found / samples >= COVERAGE
-
-    def _exempt(self, tags, points) -> bool:
-        """Is this G11 on a road the municipality's art. 5 lid 8 measure skipped?
-
-        Where the measure covers the municipality and names its exceptions, a
-        G11 named for one or beside one keeps the snorfiets. Where the measure
-        names the roads it reaches, the default runs the other way: a G11 named
-        for a listed road is reached, and an unnamed one goes with the road it
-        runs nearest, unless it is a junction stub too short to tell or a
-        register onderbord stands near enough to be its own.
-        """
-        middle = points[len(points) // 2]
-        name = tags.get("name")
-        if on_exempt_road(name, middle, ART5_LID8_EXEMPT_ROADS):
-            return True
-        if not any(
-            s <= middle[0] <= n and w <= middle[1] <= e
-            for (s, w, n, e), _ in ART5_LID8_LISTED.values()
-        ):
-            return self._beside_exempt_road(points, nearest_only=False)
-        if name:
-            return False
-        length = sum(metres(a, b) for a, b in pairwise(points))
-        plate_near = any(
-            entry[2] == "G11" and plate_refuses_snorfiets(entry[3])
-            for entry in _near(self.plated, points, PLATE_REACH_METRES)
-        )
-        return (
-            length >= MIN_LENGTH_METRES
-            and not plate_near
-            and self._beside_exempt_road(points, nearest_only=True)
-        )
-
-    def _plate_refuses(self, tags, points) -> bool:
-        """Does an onderbord on this G11 send the snorfiets to the rijbaan?
-
-        The mapper's sign text or the register G11 nearest the path can say so.
-        Only the nearest register sign counts, because where two paths meet the
-        next one's G11 stands within metres and its onderbord says nothing about
-        this one.
-        """
-        if plate_refuses_snorfiets([tags.get("traffic_sign") or ""]):
-            return True
-        nearest = [e for e in _near(self.plated, points, SIGN_METRES) if e[2] == "G11"][:1]
-        return any(plate_refuses_snorfiets(entry[3]) for entry in nearest)
 
     def _footpath(self, way_id: int, tags: dict, points, refs=()) -> None:
         """NL-ACC-12 for one voetpad, and the A1 that binds whoever it admits."""
@@ -494,20 +308,17 @@ class Paths(osmium.SimpleHandler):
         # different kind further off belongs to the next path, not this one.
         nearest = _near(self.signs, points, SIGN_METRES) if "G12a" in signs else []
         register = nearest[0][2] if nearest else None
-        plate = None
-        if "G7" in signs or unsigned:
-            for entry in _near(self.plated, points, SIGN_METRES):
-                admits = plate_admits(entry[3]) if entry[2] == "G7" else (False, False)
-                if any(admits):
-                    plate = admits
-                    break
+        plate = ("G7" in signs or unsigned) and any(
+            entry[2] == "G7" and plate_admits(entry[3])
+            for entry in _near(self.plated, points, SIGN_METRES)
+        )
         verdict = footpath_overlay(tags, register, plate)
         if "G12a" not in signs:
             # Kept for spread(): a G7 governs the voetpad behind it, not only
             # the metres beside the post.
             length = sum(metres(a, b) for a, b in pairwise(points))
             self.voetpaden[way_id] = (tags, tuple(refs), length)
-        if not any(verdict):
+        if verdict is None:
             return
         self.footpath[way_id] = verdict
         self.counts["voetpad opened by a confirmed sign"] += 1
@@ -543,7 +354,7 @@ class Paths(osmium.SimpleHandler):
         reach = {
             way_id: (verdict, 0.0, self.speed.get(way_id))
             for way_id, verdict in self.footpath.items()
-            if way_id in self.voetpaden and FOOTPATH_PLATE in verdict
+            if way_id in self.voetpaden and verdict == FOOTPATH_PLATE
         }
         queue = sorted(reach, key=lambda way_id: reach[way_id][1])
         while queue:
@@ -555,67 +366,16 @@ class Paths(osmium.SimpleHandler):
                     distance = travelled + length
                     if other in reach or distance > SPREAD_METRES:
                         continue
-                    carried = tuple(
-                        FOOTPATH_PLATE
-                        if verdict[index] == FOOTPATH_PLATE and stated_access(tags, (key,))
-                        else None
-                        for index, key in enumerate(("mofa", "moped"))
-                    )
-                    if not any(carried):
+                    if not stated_access(tags, ("moped",)):
                         continue
-                    reach[other] = (carried, distance, limit)
+                    reach[other] = (verdict, distance, limit)
                     queue.append(other)
                     if other not in self.footpath:
-                        self.footpath[other] = carried
+                        self.footpath[other] = verdict
                         self.counts["voetpad opened by the onderbord before it"] += 1
                         current = _speed(tags.get("maxspeed"))
                         if limit is not None and (current is None or int(limit) < current):
                             self.speed[other] = limit
-
-    def _art5_lid8(self, points, name=None) -> bool:
-        """Is this path where a verplicht fietspad can send a snorfiets away?
-
-        RVV art. 5 lid 8 lets a municipality put snorfietsen on the rijbaan by
-        a verkeersbesluit plus an onderbord on the G11. Amsterdam and Utrecht
-        have both done it, over most of their central cycle network. Neither
-        OSM nor the register records those onderborden reliably, so inside
-        those municipalities a G11 cannot be read as admitting a snorfiets.
-
-        Refusing the path is the conservative side here and it costs nothing:
-        art. 5 lid 2 and the mandatory-use gating put the rider on the rijbaan,
-        which is exactly where the verkeersbesluit wants them.
-        """
-        if self.snorfiets_roadway is None:
-            return False
-        sample = points[len(points) // 2]
-        if not shapely.contains_xy(self.snorfiets_roadway, sample[1], sample[0]):
-            return False
-        return lid8_reaches(name, sample)
-
-    def _sign_for(self, points) -> str | None:
-        """The register's sign for this path, or None if it is not clear."""
-        near: list[tuple[float, str]] = []
-        for a, b in pairwise(points):
-            mid = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
-            cy, cx = int(mid[0] / CELL), int(mid[1] / CELL)
-            for dy in (-1, 0, 1):
-                for dx in (-1, 0, 1):
-                    for lat, lon, code in self.signs.get((cy + dy, cx + dx), ()):
-                        distance = metres(mid, (lat, lon))
-                        if distance <= SIGN_CLEAR_METRES:
-                            near.append((distance, code))
-        if not near:
-            return None
-        near.sort()
-        distance, code = near[0]
-        if distance > SIGN_METRES:
-            return None
-        # Two different cycle signs this close cannot both describe this path,
-        # and there is no way to tell which one does.
-        if any(other != code for _, other in near):
-            self.counts["ambiguous"] += 1
-            return None
-        return code
 
     def way(self, w) -> None:
         tags = dict(w.tags)
@@ -633,80 +393,42 @@ class Paths(osmium.SimpleHandler):
             return
         self.counts["cycle paths"] += 1
 
-        register = self._sign_for(points)
-        if register is not None:
-            self.counts[f"register says {register}"] += 1
-
-        snorfiets, bromfiets = path_classes(tags, register)
-
-        # A verplicht fietspad in a municipality that has moved snorfietsen to
-        # the rijbaan. The sign alone does not settle it there, so the class
-        # comes off the path and the rijbaan carries it instead.
-        # Anywhere in the country, an onderbord naming the snorfiets on the G11
-        # itself is the measure, whatever municipality put it up.
-        g11 = snorfiets and (osm_cycle_sign(tags) or register) == "G11"
-        plated = g11 and self._plate_refuses(tags, points)
-        lid8 = g11 and (plated or self._art5_lid8(points, tags.get("name")))
-        if lid8 and not plated and self._exempt(tags, points):
-            self.counts["snorfiets kept on a G11 the measure skipped"] += 1
-        elif lid8:
-            snorfiets = False
-            self.closed[w.id] = "roadway_only"
-            self.counts[
-                "snorfiets off a G11 by its onderbord"
-                if plated
-                else "snorfiets off a G11 under art. 5 lid 8"
-            ] += 1
-        # Only worth writing where it changes the answer: the mapper's own sign
-        # already decides the rest, and a tag nothing reads is noise.
-        if (
-            register is not None
-            and osm_cycle_sign(tags) is None
-            and snorfiets
-            and stated_access(tags, ("mofa",)) is None
-        ):
-            self.opened[w.id] = "yes"
-            self.counts["snorfiets opened by the register"] += 1
-
+        bromfiets = path_admits(tags)
         for a, b in pairwise(points):
             mid = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
             self.usable[(int(mid[0] / CELL), int(mid[1] / CELL))].append(
-                (mid, bearing(a, b), snorfiets, bromfiets)
+                (mid, bearing(a, b), bromfiets)
             )
-        self.counts["usable by a snorfiets"] += snorfiets
         self.counts["usable by a bromfiets"] += bromfiets
 
 
 class Match(osmium.SimpleHandler):
     """Ask every routable OSM way whether the authority forbids it."""
 
-    def __init__(self, grid, usable, snorfiets_roadway=None) -> None:
+    def __init__(self, grid, usable) -> None:
         super().__init__()
         self.grid = grid
         self.usable = usable
-        self.snorfiets_roadway = snorfiets_roadway
-        self.verdict: dict[int, tuple[str | None, str | None]] = {}
+        self.verdict: dict[int, str] = {}
         self.seen = 0
         self.counts = Counter()
         # Held-out check: where OSM already states the answer, does WKD agree?
         self.agree = Counter()
 
-    def _sidepath(self, points):
-        """Per class: is there a path beside this road, and may the class use it?
+    def _sidepath(self, points) -> tuple[bool, bool]:
+        """Is there a path beside this road, and may the bromfiets use it?
 
-        Returns ((present, usable), (present, usable)) for snorfiets and
-        bromfiets. `present and not usable` is the deadlock this whole pass
-        exists to find: something is running
-        alongside that the rules refuse, while the carriageway is being closed
-        because a rider is supposed to be on it. `not present` is the opposite
-        case and matters just as much — a refusal with no path beside it was
-        never a mandatory-use verdict, so it keeps its closure.
+        `present and not usable` is the deadlock this whole pass exists to
+        find: something is running alongside that the rules refuse, while the
+        carriageway is being closed because a rider is supposed to be on it.
+        `not present` is the opposite case and matters just as much — a refusal
+        with no path beside it was never a mandatory-use verdict, so it keeps
+        its closure.
 
         Both answers need most of the road to agree, so a path that joins for
         one block neither justifies a closure nor lifts one.
         """
-        samples = found = 0
-        usable = [0, 0]
+        samples = found = usable = 0
         for a, b in pairwise(points):
             mid = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
             head = bearing(a, b)
@@ -716,22 +438,20 @@ class Match(osmium.SimpleHandler):
             best_d = SIDEPATH_METRES
             for dy in (-1, 0, 1):
                 for dx in (-1, 0, 1):
-                    for other, other_head, snor, brom in self.usable.get((cy + dy, cx + dx), ()):
+                    for other, other_head, brom in self.usable.get((cy + dy, cx + dx), ()):
                         d = metres(mid, other)
                         if d < best_d and aligned(head, other_head):
-                            best_d, best = d, (snor, brom)
+                            best_d, best = d, brom
             if best is not None:
                 found += 1
-                usable[0] += best[0]
-                usable[1] += best[1]
+                usable += best
         if samples == 0 or found / samples < COVERAGE:
-            return (False, False), (False, False)
-        return tuple((True, usable[index] / found >= COVERAGE) for index in (0, 1))
+            return False, False
+        return True, usable / found >= COVERAGE
 
     def _vote(self, points, index, want_road=None):
-        """How many samples matched, and how many voted for each class."""
-        hits = snor_votes = brom_votes = 0
-        tries = 0
+        """How many samples matched, and how many voted to close the bromfiets."""
+        tries = hits = votes = 0
         for a, b in pairwise(points):
             mid = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
             head = bearing(a, b)
@@ -741,23 +461,16 @@ class Match(osmium.SimpleHandler):
             cy, cx = int(mid[0] / CELL), int(mid[1] / CELL)
             for dy in (-1, 0, 1):
                 for dx in (-1, 0, 1):
-                    for entry in index.get((cy + dy, cx + dx), ()):
-                        other, other_head, snor, brom = (
-                            entry[0],
-                            entry[1],
-                            entry[2],
-                            entry[3],
-                        )
-                        if want_road is not None and entry[4] != want_road:
+                    for other, other_head, brom, is_road in index.get((cy + dy, cx + dx), ()):
+                        if want_road is not None and is_road != want_road:
                             continue
                         d = metres(mid, other)
                         if d < best_d and aligned(head, other_head):
-                            best_d, best = d, (snor, brom)
+                            best_d, best = d, brom
             if best is not None:
                 hits += 1
-                snor_votes += best[0]
-                brom_votes += best[1]
-        return tries, hits, snor_votes, brom_votes
+                votes += best
+        return tries, hits, votes
 
     def way(self, w) -> None:
         highway = w.tags.get("highway")
@@ -772,89 +485,40 @@ class Match(osmium.SimpleHandler):
             return
         length = sum(metres(a, b) for a, b in pairwise(points))
         self.seen += 1
-
-        # RVV art. 5 lid 8 is decided by where the way lies, not by a match, so
-        # the length floor below has nothing to guard here: a 5 m junction stub
-        # is as certainly inside the municipality as the road it joins, and a
-        # skipped stub would keep a use_sidepath that closes that road.
-        middle = points[len(points) // 2]
-        art5_lid8 = (
-            want_road
-            and self.snorfiets_roadway is not None
-            and bool(shapely.contains_xy(self.snorfiets_roadway, middle[1], middle[0]))
-            # A road the measure skipped keeps art. 5 lid 1: its G11 is where
-            # the snorfiets belongs, so nothing pins it to this carriageway.
-            and not on_exempt_road(w.tags.get("name"), middle, ART5_LID8_EXEMPT_ROADS)
-            # In a municipality whose measure names its roads, only those carry
-            # the onderbord, so only their carriageways are where it sends the
-            # snorfiets. An unnamed one is kept: it is usually the stub joining
-            # one of them, and leaving it out traps the rider at the junction.
-            and lid8_reaches(w.tags.get("name"), middle)
-        )
-
         if length < MIN_LENGTH_METRES:
-            if art5_lid8:
-                self.verdict[w.id] = ("on_roadway", None)
-                self.counts["snorfiets kept on the roadway under art. 5 lid 8"] += 1
             return
 
-        tries, hits, snor_votes, brom_votes = self._vote(points, self.grid, want_road)
-        closes = [False, False]
-        if tries > 0 and hits / tries >= COVERAGE:
-            # A closure needs most of the matched samples to agree, so one stray
-            # section beside a long way cannot shut it.
-            closes = [snor_votes / hits >= COVERAGE, brom_votes / hits >= COVERAGE]
+        tries, hits, votes = self._vote(points, self.grid, want_road)
+        # A closure needs most of the matched samples to agree, so one stray
+        # section beside a long way cannot shut it.
+        closes = tries > 0 and hits / tries >= COVERAGE and votes / hits >= COVERAGE
+
+        if not want_road:
+            # A path is not a carriageway; art. 6 lid 2 has nothing to say about
+            # it, so a refusal here stands as it is.
+            if closes:
+                self.verdict[w.id] = "no"
+            return
 
         # OSM's own mandatory-use statement needs the same test. A rider is
         # only obliged off the carriageway if there is somewhere lawful to go.
-        sidepath_tag = [
-            w.tags.get("mofa") == "use_sidepath" or w.tags.get("bicycle") == "use_sidepath",
-            w.tags.get("moped") == "use_sidepath",
-        ]
-
-        if not want_road:
-            # A path is not a carriageway; art. 5 lid 2 and art. 6 lid 2 have
-            # nothing to say about it, so a refusal here stands as it is.
-            if any(closes):
-                self.verdict[w.id] = tuple("no" if c else None for c in closes)
-            return
-
-        beside = self._sidepath(points)
-        verdict: list[str | None] = [None, None]
-
-        # RVV art. 5 lid 8, the other half of the rule applied in Paths. Where a
-        # municipality has moved snorfietsen to the rijbaan, the rijbaan is
-        # where they belong, so nothing may take them off it. OSM often still
-        # carries the pre-decision `mofa=use_sidepath` on these carriageways
-        # while the path beside now says `mofa=no` — an outright contradiction,
-        # and the verkeersbesluit is what settles it. Utrecht is the clearest
-        # case: with both honoured, a snorfiets could not leave a 1.5 km island
-        # in the city centre.
-        if art5_lid8:
-            verdict[0] = "on_roadway"
-            self.counts["snorfiets kept on the roadway under art. 5 lid 8"] += 1
-        for index in (0, 1):
-            if verdict[index] is not None or not (closes[index] or sidepath_tag[index]):
-                continue
-            present, usable = beside[index]
+        if closes or w.tags.get("moped") == "use_sidepath":
+            present, usable = self._sidepath(points)
             if present and not usable:
                 # The deadlock. Something runs alongside and the rules refuse
-                # it, so the class has nowhere lawful at all. RVV art. 5 lid 2
-                # and art. 6 lid 2 answer this case explicitly and put the
-                # rider on the rijbaan; the router follows them there.
-                verdict[index] = "on_roadway"
+                # it, so the bromfiets has nowhere lawful at all. RVV art. 6 lid
+                # 2 answers this case explicitly and puts the rider on the
+                # rijbaan; the router follows it there.
+                self.verdict[w.id] = "on_roadway"
                 self.counts["deadlock resolved to the roadway"] += 1
-            elif closes[index]:
-                # Either the path beside is one this class may use, so the
+            elif closes:
+                # Either the path beside is one the bromfiets may use, so the
                 # closure is a genuine mandatory-use verdict, or nothing runs
                 # alongside at all, which means the refusal was never about
                 # mandatory use and is a prohibition in its own right.
-                verdict[index] = "no"
+                self.verdict[w.id] = "no"
                 self.counts["closure kept" if present else "closure kept, no path beside"] += 1
-
-        if any(verdict):
-            self.verdict[w.id] = tuple(verdict)
-        brom = closes[1]
+        brom = closes
 
         # Does the authority confirm what OSM already claims?
         moped = w.tags.get("moped")
@@ -874,7 +538,6 @@ class Match(osmium.SimpleHandler):
 
 #: Namespaced so nobody mistakes them for something a mapper typed, and so a
 #: stray one in the wild cannot reach our rules.
-SNOR_TAG = "amgraph:snorfiets"
 BROM_TAG = "amgraph:bromfiets"
 COUNTRY_TAG = "amgraph:country"
 
@@ -957,11 +620,7 @@ class Inject(osmium.SimpleHandler):
             else:
                 self.unsupported += 1
         if verdict is not None:
-            snor, brom = verdict
-            if snor:
-                tags[SNOR_TAG] = snor
-            if brom:
-                tags[BROM_TAG] = brom
+            tags[BROM_TAG] = verdict
         if w.id in self.bus_lanes_clear:
             tags[BUS_LANE_TAG] = "none"
         if w.id in self.speed:
@@ -1079,8 +738,6 @@ def main(extract: str, out: Path) -> None:
     print(f"  of which close a class  : {counts['closing']:,}")
     print(f"    on a carriageway      : {counts['carriageway']:,}")
     print(f"    on cycle-ish ways     : {counts['cycle-ish']:,}")
-    print(f"    snorfiets forbidden   : {counts['snorfiets']:,}")
-    print(f"    bromfiets forbidden   : {counts['bromfiets']:,}")
     print(f"  indexed segments        : {counts['segments']:,}", flush=True)
 
     signs_path = work / "ndw" / "signs.geojson"
@@ -1094,40 +751,21 @@ def main(extract: str, out: Path) -> None:
     for code in sorted(sign_counts):
         print(f"    {code:20s}: {sign_counts[code]:,}")
 
-    zones_path = Path(
-        os.environ.get("AMGRAPH_LEGAL_ZONES", work / "boundaries" / "legal-zones.geojson")
-    )
-    snorfiets_roadway = load_snorfiets_roadway(zones_path)
-
-    print("\nfinding the roads art. 5 lid 8 skipped…", flush=True)
-    exempt = ExemptCarriageways(ART5_LID8_EXEMPT_ROADS)
-    exempt.apply_file(extract, locations=True)
-    print(f"  segments                : {sum(len(v) for v in exempt.index.values()):,}")
-
     print("\nreading the cycle network…", flush=True)
-    paths = Paths(signs, snorfiets_roadway, plated, exempt.index)
+    paths = Paths(signs, plated)
     paths.apply_file(extract, locations=True)
     paths.spread()
     for label in (
         "cycle paths",
-        "register says G11",
-        "register says G12a",
-        "register says G13",
-        "ambiguous",
-        "snorfiets opened by the register",
-        "snorfiets off a G11 under art. 5 lid 8",
-        "snorfiets off a G11 by its onderbord",
-        "snorfiets kept on a G11 the measure skipped",
         "voetpad opened by a confirmed sign",
         "voetpad opened by the onderbord before it",
         "voetpad limit taken from the register",
-        "usable by a snorfiets",
         "usable by a bromfiets",
     ):
         print(f"  {label:<34}: {paths.counts[label]:,}")
 
     print("\nmatching against OpenStreetMap…", flush=True)
-    match = Match(grid, paths.usable, snorfiets_roadway)
+    match = Match(grid, paths.usable)
     match.apply_file(extract, locations=True)
 
     print(f"  routable ways considered: {match.seen:,}")
@@ -1139,26 +777,7 @@ def main(extract: str, out: Path) -> None:
     for label, n in sorted(match.agree.items()):
         print(f"  {label:48s} {n:>7,}")
 
-    # One verdict per way per class. Two passes can reach the same cycle path:
-    # the register opens it, and WKD refuses the class on the section beside it.
-    # The refusal wins, always. Both are geometric matches onto a network we do
-    # not control, and they fail in opposite directions — a wrong closure costs
-    # a detour, a wrong opening legalises a way — so a disagreement between them
-    # is not a tie to be broken on evidence, it is a case for the safe answer.
-    overlay: dict[int, tuple[str | None, str | None]] = dict(match.verdict)
-    contested = Counter()
-    for source in (paths.opened, paths.closed):
-        for way_id, value in source.items():
-            snorfiets, bromfiets = overlay.get(way_id, (None, None))
-            if snorfiets == "no" or value == "no":
-                if snorfiets is not None and snorfiets != value:
-                    contested["register opened it, the authority refuses it"] += 1
-                snorfiets = "no"
-            else:
-                snorfiets = value
-            overlay[way_id] = (snorfiets, bromfiets)
-    for label, n in contested.items():
-        print(f"  refusal kept over an opening ({label}): {n:,}")
+    overlay: dict[int, str] = dict(match.verdict)
 
     # NL-ACC-12. Match never reaches a voetpad, so nothing here can collide.
     for way_id, verdict in paths.footpath.items():
@@ -1167,14 +786,9 @@ def main(extract: str, out: Path) -> None:
 
     out.parent.mkdir(parents=True, exist_ok=True)
     with out.open("w") as fh:
-        fh.write(
-            "# way_id\tsnorfiets\tbromfiets"
-            "   (no | on_roadway | roadway_only | yes"
-            " | footpath_onderbord | footpath_g12a)\n"
-        )
+        fh.write("# way_id\tbromfiets   (no | on_roadway | footpath_onderbord | footpath_g12a)\n")
         for way_id in sorted(overlay):
-            snor, brom = overlay[way_id]
-            fh.write(f"{way_id}\t{snor or '-'}\t{brom or '-'}\n")
+            fh.write(f"{way_id}\t{overlay[way_id]}\n")
     print(f"\nwrote {out} ({len(overlay):,} ways)")
 
     print("\nfinding bus-lane roads no turn crosses the bus lane on…", flush=True)

@@ -25,14 +25,14 @@ end
 
 equals("moped=no clears the borrowed motorcycle bit",
   mask({ moped = "no" }) & 1024, 0)
-equals("moped=no does not clear the snorfiets moped bit",
-  mask({ moped = "no" }) & 512, 512)
+equals("the unused moped bit is cleared on every Dutch node",
+  mask({ highway = "crossing" }) & 512, 0)
 equals("motorcar=no clears the borrowed truck bit",
   mask({ motorcar = "no" }) & 8, 0)
-equals("C13 on a node clears both two-wheeler carrier bits",
-  mask({ traffic_sign = "NL:C13" }) & (512 | 1024), 0)
-equals("an ordinary node preserves all carrier bits",
-  mask({ highway = "crossing" }) & (512 | 1024 | 8), 512 | 1024 | 8)
+equals("C13 on a node clears the bromfiets carrier bit",
+  mask({ traffic_sign = "NL:C13" }) & 1024, 0)
+equals("an ordinary node preserves every Dutch class's carrier bit",
+  mask({ highway = "crossing" }) & (512 | 1024 | 8), 1024 | 8)
 equals("amgraph never reopens an upstream physical refusal",
   mask({ upstream_access_mask = 0, moped = "yes", motorcar = "yes" }), 0)
 

@@ -5,8 +5,7 @@ Read this before touching anything. This file is how to work here.
 every rule with its verbatim quote, its link and the date it was read, and
 [docs/country-rules.md](docs/country-rules.md) the standard they all meet.
 
-amgraph builds one multi-country routing graph for light mopeds, mopeds and
-microcars. Its entire reason to exist is that **a rider must never
+amgraph builds one multi-country routing graph for mopeds and microcars. Its entire reason to exist is that **a rider must never
 be routed onto infrastructure their vehicle class is legally barred from.**
 Every other requirement is subordinate to that one.
 
@@ -41,8 +40,8 @@ retrieval date. Match that standard or do not write the rule.
    Closing a carriageway because the rider is obliged onto the path beside it,
    *and* closing that path because it carries no sign, is not caution twice
    over: it asserts that the rider must be somewhere they may not be, and it is
-   always wrong, because RVV art. 5 lid 2 and art. 6 lid 2 say the rijbaan is
-   mandatory precisely when no path is established. Before adding a closure,
+   always wrong, because RVV art. 6 lid 2 says the rijbaan is mandatory
+   precisely when no path is established. Before adding a closure,
    ask what it leaves open. A rule that can leave a rider nowhere lawful is a bug however
    conservative each half looks.
 
@@ -53,21 +52,18 @@ retrieval date. Match that standard or do not write the rule.
 
 ## Vehicle classes
 
-amgraph supports three vehicles, in every country: the moped up to 25 km/h
-(`snorfiets`), the moped up to 45 km/h (`bromfiets`) and the microcar up to
-45 km/h (`brommobiel`), on the `moped`, `motorcycle` and `truck` carriers. A
-country never adds a class, drops one into another's code or moves one to
-another carrier. Only the names riders see are translated, per language.
+amgraph supports two vehicles, in every country: the moped up to 45 km/h
+(`bromfiets`) and the microcar up to 45 km/h (`brommobiel`), on the
+`motorcycle` and `truck` carriers. A country never adds a class, drops one into
+another's code or moves one to another carrier. Only the names riders see are
+translated, per language. The `moped` carrier, like `taxi` and `bus`, carries no
+vehicle and is closed on every way.
 
-**The vehicles are shared; the law is not.** EU law defines two of them for
-every member state: Regulation (EU) 168/2013 art. 4 and Annex I set the moped
-(L1e-B, L2e) and the light quadricycle (L6e) at a "maximum design vehicle speed
-≤ 45 km/h". The 25 km/h moped is national: the AM category of Directive
-2006/126/EC excludes vehicles "with a maximum design speed under or equal to
-25 km/h", and the regulation has no such category. So each country states from
-its own statutes what each of the three may do there, and where its law does not
-establish rules for the 25 km/h moped, `snorfiets` is not offered in that
-country. The speed pedelec is an L1e-B moped and is not one of the three.
+**The vehicles are shared; the law is not.** EU law defines both for every
+member state: Regulation (EU) 168/2013 art. 4 and Annex I set the moped (L1e-B,
+L2e) and the light quadricycle (L6e) at a "maximum design vehicle speed ≤ 45
+km/h". Each country states from its own statutes what each may do there. The
+25 km/h moped and the speed pedelec are not supported.
 
 Their road rights per country are in `docs/countries/<cc>.md`. The Netherlands
 is the one country modelled today. No country's law ever stands in for
@@ -87,12 +83,12 @@ is `tests/conftest.py` and whose Lua half is
 that ask for it. Keep it: with one real country, it is the only thing that
 notices when the machinery a second country needs stops working.
 
-**The codes are the same Dutch words in every country.** They name the three
+**The codes are the same Dutch words in every country.** They name the two
 vehicles above, not the Dutch statutory class, so a country's module maps its
 own legal terms onto them in its document. Anything rendering a label for a
 rider translates it there.
 
-**A country states its rules for the three in two files.** What OSM calls each
+**A country states its rules for the two in two files.** What OSM calls each
 vehicle there and what each may do, all in
 `valhalla/lua/countries/<cc>.lua` and
 `rules/src/amgraph_rules/countries/<cc>.py`. No shared file learns a country's
@@ -106,8 +102,8 @@ from its registry is never loaded, so its territory builds as unsupported and
 closes. Registering it puts it in every build, audit, gate and release alongside
 the others. [docs/adding-country.md](docs/adding-country.md) is the procedure.
 
-**Every country uses the same three carriers**: `snorfiets` on `moped`,
-`bromfiets` on `motorcycle`, `brommobiel` on `truck`. That is what keeps the
+**Every country uses the same two carriers**: `bromfiets` on `motorcycle`,
+`brommobiel` on `truck`. That is what keeps the
 rider's vehicle the same across a border.
 
 ## The two files that must agree
@@ -116,8 +112,8 @@ rider's vehicle the same across a border.
 and `access.lua` writes it into that stock Valhalla travel mode at graph build
 time. `rules/src/amgraph_rules/countries/<cc>.py` names the same carrier per
 class, and whatever serves the graph maps a carrier to the costing model that
-reads its bit. For the Netherlands: snorfiets on moped, bromfiets on motorcycle
-and brommobiel on truck.
+reads its bit. For the Netherlands: bromfiets on motorcycle and brommobiel on
+truck.
 
 Change one without the other and routes stay plausible while becoming illegal.
 It is the only failure in this codebase that does not announce itself, and it is

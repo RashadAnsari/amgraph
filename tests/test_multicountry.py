@@ -35,11 +35,6 @@ def test_every_country_publishes_the_same_legal_zone_properties(tmp_path):
             "any", next(iter(modelled_countries()[0].municipal_zones.values())), square, ""
         )["properties"]
     )
-    assert "roadway_only_profiles" in expected, (
-        "roadway_only_classes is what infra/official_access.py reads to find the "
-        "municipalities that moved a class onto the carriageway"
-    )
-
     source = tmp_path / "brk.geojson"
     source.write_text(
         json.dumps(
@@ -107,7 +102,7 @@ def test_border_access_is_the_intersection_of_every_applicable_law(second_countr
         return dict(access.lua.carrier_flags(access.runtime.table_from(tags)))
 
     assert flags()["motorcycle_forward"] == "true"
-    # Zedland declares no 25 km/h moped, so a border way closes its carrier.
+    # No vehicle rides the moped carrier, so a border way keeps it closed.
     assert flags()["moped_forward"] == "false"
     tags["amgraph:ZZ:traffic_sign"] = "ZZ:X1"
     assert set(flags().values()) == {"false"}
@@ -211,8 +206,8 @@ def test_merge_selects_the_geographic_owner_and_attributes_shared_nodes(
     assert objects[11]["amgraph:country"] == "NL;ZZ"
     access = Access("ZZ")
     flags = dict(access.lua.carrier_flags(access.runtime.table_from(objects[11])))
-    # Zedland has no 25 km/h moped, and its own overlay closes its 45 km/h one
-    # here; the microcar both countries declare stays open.
+    # No vehicle rides the moped carrier, and Zedland's own overlay closes its
+    # moped here; the microcar both countries declare stays open.
     assert flags["moped_forward"] == "false"
     assert flags["motorcycle_forward"] == "false"
     assert flags["truck_forward"] == "true"
@@ -415,21 +410,21 @@ def test_a_manifest_cannot_certify_two_disconnected_country_graphs(tmp_path, sec
         "the manifest is copied into the release notes; it carries each gate's "
         "verdict, never the route geometry that produced it"
     )
-    assert result["route_checks"]["countries"]["NL"]["snorfiets"]["required"] == {
+    assert result["route_checks"]["countries"]["NL"]["bromfiets"]["required"] == {
         "attempted": 3,
         "passed": 3,
     }
     # 80% of the fixtures is a floor for the country; a required route is not a
     # sample, and one failure is the release failing.
-    routes["countries"]["NL"]["snorfiets"]["required"][0] = {"ok": False, "error": "no path"}
+    routes["countries"]["NL"]["bromfiets"]["required"][0] = {"ok": False, "error": "no path"}
     (tmp_path / "routes.json").write_text(json.dumps(routes))
     with pytest.raises(ValueError, match="required route"):
         manifest.build(1, "test", tmp_path)
-    routes["countries"]["NL"]["snorfiets"]["required"].pop()
+    routes["countries"]["NL"]["bromfiets"]["required"].pop()
     (tmp_path / "routes.json").write_text(json.dumps(routes))
     with pytest.raises(ValueError, match="required route"):
         manifest.build(1, "test", tmp_path)
-    routes["countries"]["NL"]["snorfiets"]["required"] = [route] * 3
+    routes["countries"]["NL"]["bromfiets"]["required"] = [route] * 3
     (tmp_path / "routes.json").write_text(json.dumps(routes))
     del stamp["countries"]["ZZ"]
     (tmp_path / "build.json").write_text(json.dumps(stamp))

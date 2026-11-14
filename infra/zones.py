@@ -29,7 +29,6 @@ def zone_feature(name: str, zone: MunicipalZone, geometry: dict, source: str) ->
             "profiles": sorted(zone.powertrain_classes),
             "allowed_powertrains": sorted(p.value for p in zone.allowed_powertrains),
             "blocked_profiles": sorted(zone.blocked_classes),
-            "roadway_only_profiles": sorted(zone.roadway_only_classes),
             "valid_from": zone.valid_from.isoformat() if zone.valid_from else None,
             "valid_to": zone.valid_to.isoformat() if zone.valid_to else None,
             "scope": "whole_administrative_area_conservative",

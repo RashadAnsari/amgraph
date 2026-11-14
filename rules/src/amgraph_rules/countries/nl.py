@@ -36,10 +36,8 @@ from amgraph_rules.rules import (
     VehicleClass,
 )
 
-#: The two Dutch plates. Kenteken- en registratiebesluit: a snorfiets carries a
-#: blue plate and everything else in the family a yellow one, which is how the
-#: police tell them apart at a glance and exactly what decides which roads the
-#: rider may use.
+#: The Dutch plate. Kenteken- en registratiebesluit: a bromfiets and a
+#: brommobiel carry a yellow one.
 #:
 #: The hexes are measured values, not eyeballed ones, and they belong here
 #: because the plate is a fact of Dutch law rather than a palette choice.
@@ -49,25 +47,14 @@ from amgraph_rules.rules import (
 #: quietly replaced by one the client has measured, so a change to either hex
 #: should be measured against the real background before it is committed.
 _YELLOW = Plate(background="#F2C200", foreground="#0A0C0D")
-_BLUE = Plate(background="#1256B8", foreground="#FAFAF8")
 
 #: Bump on any change below. Kept internally rather than served, so the legal
 #: freshness gate can force a periodic re-read of the primary sources without
 #: the string reading to a rider as a build number.
-RULES_VERSION = "nl-2026-11-14.3"
+RULES_VERSION = "nl-2026-11-14.4"
 
 #: Separate carriers keep each vehicle identity stable across country boundaries.
 CLASSES: tuple[VehicleClass, ...] = (
-    VehicleClass(
-        code="snorfiets",
-        carrier=Carrier.MOPED,
-        construction_limit_kph=25,
-        speeds=ClassSpeeds(roadway=25, cycle_path_built_up=25, cycle_path_rural=25),
-        plate=_BLUE,
-        marker="scooter",
-        powertrain_matters=True,
-        names={"en": "Light moped", "nl": "Snorfiets"},
-    ),
     VehicleClass(
         code="bromfiets",
         carrier=Carrier.MOTORCYCLE,
@@ -94,7 +81,7 @@ CLASSES: tuple[VehicleClass, ...] = (
 #: nothing else. See docs/countries/nl.md NL-ACC-02 and CountryRules.
 DEFAULT_CLASS = "bromfiets"
 
-_EMISSION_CLASSES = frozenset({"snorfiets", "bromfiets"})
+_EMISSION_CLASSES = frozenset({"bromfiets"})
 
 #: Municipal rules that turn on a vehicle fact the request does not carry.
 #:
@@ -122,18 +109,12 @@ _EMISSION_CLASSES = frozenset({"snorfiets", "bromfiets"})
 #: - **Amsterdam** has a current brom- and snorfiets milieuzone, listed in the
 #:   national index at <https://www.milieuzones.nl/locaties-milieuzones>,
 #:   read 2026-11-14.
-#:
-#: The Amsterdam and Utrecht snorfiets place-on-road rule (art. 5 lid 8) is not
-#: an emission rule and gates nothing here. It is a rule about which edge a
-#: rider belongs on, so it is carried as `roadway_only_classes` and applied per
-#: edge at graph build time. See docs/countries/nl.md NL-ACC-04.
 MUNICIPAL_ZONES: dict[str, MunicipalZone] = {
     "Amsterdam": MunicipalZone(
         municipality_id="GM0363",
         powertrain_classes=_EMISSION_CLASSES,
         allowed_powertrains=frozenset({Powertrain.ELECTRIC}),
         blocked_classes=frozenset(),
-        roadway_only_classes=frozenset({"snorfiets"}),
     ),
     "Den Haag": MunicipalZone(
         municipality_id="GM0518",
@@ -148,9 +129,8 @@ MUNICIPAL_ZONES: dict[str, MunicipalZone] = {
         blocked_classes=frozenset(),
     ),
     # Utrecht's emission rule is announced and dated, not yet in force. Until
-    # 2028-01-01 this entry gates nothing and the municipality is carried here
-    # only for its art. 5 lid 8 polygon; on that date it starts refusing
-    # combustion two-wheelers like the other three.
+    # 2028-01-01 this entry gates nothing; on that date it starts refusing a
+    # combustion bromfiets like the other three.
     #
     #   "Vanaf 1 januari 2028 mogen brom- en snorfietsen op benzine, diesel of
     #    gas met een datum eerste toelating (DET) tot en met 31-12-2017 niet
@@ -173,148 +153,7 @@ MUNICIPAL_ZONES: dict[str, MunicipalZone] = {
         powertrain_classes=_EMISSION_CLASSES,
         allowed_powertrains=frozenset({Powertrain.ELECTRIC}),
         blocked_classes=frozenset(),
-        roadway_only_classes=frozenset({"snorfiets"}),
         valid_from=date(2028, 1, 1),
-    ),
-}
-
-_AMSTERDAM = (52.27, 4.72, 52.44, 5.08)
-_UTRECHT = (52.02, 4.97, 52.15, 5.20)
-
-#: Roads whose bike paths a municipality's art. 5 lid 8 measure does not reach,
-#: as (name, (south, west, north, east)), for the municipalities whose measure
-#: the graph applies to their whole territory.
-#:
-#: Amsterdam. Stcrt. 2018, 71559, p. 8: "op de
-#: belangrijkste doorstromingswegen voor auto en voor openbaar vervoer wordt de
-#: maatregel voorlopig niet ingevoerd", and Gmb. 2025, 474758 restates it as
-#: "met uitzondering van de De Ruijterkade". A snorfiets keeps art. 5 lid 1
-#: there: the G11 admits it and obliges it. Both read 2026-11-13.
-#:
-#: Kattenburgerstraat is on the 2018 list and is not here: Gmb. 2023, 51567
-#: put the onderbord on it ("snorfietsen op de hoofdrijbaan moeten rijden op de
-#: Kattenburgerstraat"). Prins Hendrikkade is listed only "tussen Centraal
-#: Station en IJ-tunnel" and "tussen IJ-tunnel en Kattenburgerstraat", so its
-#: box starts east of the station and ends at Kattenburgerplein. The two
-#: tunnels on the list carry no bike path and are left out. A search of every
-#: later Amsterdam verkeersbesluit naming these roads found no other onderbord,
-#: and a register plate naming snorfietsen on a G11 still overrides this list.
-ART5_LID8_EXEMPT_ROADS: tuple[tuple[str, tuple[float, float, float, float]], ...] = (
-    ("Prins Hendrikkade", (52.3700, 4.9025, 52.3770, 4.9160)),
-    *(
-        (name, _AMSTERDAM)
-        for name in (
-            "Nieuwe Leeuwarderweg",
-            "Valkenburgerstraat",
-            "Weesperstraat",
-            "Wibautstraat",
-            "Gooiseweg",
-            "Transformatorweg",
-            "Spaarndammerdijk",
-            "Tasmanstraat",
-            "Van Diemenstraat",
-            "Westerdoksdijk",
-            "De Ruijterkade",
-            "Piet Heinkade",
-            "IJburglaan",
-            "Houtmankade",
-            "Nassaukade",
-            "Stadhouderskade",
-            "Mauritskade",
-            "Zeeburgerdijk",
-            "Panamalaan",
-            "Schellingwouderbrug",
-            "Amsterdamsebrug",
-        )
-    ),
-)
-
-#: Utrecht's art. 5 lid 8 measure, which names every road it reaches rather than
-#: taking the municipality: Gmb. 2021, 212045 lists "de volgende locaties waar
-#: een verplicht fietspad aanwezig is", and the onderbord stands only there.
-#: Later decisions put it on Biltstraat (Gmb. 2022, 579834), Vleutenseweg (Gmb.
-#: 2022, 415248 and others), Jutfaseweg (Gmb. 2024, 210227), Paardenveld (Gmb.
-#: 2025, 410033) and Croeselaan (Gmb. 2026, 309624). All read 2026-11-13.
-#: Smakkelaarshoek (Stcrt. 2019, 54148; Gmb. 2021, 289198), Haarzichtlaan
-#: (Stcrt. 2020, 61451) and Moreelsehoek (Stcrt. 2021, 12566) carry the onderbord
-#: "snorfietsen met verbrandingsmotor niet toegestaan", read 2026-11-14; the
-#: graph cannot tell the powertrain, so both come off those paths. The
-#: list's solitary paths have no street of their own, so an unnamed G11 stays
-#: closed to the snorfiets unless it runs beside a road the decision does not
-#: name, where art. 5 lid 1 puts the snorfiets on it. A register or mapped
-#: onderbord closes any other G11 as well.
-ART5_LID8_LISTED: dict[str, tuple[tuple[float, float, float, float], frozenset[str]]] = {
-    "Utrecht": (
-        _UTRECHT,
-        frozenset(
-            {
-                "Amsterdamsestraatweg",
-                "Catharijnesingel",
-                "Daalsesingel",
-                "Bleekstraat",
-                "Vondellaan",
-                "Ledig Erf",
-                "Tolsteegsingel",
-                "Royaards van den Hamkade",
-                "Ahornstraat",
-                "Nijenoord",
-                "Omloop",
-                "Anton Geesinkstraat",
-                "Oudenoord",
-                "Laan van Chartroise",
-                "Sint-Jacobsstraat",
-                "St.-Jacobsstraat",
-                "Weerdsingel W.Z.",
-                "Weerdsingel Westzijde",
-                "Blauwkapelseweg",
-                "Kleine Singel",
-                "Biltstraat",
-                "Kruisstraat",
-                "Nobelstraat",
-                "Vredenburg",
-                "Lange Viestraat",
-                "Potterstraat",
-                "Neude",
-                "Lange Jansstraat",
-                "Janskerkhof",
-                "Van Sijpesteijnkade",
-                "Daalsetunnel",
-                "Westplein",
-                "Vleutenseweg",
-                "Graadt van Roggenweg",
-                "Croeselaan",
-                "Van Zijstweg",
-                "Rijnlaan",
-                "Balijelaan",
-                "Waalstraat",
-                "Jutfaseweg",
-                "Baden-Powellweg",
-                "W.A. Vultostraat",
-                "Constant Erzeijstraat",
-                "Briljantlaan",
-                "Burgemeester Fockema Andreaelaan",
-                "Jacob Westerbaenstraat",
-                "Laan van Kovelswade",
-                "Laan van Soestbergen",
-                "Oosterkade",
-                "Oosterspoorbaan",
-                "Neptunusstraat",
-                "Mesdaglaan",
-                "Veeartsenijpad",
-                "Hoveniersbrug",
-                "Lauwerecht",
-                "Timmerstraat",
-                "Moreelsebrug",
-                "Van Sijpesteijntunnel",
-                "Catharijnekade",
-                "Wolvenstraat",
-                "Westerkade",
-                "Paardenveld",
-                "Smakkelaarshoek",
-                "Haarzichtlaan",
-                "Moreelsehoek",
-            }
-        ),
     ),
 }
 
@@ -362,17 +201,12 @@ ROUTE_CHECKS = (
     ((53.2000, 5.7900), (53.2100, 5.8050)),
 )
 
-# Routes every class must answer, where ROUTE_CHECKS only asks 80% of them.
-# These two cities are where RVV art. 5 lid 8 moves the snorfiets onto the
-# rijbaan (NL-ACC-04), and a deadlock there leaves the other fixtures
-# untouched.
+# Routes every class must answer, where ROUTE_CHECKS only asks 80% of them:
+# into and across the two largest city centres, where the densest rules sit.
 REQUIRED_ROUTE_CHECKS = (
     ((52.3390, 4.8730), (52.3791, 4.9003)),  # Amsterdam Zuid to Centraal
     ((52.1160, 5.1080), (52.0894, 5.1100)),  # Utrecht Overvecht to Centraal
     ((52.0894, 5.1100), (52.3791, 4.9003)),  # Utrecht Centraal to Amsterdam Centraal
 )
 
-ACCESS_PROBES = (
-    ("snorfiets", "bromfiets"),
-    ("bromfiets", "brommobiel"),
-)
+ACCESS_PROBES = (("bromfiets", "brommobiel"),)

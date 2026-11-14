@@ -3,17 +3,15 @@
 Every other test here asks whether a rule is *correct*. This one asks whether
 it is *doing anything*.
 
-The overlay writes three values and they carry very different risk. `no` is a
-closure and safe by construction: WKD's own documentation warns that signs are
-sometimes coupled to the wrong NWB section, and the geometric NWB-to-OSM join
-adds another mismatch risk, but a false closure is only a detour.
+The overlay's values carry very different risk. `no` is a closure and safe by
+construction: WKD's own documentation warns that signs are sometimes coupled to
+the wrong NWB section, and the geometric NWB-to-OSM join adds another mismatch
+risk, but a false closure is only a detour.
 
-The other two open something, so each is bounded to a case where the law leaves
-no discretion, and the bounds are asserted here rather than trusted:
-`on_roadway` may only appear on a carriageway, where RVV art. 5 lid 2 and art.
-6 lid 2 make the rijbaan mandatory once no usable path exists; `yes` may only
-appear on cycle infrastructure, and only for the snorfiets, whose art. 5 lid 1
-answer is the same for a G11 and a G12a.
+The others open something, so each is bounded to a case where the law leaves no
+discretion, and the bounds are asserted here rather than trusted: `on_roadway`
+may only appear on a carriageway, where RVV art. 6 lid 2 makes the rijbaan
+mandatory once no usable path exists, and the voetpad values only on a voetpad.
 
 So these assert the overlay's *effect*, in bounds wide enough that ordinary
 monthly drift in the source data passes and a filter regression does not.
@@ -42,8 +40,8 @@ MIN_CLOSED = 100_000
 #: has to be the reason they are shut.
 MIN_DECISIVE = 20_000
 
-#: The two keys the overlay writes.
-OVERLAY = ("amgraph:snorfiets", "amgraph:bromfiets")
+#: The key the overlay writes.
+OVERLAY = ("amgraph:bromfiets",)
 COUNTRY = "amgraph:country"
 
 #: Every value access.lua reads from those keys. A typo in the writer would be
@@ -52,8 +50,6 @@ COUNTRY = "amgraph:country"
 KNOWN_VALUES = {
     "no",
     "on_roadway",
-    "roadway_only",
-    "yes",
     "footpath_onderbord",
     "footpath_g12a",
 }
@@ -86,10 +82,9 @@ def rules():
     access = runtime.eval(f'dofile("{ACCESS_LUA}")')
     netherlands = access.COUNTRIES.NL
 
-    def classes(tags: dict[str, str]) -> tuple[bool, bool, bool]:
+    def classes(tags: dict[str, str]) -> tuple[bool, bool]:
         flags = dict(access.carrier_flags(runtime.table_from(tags), netherlands))
         return (
-            flags["moped_forward"] == "true",
             flags["motorcycle_forward"] == "true",
             flags["truck_forward"] == "true",
         )
@@ -179,14 +174,11 @@ def test_every_overlay_value_is_one_the_rules_understand() -> None:
 
 
 @pytest.mark.graph
-def test_the_two_permissive_values_stay_inside_their_bounds() -> None:
-    """Neither opening may appear where its legal justification does not reach.
+def test_the_permissive_values_stay_inside_their_bounds() -> None:
+    """No opening may appear where its legal justification does not reach.
 
-    `on_roadway` rests on art. 5 lid 2 and art. 6 lid 2, which are about the
-    rijbaan, so on anything but a carriageway it would be lifting a closure no
-    statute lifts. `yes` rests on art. 5 lid 1 admitting a snorfiets to a G11
-    and a G12a alike, which is an argument about cycle paths and about that one
-    class, so on a roadway or on the bromfiets key it would be unfounded.
+    `on_roadway` rests on art. 6 lid 2, which is about the rijbaan, so on
+    anything but a carriageway it would be lifting a closure no statute lifts.
 
     Both are written by a geometric match, and a match can land anywhere. This
     is the test that a misplaced one cannot become permission.
@@ -207,17 +199,8 @@ def test_the_two_permissive_values_stay_inside_their_bounds() -> None:
             )
             for key in OVERLAY:
                 value = w.tags.get(key)
-                if value == "roadway_only" and not cycle:
-                    stray[f"roadway_only on highway={highway}"] += 1
-                elif value == "roadway_only" and key.endswith("bromfiets"):
-                    stray["roadway_only on the bromfiets key"] += 1
-                elif value == "on_roadway" and cycle:
+                if value == "on_roadway" and cycle:
                     stray[f"on_roadway on highway={highway}"] += 1
-                elif value == "yes":
-                    if not cycle:
-                        stray[f"yes on highway={highway}"] += 1
-                    if key.endswith("bromfiets"):
-                        stray["yes on the bromfiets key"] += 1
                 elif value in {"footpath_onderbord", "footpath_g12a"}:
                     if highway not in FOOTPATH_HIGHWAYS:
                         stray[f"{value} on highway={highway}"] += 1

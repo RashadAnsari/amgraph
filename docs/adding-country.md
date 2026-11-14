@@ -22,10 +22,8 @@ unsupported and every way in it closes:
 
 1. Read the country's traffic code from a primary source: how its law defines
    the moped up to 45 km/h and the microcar up to 45 km/h (both EU categories),
-   whether it has rules for a moped up to 25 km/h, the cycle-infrastructure
-   rules, the motorway prohibition and the speed articles. Map its legal terms
-   onto `snorfiets`, `bromfiets` and `brommobiel`; where its law establishes no
-   rules for the 25 km/h moped, leave `snorfiets` out of that country.
+   the cycle-infrastructure rules, the motorway prohibition and the speed
+   articles. Map its legal terms onto `bromfiets` and `brommobiel`.
 2. Write the rules into `docs/countries/<cc>.md`, in the same shape as the
    countries already there: verbatim quotes, links, retrieval dates, a status
    and a stable identifier per rule. The
@@ -33,7 +31,7 @@ unsupported and every way in it closes:
 3. Map each rule to OSM tags and **measure the tag coverage** on the country's
    own extract before trusting the mapping. The Dutch measurement is what
    revealed that `designated`, not `yes`, marks a bromfietspad.
-4. Add `valhalla/lua/countries/<cc>.lua`: the three classes on their fixed
+4. Add `valhalla/lua/countries/<cc>.lua`: the two classes on their fixed
    carriers, the OSM keys that name them, the sign vocabulary, the
    unsigned-path assumption, the roads barred outright, and which signs bar
    entry. Name it in `M.COUNTRIES` in `access.lua`, and add assertions to
@@ -109,8 +107,8 @@ plausible access from stale arithmetic, and nothing downstream can tell.
 - Two classes may not share a carrier. They would be indistinguishable in the
   graph, so `access.prepare` refuses the country rather than letting the router
   answer for whichever it happened to ask about.
-- Every class uses its shared code and carrier: `snorfiets` on `moped`,
-  `bromfiets` on `motorcycle`, `brommobiel` on `truck`. See
+- Every class uses its shared code and carrier: `bromfiets` on `motorcycle`,
+  `brommobiel` on `truck`. See
   [classes and carriers](architecture.md#classes-and-carriers).
 - `RULES_VERSION` must be within the 90-day review window, and `valid_until`
   must not have arrived. Both abort the build rather than warning.

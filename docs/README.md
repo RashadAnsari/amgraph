@@ -29,7 +29,7 @@ a retrieval date per rule:
 
 | Country | Rules | Classes |
 | --- | --- | --- |
-| Netherlands | [countries/nl.md](countries/nl.md) | `snorfiets`, `bromfiets`, `brommobiel` |
+| Netherlands | [countries/nl.md](countries/nl.md) | `bromfiets`, `brommobiel` |
 
 No country's classes or law stand in for another country's. A rule identifier is
 scoped to its country (`NL-ACC-02`), and access assertions name the

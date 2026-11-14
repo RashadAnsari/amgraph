@@ -27,20 +27,11 @@ means does.
 3. **Blanket bans**: `access=no`, `vehicle=no`, unless a class-specific tag
    lifts them, and never lifting a bodied four-wheeler onto cycle
    infrastructure.
-4. **Cycle infrastructure**: the sign the mapper wrote, then the sign the
-   authority's register reports, then a permission under another class's key
-   that implies a sign (`cycle_evidence_keys`), then the country's unsigned
-   default. An explicit class-specific value beats all of them.
+4. **Cycle infrastructure**: the sign the mapper wrote, then the country's
+   unsigned default. An explicit class-specific value beats both.
 5. **Roadway**: open unless something says otherwise, with the country's
    mandatory-use rule and the provision that returns the rider to the
-   carriageway when no usable path is established. A class OSM has no key for
-   is closed by a refusal under another class's key, or another class's
-   authority verdict, that could be the trace of a sign binding it too
-   (`roadway_refusal_keys`, `roadway_refusal_overlays`; `refusal_keys` on the
-   cycle network as well). Such a class also takes the restriction, never the
-   exemption, of a one-way stated for another vehicle
-   (`oneway_restriction_keys`), and may name barriers its borrowed carrier
-   would pass but it may not (`impassable_barriers`).
+   carriageway when no usable path is established.
 6. **The country's authority overlay**, where it has one.
 7. **Conditional, directional and lane-scoped tags**, which close the affected
    class because the graph has no clock and cannot select a lane. One

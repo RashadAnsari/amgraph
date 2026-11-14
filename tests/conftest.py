@@ -34,9 +34,7 @@ FIXTURE_LUA = ROOT / "valhalla/lua/spec/fixture_country.lua"
 #: Dated today so require_current's review window always admits it.
 RULES_VERSION = f"zz-{datetime.now(UTC).date().isoformat()}.1"
 
-#: The two required vehicles, without the 25 km/h moped, as a country whose law
-#: sets no rules for one declares them. A border way is then closed to the moped
-#: carrier, which only the Dutch side uses.
+#: The two supported vehicles, under names of the invented country's own.
 CLASSES = (
     replace(NETHERLANDS.vehicle("bromfiets"), names={"en": "Zed moped"}),
     replace(NETHERLANDS.vehicle("brommobiel"), names={"en": "Zed microcar"}),

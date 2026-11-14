@@ -23,7 +23,6 @@ later puts each of its classes on the carrier of the class it matches:
 
 | Carrier | Netherlands | Valhalla costing |
 | --- | --- | --- |
-| `moped` | `snorfiets` | `motor_scooter` |
 | `motorcycle` | `bromfiets` | `motorcycle` |
 | `truck` | `brommobiel` | `truck` |
 

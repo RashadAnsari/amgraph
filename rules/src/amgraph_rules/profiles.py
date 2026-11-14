@@ -28,7 +28,6 @@ class Carrier(StrEnum):
     else.
     """
 
-    MOPED = "moped"
     MOTORCYCLE = "motorcycle"
     TRUCK = "truck"
 
@@ -42,7 +41,6 @@ class Powertrain(StrEnum):
 #: without changing the matching carrier in access.lua produces routes that
 #: silently obey the wrong rules.
 _COSTING: dict[Carrier, str] = {
-    Carrier.MOPED: "motor_scooter",
     Carrier.MOTORCYCLE: "motorcycle",
     Carrier.TRUCK: "truck",
 }
@@ -99,7 +97,5 @@ def costing_options_for(
         # is a touring preference, not a commute. Neither affects legality:
         # access bits are hard constraints.
         options |= {"use_trails": 0.0, "use_highways": 0.0}
-    elif costing == "motor_scooter":
-        options |= {"use_primary": 0.3, "use_hills": 0.5}
 
     return {costing: options}

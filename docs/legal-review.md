@@ -92,11 +92,10 @@ than the one the country document links, compare the quotes (step 2).
 
 | Source | What it carries | Where |
 | --- | --- | --- |
-| RVV 1990 | Definitions (art. 1), where each class rides (arts. 2a, 2b, 5 to 7, 10), speeds (arts. 20 to 22, 45), motorways (art. 42), sub-signs (art. 66), emission zones (arts. 86c to 86e), the sign annex (bijlage 1) | <https://wetten.overheid.nl/BWBR0004825>, read at version 2026-07-01 |
+| RVV 1990 | Definitions (art. 1), where each class rides (arts. 2a, 6, 10), speeds (arts. 20 to 22, 45), motorways (art. 42), sub-signs (art. 66), emission zones (arts. 86c to 86e), the sign annex (bijlage 1) | <https://wetten.overheid.nl/BWBR0004825>, read at version 2026-07-01 |
 | Wegenverkeerswet 1994 | Which vehicle is a bromfiets (art. 1), registration (arts. 36, 37), licence (arts. 107, 108). Stb. 2023, 377 redefines the bromfiets from a date not yet set | <https://wetten.overheid.nl/BWBR0006622>, read at version 2026-09-01 |
 | Regeling kentekens en kentekenplaten | Plate colours (art. 3) | <https://wetten.overheid.nl/BWBR0009071>, read at version 2026-01-01 |
 | Municipal moped zones | Amsterdam, Den Haag, Nijmegen, Utrecht | The four pages linked in NL-ACC-06A, and <https://www.milieuzones.nl/locaties-milieuzones> for new ones |
-| Art. 5 lid 8 decisions | Snorfiets on the roadway in Amsterdam and Utrecht | The two Staatscourant and Gemeenteblad links in NL-ACC-04 |
 
 The sources the weekly build downloads (the OSM extract, the NDW sign register,
 the RWS WKD release, the PDOK boundaries) are data, not law. They are refreshed
@@ -105,8 +104,6 @@ by the build itself, and the gates decide whether the result may ship.
 Open items to look at in every Dutch review until they are settled:
 
 - **NL-ACC-06A**: Utrecht's brommobiel decision.
-- **NL-ACC-07**: the cyclist one-way exemption for a snorfiets (`UNVERIFIABLE`,
-  by design permanent unless a primary source appears).
 - **NL-ACC-06**: whether RVV art. 2a lifts a sign caption naming bromfietsen
   (C13, C15) for the brommobiel. Closed until a primary source settles it.
 - **Stb. 2023, 377**: the redefinition of the bromfiets, once a royal decree

@@ -23,7 +23,6 @@ TODAY = date(2026, 9, 25)
 SQUARE = [[[[2, 2], [4, 2], [4, 4], [2, 4], [2, 2]]]]
 
 BROMFIETS = NETHERLANDS.vehicle("bromfiets")
-SNORFIETS = NETHERLANDS.vehicle("snorfiets")
 BROMMOBIEL = NETHERLANDS.vehicle("brommobiel")
 
 
@@ -111,8 +110,8 @@ def test_an_electric_two_wheeler_is_allowed(tmp_path: Path) -> None:
 
 
 def test_a_blocked_class_is_refused_whatever_its_powertrain(tmp_path: Path) -> None:
-    zones = _test_zone(tmp_path, profiles=("snorfiets", "bromfiets"), blocked=("snorfiets",))
-    assert zones.blocks(SNORFIETS, Powertrain.ELECTRIC, [(3, 3)], on=TODAY)
+    zones = _test_zone(tmp_path, blocked=("bromfiets",))
+    assert zones.blocks(BROMFIETS, Powertrain.ELECTRIC, [(3, 3)], on=TODAY)
 
 
 def test_a_class_the_rule_does_not_reach_passes(tmp_path: Path) -> None:
@@ -134,7 +133,7 @@ def test_a_weakened_zone_file_is_refused(tmp_path: Path) -> None:
                     SQUARE,
                     name="Amsterdam",
                     municipality_id="GM0363",
-                    profiles=["snorfiets", "bromfiets"],
+                    profiles=["bromfiets"],
                     allowed_powertrains=["electric", "combustion"],
                 )
             ],
@@ -267,17 +266,6 @@ class TestAVehicleFromAcrossTheBorder:
             BROMMOBIEL, Powertrain.COMBUSTION, IN_ZEDTOWN, on=TODAY
         )
 
-    def test_a_vehicle_with_no_counterpart_in_the_zones_country_is_refused(
-        self, tmp_path: Path
-    ) -> None:
-        """No class to read it as means no rule can admit it.
-
-        Zedland declares no 25 km/h moped, so a Dutch snorfiets has nothing to
-        be read as there.
-        """
-        snorfiets = rules_for("NL").vehicle("snorfiets")
-        assert self._zones(tmp_path).blocks(snorfiets, Powertrain.ELECTRIC, IN_ZEDTOWN, on=TODAY)
-
 
 class TestARuleThatIsNotYetInForce:
     """Utrecht's emission rule runs from 2028-01-01, and until then it must
@@ -322,7 +310,7 @@ class TestARuleThatIsNotYetInForce:
 
 
 def test_utrecht_carries_its_announced_2028_rule() -> None:
-    """Petrol, diesel or gas brom- and snorfietsen with a DET up to 31-12-2017
+    """Petrol, diesel or gas bromfietsen with a DET up to 31-12-2017
     may not enter Utrecht from 2028-01-01. It changes nothing today, which is
     exactly what makes it easy to leave out and easy to forget."""
     utrecht = MUNICIPAL_ZONES["Utrecht"]
@@ -333,7 +321,7 @@ def test_utrecht_carries_its_announced_2028_rule() -> None:
         valid_from=utrecht.valid_from,
         valid_to=utrecht.valid_to,
     )
-    assert "snorfiets" in utrecht.powertrain_classes
+    assert "bromfiets" in utrecht.powertrain_classes
     assert utrecht.allowed_powertrains == frozenset({Powertrain.ELECTRIC})
     assert not rule.in_force(date(2027, 12, 31))
     assert rule.in_force(date(2028, 1, 1))

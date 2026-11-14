@@ -22,15 +22,15 @@ of each tag value and the node rules are in
 
 ## Classes and carriers
 
-The three vehicles, `snorfiets`, `bromfiets` and `brommobiel`, are the same in
-every country, each on one carrier throughout the graph: `moped`, `motorcycle`
-and `truck`. A country supplies their road rights, never a class of its own.
+The two vehicles, `bromfiets` and `brommobiel`, are the same in every country,
+each on one carrier throughout the graph: `motorcycle` and `truck`. A country
+supplies their road rights, never a class of its own.
 
 Each carrier is a stock Valhalla travel mode that reads an access bit of its
-own: `moped` (512), `motorcycle` (1024) and `truck` (8), from
-`baldr/graphconstants.h`. `auto` is deliberately left alone: it is what the
-rest of the toolchain reaches for when it wants to know whether a road exists
-at all.
+own: `motorcycle` (1024) and `truck` (8), from `baldr/graphconstants.h`. The
+`moped`, `taxi` and `bus` bits carry no vehicle and are closed on every way.
+`auto` is deliberately left alone: it is what the rest of the toolchain reaches
+for when it wants to know whether a road exists at all.
 
 The adapter marks every carrier decision with Valhalla's corresponding
 `*_tag` flag, including refusals and unassigned carriers. Without these flags,

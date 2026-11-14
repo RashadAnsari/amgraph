@@ -147,68 +147,17 @@ def test_dutch_authority_evidence_cannot_be_supplied_by_raw_osm(tmp_path):
       <node id="1" version="1" lat="52" lon="5"/>
       <node id="2" version="1" lat="52.1" lon="5.1"/>
       <way id="3" version="1"><nd ref="1"/><nd ref="2"/>
-        <tag k="highway" v="cycleway"/><tag k="amgraph:snorfiets" v="yes"/></way>
+        <tag k="highway" v="cycleway"/><tag k="amgraph:bromfiets" v="footpath_g12a"/></way>
       <way id="4" version="1"><nd ref="1"/><nd ref="2"/>
-        <tag k="highway" v="cycleway"/><tag k="amgraph:bromfiets" v="yes"/></way>
+        <tag k="highway" v="cycleway"/><tag k="amgraph:bromfiets" v="footpath_g12a"/></way>
     </osm>""")
     output = tmp_path / "result.osm.pbf"
     with osmium.SimpleWriter(output) as writer:
-        Inject(writer, {4: ("yes", "no")}, box(4, 51, 6, 53)).apply_file(
-            str(source), locations=True
-        )
+        Inject(writer, {4: "no"}, box(4, 51, 6, 53)).apply_file(str(source), locations=True)
     ways = {obj.id: dict(obj.tags) for obj in osmium.FileProcessor(output) if obj.is_way()}
-    assert "amgraph:snorfiets" not in ways[3]
+    assert "amgraph:bromfiets" not in ways[3]
     assert ways[3]["amgraph:country"] == "NL"
-    assert ways[4]["amgraph:snorfiets"] == "yes"
     assert ways[4]["amgraph:bromfiets"] == "no"
-
-
-def test_nl_acc_04_every_carriageway_in_the_municipality_is_kept_on_the_roadway(tmp_path):
-    """NL-ACC-04 writes `on_roadway` on every carriageway inside the boundary.
-
-    The length floor exists because a geometric match onto a junction stub is
-    unreliable, and a wrong match would close a road. Whether a way lies inside
-    Amsterdam or Utrecht is not a match; it is as certain for 5 m as for 5 km.
-    Skipping the short pieces left 2,680 junction and bridge stubs in the two
-    cities carrying their pre-decision `mofa=use_sidepath`, each one closing
-    the only road the verkeersbesluit left the snorfiets, and trapped it in
-    about a square kilometre of each city centre.
-    """
-    from collections import defaultdict
-
-    from official_access import MIN_LENGTH_METRES, Match
-
-    # About 10 m and about 200 m of latitude.
-    short, long_ = 0.00009, 0.0018
-    source = tmp_path / "source.osm"
-    source.write_text(f"""<osm version="0.6">
-      <node id="1" version="1" lat="52.0" lon="5.0"/>
-      <node id="2" version="1" lat="{52.0 + short}" lon="5.0"/>
-      <node id="3" version="1" lat="{52.0 + long_}" lon="5.0"/>
-      <node id="4" version="1" lat="53.0" lon="6.0"/>
-      <node id="5" version="1" lat="{53.0 + short}" lon="6.0"/>
-      <way id="10" version="1"><nd ref="1"/><nd ref="2"/>
-        <tag k="highway" v="primary"/><tag k="mofa" v="use_sidepath"/></way>
-      <way id="11" version="1"><nd ref="1"/><nd ref="3"/>
-        <tag k="highway" v="primary"/><tag k="mofa" v="use_sidepath"/></way>
-      <way id="12" version="1"><nd ref="4"/><nd ref="5"/>
-        <tag k="highway" v="primary"/><tag k="mofa" v="use_sidepath"/></way>
-      <way id="13" version="1"><nd ref="1"/><nd ref="2"/>
-        <tag k="highway" v="cycleway"/></way>
-    </osm>""")
-    municipality = box(4.9, 51.9, 5.1, 52.1)
-    shapely.prepare(municipality)
-
-    match = Match(defaultdict(list), defaultdict(list), municipality)
-    match.apply_file(str(source), locations=True)
-
-    assert short * 111_000 < MIN_LENGTH_METRES < long_ * 111_000
-    assert match.verdict[10][0] == "on_roadway"  # the stub the floor used to skip
-    assert match.verdict[11][0] == "on_roadway"
-    # Outside the municipality the floor still guards every judgement it did.
-    assert 12 not in match.verdict
-    # A path is not a carriageway; lid 8 takes the snorfiets off it, not onto it.
-    assert 13 not in match.verdict
 
 
 def _road_and_path(tmp_path, lat, lon, road, path):
@@ -237,213 +186,39 @@ def _road_and_path(tmp_path, lat, lon, road, path):
     return source
 
 
-def _overlay(source, municipality, register=None, plates=()):
-    """Run the three passes of official_access.py the way main() does."""
+def _match(source):
+    """Run the cycle-path and matching passes of official_access.py."""
     from collections import defaultdict
 
-    from amgraph_rules.countries.nl import ART5_LID8_EXEMPT_ROADS
-    from official_access import CELL, ExemptCarriageways, Match, Paths
+    from official_access import Match, Paths
 
-    signs = defaultdict(list)
-    for lat, lon, code in register or ():
-        signs[(int(lat / CELL), int(lon / CELL))].append((lat, lon, code))
-    if municipality is not None:
-        shapely.prepare(municipality)
-    exempt = ExemptCarriageways(ART5_LID8_EXEMPT_ROADS)
-    exempt.apply_file(str(source), locations=True)
-    plated = defaultdict(list)
-    for lat, lon, texts in plates:
-        plated[(int(lat / CELL), int(lon / CELL))].append((lat, lon, "G11", texts, None))
-    paths = Paths(signs, municipality, plated, exempt.index)
+    paths = Paths({}, {})
     paths.apply_file(str(source), locations=True)
-    match = Match(defaultdict(list), paths.usable, municipality)
+    match = Match(defaultdict(list), paths.usable)
     match.apply_file(str(source), locations=True)
-    return paths, match
+    return match
 
 
-UTRECHT_WEST = (52.0995, 5.0500)
-G11_PATH = {"highway": "cycleway", "traffic_sign": "NL:G11", "mofa": "designated", "moped": "no"}
-OBLIGED_ROAD = {"highway": "secondary", "bicycle": "use_sidepath", "oneway": "yes"}
+OBLIGED_ROAD = {"highway": "secondary", "moped": "use_sidepath"}
 
 
-def test_nl_acc_04_an_unnamed_g11_beside_a_road_utrecht_does_not_list_keeps_the_snorfiets(
-    tmp_path,
-):
-    """Utrecht's art. 5 lid 8 decision names its roads, and the onderbord stands
-    only there. Elsewhere art. 5 lid 1 holds: "Fietsers gebruiken het verplichte
-    fietspad", so the snorfiets belongs on the G11 and not on the carriageway its
-    obligation closes. A G11 that OSM leaves unnamed is told apart from the
-    decision's solitary paths by the road it runs beside."""
-    lat, lon = UTRECHT_WEST
-    source = _road_and_path(tmp_path, lat, lon, {**OBLIGED_ROAD, "name": "Vleutensebaan"}, G11_PATH)
-    paths, match = _overlay(source, box(4.97, 52.02, 5.20, 52.15))
-
-    assert 21 not in paths.closed
-    assert match.verdict.get(20, (None, None))[0] != "on_roadway"
-
-
-def test_nl_acc_04_an_unnamed_g11_beside_a_listed_road_still_loses_the_snorfiets(tmp_path):
-    lat, lon = UTRECHT_WEST
-    source = _road_and_path(tmp_path, lat, lon, {**OBLIGED_ROAD, "name": "Vleutenseweg"}, G11_PATH)
-    paths, match = _overlay(source, box(4.97, 52.02, 5.20, 52.15))
-
-    assert paths.closed[21] == "roadway_only"
-    assert match.verdict[20][0] == "on_roadway"
-
-
-def test_nl_acc_04_a_solitary_unnamed_g11_in_utrecht_stays_closed(tmp_path):
-    """Nothing beside it says which road it serves, and it may be one of the
-    solitary paths the decision lists."""
-    lat, lon = UTRECHT_WEST
-    source = _road_and_path(tmp_path, lat, lon, {"highway": "footway"}, G11_PATH)
-    paths, _ = _overlay(source, box(4.97, 52.02, 5.20, 52.15))
-
-    assert paths.closed[21] == "roadway_only"
-
-
-ZWOLLE = (52.5100, 6.0900)
-
-
-def test_nl_acc_02_a_register_g11_on_an_unsigned_path_keeps_the_snorfiets_on_it(tmp_path):
-    """Art. 5 lid 1 obliges the snorfiets onto a G11 wherever no art. 5 lid 8
-    measure reaches it. Leaving the path closed makes the obligation beside it
-    look like a deadlock, and the carriageway it bars would be opened."""
-    lat, lon = ZWOLLE
+def test_nl_acc_02_a_sidepath_obligation_beside_a_g12a_stands(tmp_path):
+    """Art. 6 lid 1: the bromfiets belongs on the fiets/bromfietspad beside."""
     source = _road_and_path(
-        tmp_path, lat, lon, {**OBLIGED_ROAD, "name": "Ceintuurbaan"}, {"highway": "cycleway"}
+        tmp_path, 52.51, 6.09, OBLIGED_ROAD, {"highway": "cycleway", "traffic_sign": "NL:G12a"}
     )
-    paths, match = _overlay(source, None, [(lat - 0.000135, lon + 0.0005, "G11")])
-
-    assert paths.opened[21] == "yes"
-    assert match.verdict.get(20, (None, None))[0] != "on_roadway"
+    assert 20 not in _match(source).verdict
 
 
-def test_nl_acc_02_a_register_g13_leaves_the_snorfiets_the_roadway(tmp_path):
-    """Art. 5 lid 2: no verplicht fietspad, so the rijbaan."""
-    lat, lon = ZWOLLE
+def test_nl_acc_02_a_sidepath_obligation_beside_a_path_it_may_not_use_is_lifted(tmp_path):
+    """Art. 6 lid 2: "Zij gebruiken de rijbaan indien een fiets/bromfietspad
+    ontbreekt." Closing both would leave the bromfiets nowhere lawful."""
     source = _road_and_path(
-        tmp_path, lat, lon, {**OBLIGED_ROAD, "name": "Ceintuurbaan"}, {"highway": "cycleway"}
+        tmp_path, 52.51, 6.09, OBLIGED_ROAD, {"highway": "cycleway", "traffic_sign": "NL:G11"}
     )
-    paths, match = _overlay(source, None, [(lat - 0.000135, lon + 0.0005, "G13")])
-
-    assert 21 not in paths.opened
-    assert match.verdict[20][0] == "on_roadway"
+    assert _match(source).verdict[20] == "on_roadway"
 
 
-def test_nl_acc_04_a_register_g11_in_amsterdam_loses_the_snorfiets(tmp_path):
-    lat, lon = 52.3600, 4.8800
-    source = _road_and_path(
-        tmp_path, lat, lon, {**OBLIGED_ROAD, "name": "Overtoom"}, {"highway": "cycleway"}
-    )
-    paths, match = _overlay(
-        source, box(4.72, 52.27, 5.08, 52.44), [(lat - 0.000135, lon + 0.0005, "G11")]
-    )
-
-    assert paths.closed[21] == "roadway_only"
-    assert 21 not in paths.opened
-    assert match.verdict[20][0] == "on_roadway"
-
-
-def test_nl_acc_04_an_unnamed_g11_beside_a_road_a_later_utrecht_decision_names_loses_the_snorfiets(
-    tmp_path,
-):
-    """Stcrt. 2020, 61451 puts the onderbord on the G11 at Haarzichtlaan, which
-    the 2021 list does not name. OSM maps that path as mofa=yes."""
-    source = _road_and_path(
-        tmp_path,
-        52.1121,
-        5.0060,
-        {"highway": "residential", "name": "Haarzichtlaan"},
-        {**G11_PATH, "mofa": "yes"},
-    )
-    paths, _ = _overlay(source, box(4.97, 52.02, 5.20, 52.15))
-
-    assert paths.closed[21] == "roadway_only"
-
-
-def test_nl_acc_04_a_g11_named_for_a_listed_road_keeps_the_measure_beside_another_road(tmp_path):
-    lat, lon = UTRECHT_WEST
-    source = _road_and_path(
-        tmp_path,
-        lat,
-        lon,
-        {**OBLIGED_ROAD, "name": "Krommerijn"},
-        {**G11_PATH, "name": "Tolsteegsingel"},
-    )
-    paths, _ = _overlay(source, box(4.97, 52.02, 5.20, 52.15))
-
-    assert paths.closed[21] == "roadway_only"
-
-
-def test_nl_acc_04_an_unnamed_g11_goes_with_the_nearer_road(tmp_path):
-    """A path running between a listed road and a side street belongs to the
-    road it is nearer, so the side street cannot take the measure off it."""
-    lat, lon = UTRECHT_WEST
-    source = _road_and_path(tmp_path, lat, lon, {**OBLIGED_ROAD, "name": "Krommerijn"}, G11_PATH)
-    text = source.read_text()
-    nodes, refs = [], []
-    for i in range(7):
-        nodes.append(
-            f'<node id="{300 + i}" version="1" lat="{lat - 0.000225}" lon="{lon + i * 0.00025}"/>'
-        )
-        refs.append(f'<nd ref="{300 + i}"/>')
-    listed = (
-        f'<way id="22" version="1">{"".join(refs)}'
-        '<tag k="highway" v="secondary"/><tag k="name" v="Vleutenseweg"/></way>'
-    )
-    source.write_text(text.replace("</osm>", "".join(nodes) + listed + "</osm>"))
-    paths, _ = _overlay(source, box(4.97, 52.02, 5.20, 52.15))
-
-    assert paths.closed[21] == "roadway_only"
-
-
-def test_nl_acc_04_a_junction_stub_is_not_judged_by_the_road_beside_it(tmp_path):
-    """The length floor that guards every geometric match: a stub of a few
-    metres at a side street is too short to say which road it serves."""
-    lat, lon = UTRECHT_WEST
-    stub = tmp_path / "source.osm"
-    stub.write_text(f"""<osm version="0.6">
-      <node id="1" version="1" lat="{lat}" lon="{lon}"/>
-      <node id="2" version="1" lat="{lat}" lon="{lon + 0.0005}"/>
-      <node id="3" version="1" lat="{lat - 0.000135}" lon="{lon + 0.0001}"/>
-      <node id="4" version="1" lat="{lat - 0.000135}" lon="{lon + 0.0003}"/>
-      <way id="20" version="1"><nd ref="1"/><nd ref="2"/>
-        <tag k="highway" v="residential"/><tag k="name" v="Krommerijn"/></way>
-      <way id="21" version="1"><nd ref="3"/><nd ref="4"/>
-        <tag k="highway" v="cycleway"/><tag k="traffic_sign" v="NL:G11"/></way>
-    </osm>""")
-    paths, _ = _overlay(stub, box(4.97, 52.02, 5.20, 52.15))
-
-    assert paths.closed[21] == "roadway_only"
-
-
-def test_nl_acc_04_a_stub_beside_a_road_amsterdam_excepted_keeps_the_snorfiets(tmp_path):
-    """Amsterdam's measure covers the municipality except the roads it names, so
-    a G11 beside one of those keeps art. 5 lid 1, however short."""
-    lat, lon = 52.3618, 4.8819
-    stub = tmp_path / "source.osm"
-    stub.write_text(f"""<osm version="0.6">
-      <node id="1" version="1" lat="{lat}" lon="{lon}"/>
-      <node id="2" version="1" lat="{lat}" lon="{lon + 0.0005}"/>
-      <node id="3" version="1" lat="{lat - 0.000135}" lon="{lon + 0.0001}"/>
-      <node id="4" version="1" lat="{lat - 0.000135}" lon="{lon + 0.0003}"/>
-      <way id="20" version="1"><nd ref="1"/><nd ref="2"/>
-        <tag k="highway" v="primary"/><tag k="name" v="Stadhouderskade"/></way>
-      <way id="21" version="1"><nd ref="3"/><nd ref="4"/>
-        <tag k="highway" v="cycleway"/><tag k="traffic_sign" v="NL:G11"/></way>
-    </osm>""")
-    paths, _ = _overlay(stub, box(4.72, 52.27, 5.08, 52.44))
-
-    assert 21 not in paths.closed
-
-
-def test_nl_acc_04_an_unnamed_g11_near_a_registered_onderbord_stays_closed(tmp_path):
-    """A G11 and its onderbord govern the path behind the sign, not only the
-    20 m where a register sign is matched to a way. Near one, the road beside
-    the path cannot show that the measure skipped it."""
-    lat, lon = UTRECHT_WEST
-    source = _road_and_path(tmp_path, lat, lon, {**OBLIGED_ROAD, "name": "Vleutensebaan"}, G11_PATH)
-    plate = [(lat - 0.000135, lon - 0.0008, ["snorfietsen niet toegestaan"])]
-    paths, _ = _overlay(source, box(4.97, 52.02, 5.20, 52.15), plates=plate)
-
-    assert paths.closed[21] == "roadway_only"
+def test_nl_acc_02_a_sidepath_obligation_with_no_path_beside_is_left_to_osm(tmp_path):
+    source = _road_and_path(tmp_path, 52.51, 6.09, OBLIGED_ROAD, {"highway": "footway"})
+    assert 20 not in _match(source).verdict

@@ -2,7 +2,7 @@
 -- tags. No Valhalla, no globals, no side effects, so every rule can be
 -- unit-tested against a tag table.
 --
--- amgraph supports three vehicles in every country, each on one carrier bit
+-- amgraph supports two vehicles in every country, each on one carrier bit
 -- throughout the combined graph (M.SUPPORTED_CLASSES), so a vehicle stays the
 -- same vehicle across a border.
 --
@@ -28,9 +28,9 @@ local M = {}
 -- the costing that reads it. `mask` is the bit in Valhalla's node access mask
 -- (baldr/graphconstants.h), which nodes_proc clears when a class may not pass.
 --
--- `taxi` and `bus` carry no vehicle. They read access bits of their own, so
--- they are named here only to be closed on every way, which keeps upstream's
--- ordinary road access off them. `auto` is deliberately left alone: it is the
+-- `moped`, `taxi` and `bus` carry no vehicle. They read access bits of their
+-- own, so they are named here only to be closed on every way, which keeps
+-- upstream's ordinary road access off them. `auto` is deliberately left alone: it is the
 -- mode everything else in the toolchain assumes when it wants to know whether
 -- a road exists at all.
 M.CARRIERS = {
@@ -42,10 +42,8 @@ M.CARRIERS = {
 }
 
 --- The vehicles amgraph supports in every country, each on its fixed carrier
--- (AGENTS.md, "Vehicle classes"). `bromfiets` and `brommobiel` are EU
--- categories every country declares; `snorfiets`, the 25 km/h moped, is national
--- law, so a country declares it only where its own law sets its rules.
-M.SUPPORTED_CLASSES = { snorfiets = "moped", bromfiets = "motorcycle", brommobiel = "truck" }
+-- (AGENTS.md, "Vehicle classes"): the EU categories every country declares.
+M.SUPPORTED_CLASSES = { bromfiets = "motorcycle", brommobiel = "truck" }
 M.REQUIRED_CLASSES = { "bromfiets", "brommobiel" }
 
 --- Every carrier flag, in a fixed order, so an unsupported way can be closed
@@ -217,6 +215,8 @@ function M.prepare(country)
     "zone:maxspeed:backward", "source:maxspeed:backward", "maxspeed:type:backward",
     "traffic_sign", "traffic_sign:forward", "traffic_sign:backward",
     "amgraph:country",
+    -- M.is_cycle_infrastructure reads it on a highway=path.
+    "bicycle",
   }) do
     consult(key)
   end
@@ -229,21 +229,11 @@ function M.prepare(country)
       "class " .. class.code .. " is declared twice")
     country.class_index[class.code] = index
 
-    -- Every key that binds this class: the ones that decide its access, the
-    -- ones that may only close it, and the bicycle key where the country's law
-    -- reads bicycle rules onto it.
+    -- Every key that binds this class: the ones that decide its access and the
+    -- ones that may only close it.
     local bound = {}
     for _, key in ipairs(class.access_keys) do
       bound[#bound + 1] = key
-    end
-    for _, key in ipairs(class.cycle_evidence_keys or {}) do
-      consult(key)
-    end
-    for _, key in ipairs(class.cycle_evidence_vetoes or {}) do
-      consult(key)
-    end
-    if class.bicycle_rules then
-      bound[#bound + 1] = "bicycle"
     end
     class.bound_keys = bound
 
@@ -473,7 +463,7 @@ end
 --- Which directions a class may travel, from the one-way tags.
 --
 -- `exceptions` holds the class-specific one-way keys, most specific last, so
--- `oneway:mofa` beats `oneway:vehicle` on the same way.
+-- `oneway:moped` beats `oneway:vehicle` on the same way.
 function M.directions(tags, exceptions)
   local forward, backward = true, true
 
@@ -715,8 +705,8 @@ local function classes_from_tags(tags, country)
 
   if on_cycle_infrastructure then
     -- What the local sign on this path admits. Signs are ordered most specific
-    -- first in the country module, and the first one present wins.
-    local signed = false
+    -- first in the country module, and the first one present wins; with none,
+    -- the country's unsigned default stands.
     for index, class in ipairs(country.classes) do
       classes[index] = country.unsigned_cycleway[class.code] and true or false
     end
@@ -728,56 +718,7 @@ local function classes_from_tags(tags, country)
         for index, class in ipairs(country.classes) do
           classes[index] = admits(entry, class.code, tags)
         end
-        signed = true
         break
-      end
-    end
-
-    -- Where the mapper wrote no sign, the road authority's own sign register
-    -- can still say one stands here. infra/official_access.py matches it to
-    -- the way; the country's unsigned default, which is a guess, applies only
-    -- when neither source speaks.
-    --
-    -- This is the one place the authority may *open* anything, it reaches
-    -- cycle infrastructure alone, and it reaches only a class that has said it
-    -- may. The asymmetry is the whole reason it is safe. A snorfiets follows
-    -- bicycle rules, so RVV art. 5 lid 1 admits it to a G11 and a G12a alike:
-    -- the register need only establish that one of the two stands here, and
-    -- confusing them costs nothing. For a bromfiets the same two signs are
-    -- opposites — G11 bars it, G12a admits it — so a geometric match would be
-    -- deciding a coin flip, and losing it puts the vehicle on a verplicht
-    -- fietspad. It also gains nothing: art. 6 lid 2 puts a bromfiets on the
-    -- rijbaan wherever no fiets/bromfietspad is established, which is exactly
-    -- the case here, and the roadway is where the closure gating below leaves
-    -- it.
-    if not signed then
-      for index, class in ipairs(country.classes) do
-        if class.overlay_opens_cycle_infrastructure
-          and tags[class.overlay] == "yes" then
-          classes[index] = true
-        end
-      end
-
-      -- A class OSM has no key for can still be told which sign stands here
-      -- by another class's tag. Only a permission counts, and only where no
-      -- sign was mapped: a mapped sign is better evidence than a tag implying
-      -- one, and a refusal under another class's key says nothing about this
-      -- one. See countries/nl.lua for the one class that uses it and why the
-      -- inference holds there.
-      -- The inference holds only while nothing on the way contradicts the
-      -- sign it implies: a path that refuses a vehicle the implied sign admits
-      -- is not that sign, whatever the permission says.
-      for index, class in ipairs(country.classes) do
-        if class.cycle_evidence_keys
-          and M.access_value(tags, class.cycle_evidence_keys) == true then
-          local vetoed = false
-          for _, key in ipairs(class.cycle_evidence_vetoes or {}) do
-            if tags[key] ~= nil and M.access_value(tags, { key }) ~= true then
-              vetoed = true
-            end
-          end
-          classes[index] = not vetoed
-        end
       end
     end
 
@@ -786,11 +727,6 @@ local function classes_from_tags(tags, country)
       local stated = M.access_value(tags, class.access_keys)
       if stated ~= nil then
         classes[index] = stated
-      end
-      -- A class that follows bicycle rules (RVV art. 2b) is barred from a
-      -- cycle path barred to bicycles.
-      if class.bicycle_rules and M.access_value(tags, { "bicycle" }) == false then
-        classes[index] = false
       end
       -- NL-ACC-05. A brommobiel is four-wheeled and belongs on the roadway.
       if not class.cycle_infrastructure then
@@ -823,9 +759,9 @@ local function classes_from_tags(tags, country)
   -- roadway is not an option. Stock Valhalla ignores use_sidepath and routes
   -- riders along the roadway illegally; this is the fix.
   --
-  -- The rule has a second half. Art. 5 lid 2 and art. 6 lid 2 are not silent about the case
-  -- where no path exists: "Zij gebruiken de rijbaan indien een verplicht
-  -- fietspad of een fiets/bromfietspad ontbreekt." The roadway is then
+  -- The rule has a second half. Art. 6 lid 2 is not silent about the case
+  -- where no path exists: "Zij gebruiken de rijbaan indien een
+  -- fiets/bromfietspad ontbreekt." The roadway is then
   -- *mandatory*, so refusing it as well is not the cautious reading — it
   -- asserts two contradictory facts about one place and leaves the rider
   -- nowhere lawful at all. The overlay value `on_roadway` is
@@ -840,12 +776,6 @@ local function classes_from_tags(tags, country)
   -- overriding its result. Any *other* refusal on the same key still lands.
   for index, class in ipairs(country.classes) do
     local lifted = class.overlay ~= nil and tags[class.overlay] == "on_roadway"
-
-    -- A class that follows bicycle rules is bound by a bicycle sidepath
-    -- obligation too, and the same lift releases it.
-    if class.bicycle_rules and tags["bicycle"] == "use_sidepath" and not lifted then
-      classes[index] = false
-    end
 
     local stated
     for _, key in ipairs(class.access_keys) do
@@ -888,8 +818,8 @@ function M.classes(tags, country)
   -- on only part of the network it binds. The authority dataset carries its
   -- own per-section access decision.
   --
-  -- A class with no overlay is untouched on purpose. WKD models snorfiets and
-  -- bromfiets; a brommobiel is neither. Art. 6 lid 3 puts it on the rijbaan, so
+  -- A class with no overlay is untouched on purpose. WKD models the bromfiets;
+  -- a brommobiel is not one in its sense. Art. 6 lid 3 puts it on the rijbaan, so
   -- a bromfiets closure caused by a compulsory sidepath does not reach it, and
   -- borrowing that verdict would shut roads it may lawfully use.
   --
@@ -919,17 +849,6 @@ function M.classes(tags, country)
       local decided_by_osm = on_cycle_infrastructure
         and (signed or M.access_value(tags, class.access_keys) ~= nil)
       if tags[class.overlay] == "no" and not decided_by_osm then
-        classes[index] = false
-      end
-
-      -- `roadway_only` is the one refusal that *must* beat an OSM cycle sign,
-      -- and it is the only one whose whole content is that the sign does not
-      -- mean what it usually means. RVV art. 5 lid 8 lets a municipality hang
-      -- an onderbord on a verplicht fietspad and send snorfietsen to the
-      -- rijbaan; Amsterdam and Utrecht have both done it across most of their
-      -- central network. Deferring to the G11 here would put the class exactly
-      -- where the verkeersbesluit takes it off. See docs/countries/nl.md NL-ACC-04.
-      if tags[class.overlay] == "roadway_only" then
         classes[index] = false
       end
     end
@@ -1137,9 +1056,6 @@ function M.node_classes(tags, country)
     local keys = {}
     for _, key in ipairs(class.access_keys) do
       keys[#keys + 1] = key
-    end
-    if class.bicycle_rules then
-      keys[#keys + 1] = "bicycle"
     end
     local specific = M.access_value(tags, keys)
     if specific ~= nil then
@@ -1375,16 +1291,8 @@ function M.carrier_flags(tags, country)
   local classes = M.classes(tags, country)
 
   for index, class in ipairs(country.classes) do
-    -- A class that follows bicycle rules does NOT inherit the cyclist's
-    -- one-way exception, which is why `oneway_keys` is derived from the class's
-    -- own access keys and never from `bicycle`. RVV art. 2b extends "de regels
-    -- van dit besluit" — the rules of the decree — and an "uitgezonderd
-    -- fietsers" onderbord is a sign placed under a verkeersbesluit, not a rule
-    -- of the decree. Whether the exception reaches a snorfiets is genuinely
-    -- contested in Dutch traffic-law commentary and no primary source settles
-    -- it, so the conservative branch applies: see NL-ACC-07. Getting this wrong
-    -- the other way sends a rider the wrong way down a one-way street; getting
-    -- it this way costs them a longer ride.
+    -- `oneway_keys` comes from the class's own access keys and never from
+    -- `bicycle`, so no cyclist's one-way exception reaches it.
     local forward, backward = M.directions(tags, class.oneway_keys)
 
     -- Time-dependent direction cannot be represented in the graph. Closing both

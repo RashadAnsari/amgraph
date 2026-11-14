@@ -1,6 +1,6 @@
 -- Proves that a country the Netherlands does not resemble can be added to the
 -- graph rules without editing access.lua, and that no country can step outside
--- the three supported vehicles.
+-- the two supported vehicles.
 --
 -- This synthetic module is a fixture with invented sign codes and OSM keys;
 -- nothing here may be cited as a rule. It must fail if somebody makes access.lua
@@ -9,8 +9,7 @@
 --
 -- What it exercises:
 --
---   1. A country without the 25 km/h moped, as one whose law sets no rules for
---      it would be. Its `moped` carrier stays closed everywhere.
+--   1. The `moped` carrier, which no vehicle uses, staying closed everywhere.
 --   2. A cycle rule CONDITIONAL on the way, not settled by the sign alone.
 --   3. Its own OSM key vocabulary, so the derived tag families follow the
 --      country's keys rather than the Dutch ones.
@@ -80,7 +79,7 @@ local road = flags_for({ highway = "residential" })
 equals("an ordinary road opens the two declared vehicles", table.concat({
   road.motorcycle_forward, road.truck_forward,
 }, " "), "true true")
-equals("and keeps the 25 km/h moped's carrier closed", road.moped_forward, "false")
+equals("and keeps the unused moped carrier closed", road.moped_forward, "false")
 
 local car_closed = flags_for({ highway = "residential", zz_car = "no" })
 equals("a class is closed by this country's own key", car_closed.truck_forward, "false")
@@ -128,7 +127,7 @@ equals("the carriers no vehicle uses are named and closed", table.concat({
   road.taxi_forward, road.bus_forward,
 }, " "), "false false")
 
--- Only the three vehicles, each on its own carrier ---------------------------
+-- Only the two vehicles, each on its own carrier -----------------------------
 
 local function loads(classes)
   return (pcall(access.prepare, { code = "YY", classes = classes }))
@@ -138,8 +137,11 @@ local BROMFIETS = { code = "bromfiets", carrier = "motorcycle", access_keys = { 
 local BROMMOBIEL = { code = "brommobiel", carrier = "truck", access_keys = { "motorcar" } }
 
 equals("the two required vehicles alone load", loads({ BROMFIETS, BROMMOBIEL }), true)
-equals("a class outside the supported three is refused", loads({
+equals("a class outside the supported two is refused", loads({
   BROMFIETS, BROMMOBIEL, { code = "trike", carrier = "taxi", access_keys = { "motorcycle" } },
+}), false)
+equals("the 25 km/h moped is refused", loads({
+  BROMFIETS, BROMMOBIEL, { code = "snorfiets", carrier = "moped", access_keys = { "mofa" } },
 }), false)
 equals("a supported class on another carrier is refused", loads({
   BROMFIETS, { code = "brommobiel", carrier = "bus", access_keys = { "motorcar" } },
