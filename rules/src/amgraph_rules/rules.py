@@ -125,8 +125,8 @@ class VehicleClass:
     #: served pair that fails its thresholds.
     plate: Plate | None
 
-    #: Which glyph stands for the class in a list: "scooter", "pedelec",
-    #: "microcar", "motorcycle" or "bicycle". A key into a client's own shapes.
+    #: Which glyph stands for the class in a list: "scooter", "microcar",
+    #: "motorcycle" or "bicycle". A key into a client's own shapes.
     marker: str
 
     #: Whether electric or combustion changes where this class may legally ride.

@@ -273,8 +273,8 @@ class TestAVehicleFromAcrossTheBorder:
     ) -> None:
         """No class to read it as means no rule can admit it.
 
-        Zedland has no class on the bus carrier, where the Netherlands carries
-        its gehandicaptenvoertuig, so a Dutch one has nothing to be read as there.
+        Zedland has no class on the bus carrier, so a vehicle on it has nothing
+        to be read as there.
         """
         stranger = replace(BROMFIETS, code="bus_class", carrier=Carrier.BUS)
         assert self._zones(tmp_path).blocks(stranger, Powertrain.ELECTRIC, IN_ZEDTOWN, on=TODAY)

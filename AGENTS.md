@@ -5,8 +5,8 @@ Read this before touching anything. This file is how to work here.
 every rule with its verbatim quote, its link and the date it was read, and
 [docs/country-rules.md](docs/country-rules.md) the standard they all meet.
 
-amgraph builds one multi-country routing graph for AM-licence vehicles: mopeds, speed
-pedelecs and microcars. Its entire reason to exist is that **a rider must never
+amgraph builds one multi-country routing graph for light mopeds, mopeds and
+microcars. Its entire reason to exist is that **a rider must never
 be routed onto infrastructure their vehicle class is legally barred from.**
 Every other requirement is subordinate to that one.
 
@@ -55,9 +55,8 @@ retrieval date. Match that standard or do not write the rule.
 
 Learn each country's classes before writing access code. Their definitions and
 road rights are in `docs/countries/<cc>.md`. The Netherlands declares
-`snorfiets`, `bromfiets`, `speed_pedelec`, `brommobiel` and
-`gehandicaptenvoertuig`, and is the one
-country modelled today. No country's classes or law ever stand in for another's:
+`snorfiets`, `bromfiets` and `brommobiel`, and is the one country modelled
+today. These three are the only vehicles amgraph supports. No country's classes or law ever stand in for another's:
 an unsupported country is refused, not approximated from a neighbour.
 
 Every build and release contains all supported countries in one graph and one
@@ -93,11 +92,8 @@ closes. Registering it puts it in every build, audit, gate and release alongside
 the others. [docs/adding-country.md](docs/adding-country.md) is the procedure.
 
 **Five access classes is the ceiling**, being the stock Valhalla travel modes
-that read an access bit of their own. The Netherlands uses all five, so a
-country added now must put each class on the carrier of the Dutch class it
-matches, and one whose law tells apart two classes Dutch law does not cannot be
-added without first freeing a carrier. The speed pedelec rides its own carrier for that
-reason, though the Netherlands gives it the bromfiets's rights.
+that read an access bit of their own. The Netherlands uses three, so a new
+country puts each class on the carrier of the Dutch class it matches.
 
 ## The two files that must agree
 
@@ -105,8 +101,8 @@ reason, though the Netherlands gives it the bromfiets's rights.
 and `access.lua` writes it into that stock Valhalla travel mode at graph build
 time. `rules/src/amgraph_rules/countries/<cc>.py` names the same carrier per
 class, and whatever serves the graph maps a carrier to the costing model that
-reads its bit. For the Netherlands: snorfiets on moped, bromfiets on motorcycle, speed
-pedelec on taxi, brommobiel on truck, gehandicaptenvoertuig on bus.
+reads its bit. For the Netherlands: snorfiets on moped, bromfiets on motorcycle
+and brommobiel on truck.
 
 Change one without the other and routes stay plausible while becoming illegal.
 It is the only failure in this codebase that does not announce itself, and it is

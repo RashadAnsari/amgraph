@@ -79,7 +79,7 @@ the same noncommercial licence as the rest of the code:
 ```toml
 [tool.uv.sources]
 amgraph-rules = { git = "https://github.com/RashadAnsari/amgraph",
-                  subdirectory = "rules", tag = "rules-v5.1.0" }
+                  subdirectory = "rules", tag = "rules-v6.0.0" }
 ```
 
 It holds the half of the access rules that has to be readable at run time as

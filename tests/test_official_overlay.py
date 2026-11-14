@@ -54,7 +54,6 @@ KNOWN_VALUES = {
     "on_roadway",
     "roadway_only",
     "yes",
-    "sidepath",
     "footpath_onderbord",
     "footpath_g12a",
 }
@@ -89,10 +88,6 @@ def rules():
 
     def classes(tags: dict[str, str]) -> tuple[bool, bool, bool]:
         flags = dict(access.carrier_flags(runtime.table_from(tags), netherlands))
-        # NL-DEF-03 applies the authority's bromfiets evidence equally to
-        # the pedelec, despite its separate carrier in the combined graph.
-        for direction in ("forward", "backward"):
-            assert flags[f"taxi_{direction}"] == flags[f"motorcycle_{direction}"]
         return (
             flags["moped_forward"] == "true",
             flags["motorcycle_forward"] == "true",
@@ -216,8 +211,6 @@ def test_the_two_permissive_values_stay_inside_their_bounds() -> None:
                     stray[f"roadway_only on highway={highway}"] += 1
                 elif value == "roadway_only" and key.endswith("bromfiets"):
                     stray["roadway_only on the bromfiets key"] += 1
-                elif value == "sidepath" and (cycle or key.endswith("bromfiets")):
-                    stray[f"sidepath on highway={highway} key={key}"] += 1
                 elif value == "on_roadway" and cycle:
                     stray[f"on_roadway on highway={highway}"] += 1
                 elif value == "yes":

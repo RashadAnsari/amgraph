@@ -25,9 +25,8 @@ the deadline, not the outage.
   to one.
 - A date written in a country module arriving: a `MunicipalZone.valid_from` or
   `valid_to`, or a `CountryRules.valid_until`.
-- A reform a rule's document says is announced. For the Netherlands today: the
-  cabinet's inspection plans for fast gehandicaptenvoertuigen (NL-DEF-06), and
-  the Utrecht brommobiel decision (NL-ACC-06A).
+- A reform a rule's document says is announced. For the Netherlands: the
+  Utrecht brommobiel decision (NL-ACC-06A).
 - A rider or a road authority reporting a route that contradicts a sign.
 - A new municipal moped or emission zone.
 
@@ -74,8 +73,7 @@ A review is finished only when these pass on the new rules:
 - The Graph workflow on the pull request: the graph build, the per-class route
   checks and the carrier probes.
 - After merging and tagging `rules-v<version>`, in each consumer: move the pin to
-  the new tag, fetch the new release, and run its own route corpus. In 45weg
-  that is `make backend-test-legal` and `make backend-test-sweep`.
+  the new tag, fetch the new release, and run its own route corpus.
 
 The release manifest records the rules version every graph was built under,
 and a consumer refuses a graph built under rules other than the ones it pins.
@@ -89,15 +87,14 @@ link and date are in [countries/nl.md](countries/nl.md).
 
 **How to see whether a Dutch act changed:** open its undated link below. It
 redirects to the version in force, whose date is in the URL and in the page
-header ("Geldend van 01-07-2026 t/m heden" on 2026-10-09). If that date is newer
+header ("Geldend van 01-09-2026 t/m heden" for the Wegenverkeerswet on 2026-11-14). If that date is newer
 than the one the country document links, compare the quotes (step 2).
 
 | Source | What it carries | Where |
 | --- | --- | --- |
-| RVV 1990 | Definitions (art. 1), where each class rides (arts. 2a, 2b, 5 to 7, 10), speeds (arts. 20, 21), motorways (art. 42), sub-signs (art. 66), emission zones (arts. 86c to 86e), the sign annex (bijlage 1) | <https://wetten.overheid.nl/BWBR0004825>, read at version 2026-07-01 |
-| Wegenverkeerswet 1994 | Which vehicle is a bromfiets or a gehandicaptenvoertuig (art. 1), registration (arts. 36, 37), licence (arts. 107, 108) | <https://wetten.overheid.nl/BWBR0006622>, read at version 2026-07-01 |
-| Rijksoverheid, gehandicaptenvoertuig | Who may drive one, and announced changes | <https://www.rijksoverheid.nl/onderwerpen/voertuigen-op-de-weg/gehandicaptenvoertuig> |
-| RDW, speed pedelec | Its category and plate | <https://www.rdw.nl/kopen-of-verkopen/elektrische-fiets-of-speed-pedelec> |
+| RVV 1990 | Definitions (art. 1), where each class rides (arts. 2a, 2b, 5 to 7, 10), speeds (arts. 20 to 22, 45), motorways (art. 42), sub-signs (art. 66), emission zones (arts. 86c to 86e), the sign annex (bijlage 1) | <https://wetten.overheid.nl/BWBR0004825>, read at version 2026-07-01 |
+| Wegenverkeerswet 1994 | Which vehicle is a bromfiets (art. 1), registration (arts. 36, 37), licence (arts. 107, 108). Stb. 2023, 377 redefines the bromfiets from a date not yet set | <https://wetten.overheid.nl/BWBR0006622>, read at version 2026-09-01 |
+| Regeling kentekens en kentekenplaten | Plate colours (art. 3) | <https://wetten.overheid.nl/BWBR0009071>, read at version 2026-01-01 |
 | Municipal moped zones | Amsterdam, Den Haag, Nijmegen, Utrecht | The four pages linked in NL-ACC-06A, and <https://www.milieuzones.nl/locaties-milieuzones> for new ones |
 | Art. 5 lid 8 decisions | Snorfiets on the roadway in Amsterdam and Utrecht | The two Staatscourant and Gemeenteblad links in NL-ACC-04 |
 
@@ -107,11 +104,10 @@ by the build itself, and the gates decide whether the result may ship.
 
 Open items to look at in every Dutch review until they are settled:
 
-- **NL-DEF-06**: the gehandicaptenvoertuig regime. Stb. 2023, 377 replaces the
-  bromfiets definition it rests on and waits for a royal decree to set its
-  date; the day one does, set `valid_until` and re-research the class.
-  Rijksoverheid also says the cabinet is working out inspection plans in 2026.
-- **NL-ACC-06A**: whether the municipal moped zones reach a gehandicaptenvoertuig
-  (`UNVERIFIED`, refused until settled), and Utrecht's brommobiel decision.
+- **NL-ACC-06A**: Utrecht's brommobiel decision.
 - **NL-ACC-07**: the cyclist one-way exemption for a snorfiets (`UNVERIFIABLE`,
   by design permanent unless a primary source appears).
+- **NL-ACC-06**: whether RVV art. 2a lifts a sign caption naming bromfietsen
+  (C13, C15) for the brommobiel. Closed until a primary source settles it.
+- **Stb. 2023, 377**: the redefinition of the bromfiets, once a royal decree
+  sets its date.

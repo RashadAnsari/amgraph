@@ -36,20 +36,28 @@ RULES_VERSION = f"zz-{datetime.now(UTC).date().isoformat()}.1"
 
 #: The Dutch carriers under invented codes, so a border way is open to a carrier
 #: only where both countries have a class on it, and no Dutch code can stand in.
-#: The bus carrier is left out on purpose: a Dutch class with no ZZ counterpart
-#: is the case that proves a border way closes a carrier one side lacks.
-_CODES = {Carrier.MOPED: "light", Carrier.MOTORCYCLE: "heavy", Carrier.TAXI: "pedelec"}
-_CODES[Carrier.TRUCK] = "quad"
-CLASSES = tuple(
-    replace(vehicle, code=_CODES[vehicle.carrier], names={"en": _CODES[vehicle.carrier]})
-    for vehicle in NETHERLANDS.classes
-    if vehicle.carrier in _CODES
+#: The bus carrier is left out on purpose: a carrier only one side uses is the
+#: case that proves a border way closes it.
+_CODES = {Carrier.MOPED: "light", Carrier.MOTORCYCLE: "heavy", Carrier.TRUCK: "quad"}
+CLASSES = (
+    *(
+        replace(vehicle, code=_CODES[vehicle.carrier], names={"en": _CODES[vehicle.carrier]})
+        for vehicle in NETHERLANDS.classes
+    ),
+    # A class on a carrier the Netherlands leaves unused, as a country whose law
+    # tells apart more classes would have.
+    replace(
+        NETHERLANDS.vehicle("bromfiets"),
+        code="trike",
+        carrier=Carrier.TAXI,
+        names={"en": "trike"},
+    ),
 )
 
 MUNICIPAL_ZONES = {
     "Zedtown": MunicipalZone(
         municipality_id="ZZ0001",
-        powertrain_classes=frozenset({"light", "heavy", "pedelec"}),
+        powertrain_classes=frozenset({"light", "heavy", "trike"}),
         allowed_powertrains=frozenset({Powertrain.ELECTRIC}),
         blocked_classes=frozenset(),
     ),
@@ -98,7 +106,7 @@ def _module() -> types.ModuleType:
         ZONE_ID_KEY="code",
         BOUNDARY_FILENAME="zedland.geojson",
         ROUTE_CHECKS=tuple(((0.5, 1.1 + i / 20), (0.5, 1.2 + i / 20)) for i in range(10)),
-        ACCESS_PROBES=(("light", "heavy"), ("pedelec", "quad")),
+        ACCESS_PROBES=(("light", "heavy"), ("trike", "quad")),
         # ZZ lies east of the test Netherlands, so these cross the shared border.
         BORDER_ROUTE_CHECKS={"NL": (((0.5, 1.1), (0.5, 0.9)), ((0.5, 0.9), (0.5, 1.1)))},
         sidepath_obligation=sidepath_obligation,

@@ -47,6 +47,15 @@ PENDING = "wijziging(en) zonder datum inwerkingtreding aanwezig"
 
 def fetch(url: str) -> requests.Response:
     response = requests.get(url, headers={"User-Agent": "amgraph legal review"}, timeout=120)
+    # zoek.officielebekendmakingen.nl fails some publications with a 5xx that the
+    # official repository behind it serves; the repository holds the same text.
+    found = re.fullmatch(
+        r"https://zoek\.officielebekendmakingen\.nl/((\w+)-(\d{4})-\d+)\.html", url
+    )
+    if response.status_code >= 500 and found:
+        ident, kind, year = found.groups()
+        repository = "https://repository.officiele-overheidspublicaties.nl"
+        response = fetch(f"{repository}/{kind}/{year}/{ident}/1/html/{ident}.html")
     response.raise_for_status()
     return response
 

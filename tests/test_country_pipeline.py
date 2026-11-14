@@ -35,7 +35,7 @@ def test_a_crossing_path_is_not_a_sidepath(second_country):
     paths.project = lambda x, y: (x, y)
     paths.lines = [LineString([(50, -50), (50, 50)]), LineString([(0, 10), (100, 10)])]
     paths.ids = [1, 2]
-    paths.permissions = [{"pedelec": "mandatory"}, {"light": "mandatory"}]
+    paths.permissions = [{"trike": "mandatory"}, {"light": "mandatory"}]
     paths.finish()
     adjacent, evidence = paths.adjacent([(0, 0), (100, 0)])
     assert adjacent == {"light": "mandatory"}

@@ -23,12 +23,8 @@ of each tag value and the node rules are in
 ## Classes and carriers
 
 A class is a set of road rights tied to a stable carrier throughout the graph.
-Dutch bromfietsen and speed pedelecs both follow RVV art. 6 (NL-ACC-02), yet
-they use the motorcycle and taxi carriers. A neighbouring country may separate
-them on the cycle network, and a class keeps its carrier across a border, so
-merging them now would have to be undone when such a country is added. The
-Dutch pedelec retains the same conservative intersection of moped and pedelec
-access tags as the bromfiets.
+The Netherlands puts the snorfiets on `moped`, the bromfiets on `motorcycle` and
+the brommobiel on `truck`.
 
 **Five is the ceiling**, being the stock Valhalla travel modes that read an
 access bit of their own: `moped` (512), `motorcycle` (1024), `truck` (8),

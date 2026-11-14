@@ -1,9 +1,7 @@
 # Netherlands rules
 
-Primary sources last reviewed **2026-11-08** for dimension signs (NL-ACC-06),
-**2026-10-17** for bus lanes (NL-ACC-11),
-**2026-10-08** for the gehandicaptenvoertuig and **2026-08-15** for everything
-else. The country module declares `nl-2026-10-08.4`.
+Primary sources last reviewed **2026-11-14**. The country module declares
+`nl-2026-11-14.1`.
 
 [Documentation](../README.md) · [Shared country rules](../country-rules.md)
 
@@ -11,11 +9,9 @@ else. The country module declares `nl-2026-10-08.4`.
 
 | Profile | Plate | Max | Cycle infrastructure |
 | --- | --- | --- | --- |
-| `snorfiets` | blue | 25 | Follows **bicycle** rules. Must use G11 and G12a. May use G13 if electric |
+| `snorfiets` | light blue | 25 | Follows **bicycle** rules. Must use G11 and G12a. May use G13 if electric |
 | `bromfiets` | yellow | 45 | Must use **G12a only**. G11 and G13 are closed |
-| `speed_pedelec` | yellow | 45 | Identical to bromfiets for routing |
 | `brommobiel` | yellow | 45 | **None.** Roadway only |
-| `gehandicaptenvoertuig` | none | 45 | **May** use G11 and G12a, and nothing obliges it to. G13 is closed |
 
 The enum values stay Dutch; the labels riders see are English. `snorfiets` in
 code, "Light moped" on screen. The identifiers are statutory terms and the
@@ -27,15 +23,20 @@ between the code and the law.
 > voor een maximumsnelheid die niet meer bedraagt dan 25 km per uur, met
 > uitzondering van de speed-pedelec"
 
-The clause "met uitzondering van de speed-pedelec" is load-bearing: a speed
-pedelec is never a snorfiets, so it never inherits bicycle rules.
-
 **NL-DEF-02 — brommobiel** `VERIFIED`
 > "bromfiets op meer dan twee wielen, die is voorzien van een carrosserie"
 
-**NL-DEF-03 — speed pedelec is a bromfiets** `VERIFIED` — EU category L1e-B,
-yellow plate. Source: RDW,
-<https://www.rdw.nl/kopen-of-verkopen/elektrische-fiets-of-speed-pedelec>.
+Both build on the bromfiets of WVW 1994 art. 1(1)(e): a motorrijtuig "met een
+door de constructie bepaalde maximumsnelheid van niet meer dan 45 km/h"
+(<https://wetten.overheid.nl/BWBR0006622/2026-09-01>, read 2026-11-14).
+
+**Adopted, not yet in force.** Stb. 2023, 377 replaces that definition with
+"voertuig als bedoeld in artikel 4 van verordening (EU) 168/2013 met de
+voertuigclassificatie L1e, L2e of L6e", and enters into force "met ingang van
+een bij koninklijk besluit te bepalen tijdstip". No decree has set the date.
+The three classes stand on the current text until one does, and are
+re-researched against the new text that day.
+<https://zoek.officielebekendmakingen.nl/stb-2023-377.html>, read 2026-11-14.
 
 **NL-DEF-04 — autosnelweg / autoweg** `VERIFIED` — defined **by their sign**:
 "weg, aangeduid door bord G1 / G3 van bijlage I". Not by road class.
@@ -44,64 +45,37 @@ yellow plate. Source: RDW,
 > "alle gemotoriseerde voertuigen behalve bromfietsen, fietsen met
 > trapondersteuning en gehandicaptenvoertuigen"
 
-Consequence: rules written for *motorvoertuigen*, including the art. 20 urban
-50 limit and the art. 42 motorway rule, do **not** apply to any of our five
-classes. Four are bromfietsen and the fifth is a gehandicaptenvoertuig, and the
-same sentence names both.
+Consequence: rules written for *motorvoertuigen* do not apply to the snorfiets
+or the bromfiets. They do apply to the brommobiel, by RVV art. 2a:
 
-**NL-DEF-06 — gehandicaptenvoertuig** `VERIFIED`
-> "voertuig dat is ingericht voor het vervoer van een gehandicapte, niet breder
-> is dan 1,10 meter en niet is uitgerust met een motor, dan wel is uitgerust met
-> een motor waarvan de door de constructie bepaalde maximumsnelheid niet meer
-> dan 45 km per uur bedraagt, en geen bromfiets is"
+> "De regels van dit besluit betreffende motorvoertuigen en bestuurders en
+> passagiers van motorvoertuigen zijn, in plaats van de regels betreffende
+> bromfietsen, bromfietsers en passagiers van bromfietsen, mede van toepassing
+> op brommobielen en bestuurders en passagiers van brommobielen, tenzij anders
+> is bepaald."
 
-RVV art. 1, retrieved 2026-10-08. The class models the motorised one: a Canta
-without a kenteken is the vehicle it was added for. "en geen bromfiets is"
-decides everything below: no rule, sign or tag written for bromfietsen reaches
-it unless it is named as well.
+That changes no answer: art. 22 caps the brommobiel at 45 below the art. 20
+urban 50, and art. 42 admits to the autosnelweg and autoweg only a vehicle that
+"mag en kan" reach 60 and 50, which a brommobiel cannot.
 
-**Which one a vehicle is turns on its registration.** WVW 1994 art. 1(e)
-excludes it from every kind of bromfiets ("niet zijnde een
-gehandicaptenvoertuig") and then adds:
+**NL-DEF-06 — plate colours** `VERIFIED`. Regeling kentekens en kentekenplaten
+art. 3 gives every bromfiets plate a yellow background:
 
-> "In ieder geval wordt als bromfiets aangemerkt een voertuig dat blijkens het
-> afgegeven kentekenbewijs als bromfiets is aangeduid"
+> lid 1: "De kleur van de achtergrond is geel voor de modellen 27.1A tot en met
+> 27.2H, 27.10A tot en met 27.10E en 30.1A tot en met 30.2D"
 
-So a Canta registered as a bromfiets is a brommobiel (NL-DEF-02) and must pick
-that class. One without a kenteken needs none (WVW art. 37 lid 1(a)(3°)) and its
-driver needs no licence (art. 108 lid 1(a)). Source:
-<https://wetten.overheid.nl/BWBR0006622/2026-09-01>, retrieved 2026-10-08 at
-version 2026-07-01 and re-read at version 2026-09-01 on 2026-10-09, whose only
-change touches an article no rule here cites.
+except a bromfiets built for 25 km/h, which is the snorfiets:
 
-**Adopted, not yet in force: the definition this class rests on is replaced.**
-Stb. 2023, 377 (Wet van 26 oktober 2023, Kamerstukken 36269) rewrites WVW art.
-1(e) as:
+> lid 7: "In afwijking van de voorgaande leden moeten kentekens welke zijn
+> opgegeven voor bromfietsen die geconstrueerd zijn voor een maximumsnelheid
+> van ten hoogste 25 km/h niet zijnde speed-pedelecs"
 
-> "e. bromfiets: voertuig als bedoeld in artikel 4 van verordening (EU) 168/2013
-> met de voertuigclassificatie L1e, L2e of L6e;"
-
-The words "niet zijnde een gehandicaptenvoertuig" are not in the new text. Art.
-X: "Deze wet treedt in werking met ingang van een bij koninklijk besluit te
-bepalen tijdstip", and wetten.overheid.nl marks arts. 1, 37 and 108 "Wijziging(en)
-zonder datum inwerkingtreding aanwezig" on 2026-10-09. Source:
-<https://zoek.officielebekendmakingen.nl/stb-2023-377.html>, retrieved
-2026-10-09. The day a decree fixes the date, set `valid_until` to it and
-re-research this class: a vehicle type-approved as L6e may then be a bromfiets,
-and so a brommobiel, whatever it is adapted for. Until then the text in force
-governs and the class stands as written.
-
-The definition sets no condition on the driver. Rijksoverheid states it
-directly: "Ook als u geen lichamelijke beperking heeft, mag u met een
-gehandicaptenvoertuig rijden." The same page says the cabinet is working out a
-compulsory inspection for fast ones during 2026, which is a regime change to
-re-read when it is published. Source:
-<https://www.rijksoverheid.nl/onderwerpen/voertuigen-op-de-weg/gehandicaptenvoertuig>,
-retrieved 2026-10-08.
+whose plate background "is lichtblauw". A brommobiel is a bromfiets, so it
+carries the yellow plate. Source:
+<https://wetten.overheid.nl/BWBR0009071/2026-01-01>, read 2026-11-14.
 
 All RVV citations: <https://wetten.overheid.nl/BWBR0004825/2026-07-01>,
-retrieved 2026-08-14 and 2026-08-15, and for the gehandicaptenvoertuig
-2026-10-08.
+read 2026-11-14.
 
 ## Access rules
 
@@ -115,13 +89,12 @@ retrieved 2026-08-14 and 2026-08-15, and for the gehandicaptenvoertuig
 > en kan worden gereden."
 
 RVV 1990 **art. 42**. Source:
-<https://wetten.overheid.nl/BWBR0004825/2026-07-01>, retrieved 2026-08-15.
+<https://wetten.overheid.nl/BWBR0004825/2026-07-01>, read 2026-11-14.
 
 The article works as a **permission, not a prohibition**, and reading it that
 way is what makes it airtight for us. Use of an autosnelweg or autoweg is
 allowed only to a *motorvoertuig*, and NL-DEF-05 puts every bromfiets outside
-that word. Four profiles are bromfietsen and the fifth a gehandicaptenvoertuig,
-which the same definition leaves out, so none of them is inside the
+that word. All three profiles are bromfietsen, so none of them is inside the
 permission at all — and separately, none can do 60 or even 50 km/h, so none
 would qualify even if it were.
 
@@ -134,7 +107,7 @@ the consolidated text in force.
 `motorroad=yes` are forbidden for every profile in both directions, with no
 cost-based escape.
 
-### NL-ACC-02 — Bromfiets and speed pedelec `VERIFIED`
+### NL-ACC-02 — Bromfiets `VERIFIED`
 
 > lid 1: "Bromfietsers gebruiken het fiets/bromfietspad."
 > lid 2: "Zij gebruiken de rijbaan indien een fiets/bromfietspad ontbreekt."
@@ -180,7 +153,7 @@ to a snorfiets, art. 5 does.
 fietspad`, `onverplicht fietspad` or `fiets/bromfietspad`. Those four terms
 appear only as the captions of G11, G12a and G13 in bijlage I hoofdstuk G. So
 an unsigned path is legally none of them, and both lid-2 provisions send the
-rider to the rijbaan. Verified 2026-08-15.
+rider to the rijbaan. Read 2026-11-14.
 
 **G13 is closed to both powertrains.** Art. 5 lid 3 admits a snorfiets, but a
 combustion one only with the engine off, and the graph is built before the
@@ -194,7 +167,7 @@ admits a snorfiets. Art. 5 lid 8 reaches the G11 alone, so no municipality's
 measure takes the snorfiets off it. Where a mapper permits `moped` on a cycle
 path with no mapped sign, the path is therefore open to the snorfiets as well,
 unless the same way refuses bicycles or the snorfiets, which a G12a would
-admit. The same inference already admits the gehandicaptenvoertuig (NL-ACC-10).
+admit.
 
 ### NL-ACC-04 — Snorfiets municipal override to the roadway `VERIFIED`
 
@@ -302,8 +275,6 @@ within Amsterdam, Kattenburgerstraat left out. `official_access.py` keeps the
 snorfiets on a G11 named for one of them, or running beside one, and stamps no
 `on_roadway` on their carriageways. A register G11 beside the path whose
 onderbord names the snorfiets still wins, because that plate is the measure.
-Where the authority then closes such a carriageway to the snorfiets, the
-closure is written as `sidepath` (see the authority overlay below).
 
 The rule decides which road a rider belongs on, not whether the trip may
 happen, so it must never be implemented as a refusal of routes touching either
@@ -323,26 +294,30 @@ may not use that sidepath.
 ### NL-ACC-06 — C-series and direction signs `VERIFIED`
 
 Art. 2a makes motor-vehicle signs apply to a brommobiel; art. 2b makes bicycle
-signs apply to a snorfiets.
+signs apply to a snorfiets. A brommobiel is a bromfiets (WVW art. 1), and
+whether art. 2a's swap to motor-vehicle rules lifts a caption that names
+bromfietsen is the question NL-ACC-07 leaves open for the snorfiets: no primary
+source says a sign is one of "de regels van dit besluit". So C13 and C15 close
+the brommobiel too.
 
 | Sign | Statutory description | Closed |
 | --- | --- | --- |
-| C1 | "Gesloten in beide richtingen voor voertuigen, ruiters en geleiders van rij- of trekdieren of vee" | all five: art. 1 counts gehandicaptenvoertuigen among "voertuigen" |
-| C2 | "Eenrichtingsweg, in deze richting gesloten voor voertuigen…" | all five, indicated direction |
+| C1 | "Gesloten in beide richtingen voor voertuigen, ruiters en geleiders van rij- of trekdieren of vee" | all three |
+| C2 | "Eenrichtingsweg, in deze richting gesloten voor voertuigen…" | all three, indicated direction |
 | C3/C4 | "Eenrichtingsweg" | reverse direction |
-| C6 | "Gesloten voor motorvoertuigen op meer dan twee wielen" | brommobiel (art. 2a). Not the gehandicaptenvoertuig, which is no motorvoertuig |
-| C9 | "Gesloten voor ruiters, vee, wagens, landbouw- en bosbouwtrekkers, motorrijtuigen met beperkte snelheid, mobiele machines, brommobielen, fietsen, snorfietsen, bromfietsen en gehandicaptenvoertuigen" | all five |
-| C10 | "Gesloten voor motorvoertuigen met aanhangwagen" | brommobiel, trailer status unknown. Not the gehandicaptenvoertuig |
-| C12 | "Gesloten voor alle motorvoertuigen" | brommobiel (art. 2a). Not the gehandicaptenvoertuig |
-| C13 | "Gesloten voor bromfietsen, snorfietsen en gehandicaptenvoertuigen, met in werking zijnde motor" | snorfiets, bromfiets, speed pedelec, gehandicaptenvoertuig |
-| C14 | "Gesloten voor fietsen en voor gehandicaptenvoertuigen zonder motor" | snorfiets (art. 2b). Not the motorised gehandicaptenvoertuig |
-| C15 | "Gesloten voor fietsen, bromfietsen en gehandicaptenvoertuigen" | snorfiets, bromfiets, speed pedelec, gehandicaptenvoertuig |
-| C17 | "Gesloten voor voertuigen en samenstellen van voertuigen die, met inbegrip van de lading, langer zijn dan op het bord is aangegeven" | all five below 6.5 m; none from 6.5 m |
-| C18 | "Gesloten voor voertuigen die, met inbegrip van de lading, breder zijn dan op het bord is aangegeven" | all five below 2.0 m; none from 2.0 m |
-| C19 | "Gesloten voor voertuigen die, met inbegrip van de lading, hoger zijn dan op het bord is aangegeven" | all five below 2.5 m; none from 2.5 m |
-| C20 | "Gesloten voor voertuigen waarvan de aslast hoger is dan op het bord is aangegeven" | all five below 1 t; none from 1 t |
-| C21 | "Gesloten voor voertuigen en samenstellen van voertuigen, waarvan de totaalmassa of de som van de aslasten hoger is dan op het bord is aangegeven" | all five below 1 t; none from 1 t |
-| C22 | "Gesloten voor voertuigen met bepaalde gevaarlijke stoffen" | all five, while cargo is unknown |
+| C6 | "Gesloten voor motorvoertuigen op meer dan twee wielen" | brommobiel (art. 2a) |
+| C9 | "Gesloten voor ruiters, vee, wagens, landbouw- en bosbouwtrekkers, motorrijtuigen met beperkte snelheid, mobiele machines, brommobielen, fietsen, snorfietsen, bromfietsen en gehandicaptenvoertuigen" | all three |
+| C10 | "Gesloten voor motorvoertuigen met aanhangwagen" | brommobiel, trailer status unknown |
+| C12 | "Gesloten voor alle motorvoertuigen" | brommobiel (art. 2a) |
+| C13 | "Gesloten voor bromfietsen, snorfietsen en gehandicaptenvoertuigen, met in werking zijnde motor" | all three |
+| C14 | "Gesloten voor fietsen en voor gehandicaptenvoertuigen zonder motor" | snorfiets (art. 2b) |
+| C15 | "Gesloten voor fietsen, bromfietsen en gehandicaptenvoertuigen" | all three |
+| C17 | "Gesloten voor voertuigen en samenstellen van voertuigen die, met inbegrip van de lading, langer zijn dan op het bord is aangegeven" | all three below 6.5 m; none from 6.5 m |
+| C18 | "Gesloten voor voertuigen die, met inbegrip van de lading, breder zijn dan op het bord is aangegeven" | all three below 2.0 m; none from 2.0 m |
+| C19 | "Gesloten voor voertuigen die, met inbegrip van de lading, hoger zijn dan op het bord is aangegeven" | all three below 2.5 m; none from 2.5 m |
+| C20 | "Gesloten voor voertuigen waarvan de aslast hoger is dan op het bord is aangegeven" | all three below 1 t; none from 1 t |
+| C21 | "Gesloten voor voertuigen en samenstellen van voertuigen, waarvan de totaalmassa of de som van de aslasten hoger is dan op het bord is aangegeven" | all three below 1 t; none from 1 t |
+| C22 | "Gesloten voor voertuigen met bepaalde gevaarlijke stoffen" | all three, while cargo is unknown |
 
 **Router:** an unscoped prohibition closes both directions when its physical
 direction cannot be recovered. `traffic_sign:forward` and `:backward` close only
@@ -371,17 +346,12 @@ be is written down:
   more than two wheels 2,00 m, 1,50 m and 2,50 m; in both cases "de totale massa van het
   voertuig mag niet meer bedragen dan de helft van de ledige massa van de
   trekkende bromfiets".
-- Regeling voertuigen art. 5.18.30: "De breedte van gehandicaptenvoertuigen mag
-  met inbegrip van de lading niet meer bedragen dan 1,10 m" and "De hoogte van
-  gehandicaptenvoertuigen mag met inbegrip van de lading niet meer bedragen dan
-  2,00 m". <https://wetten.overheid.nl/BWBR0025798/2026-07-01>
+  <https://wetten.overheid.nl/BWBR0025798/2026-07-01>
 
 A width from 2.0 m, a height from 2.5 m and a length from 6.5 m (4 m of vehicle
 and 2.5 m of trailer behind its rear axle) therefore bind no L-category class. No
-law caps the mass of an L1e two-wheeler or of a gehandicaptenvoertuig, nor the
-length of a gehandicaptenvoertuig; 1 t for mass and axle load and 6.5 m for its
-length are the maintainer's decisions of 2026-11-08 that none of the five comes
-near either, a brommobiel with its trailer included. `unbound_from` in
+law caps the mass of an L1e two-wheeler; 1 t for mass and axle load is the
+maintainer's decision of 2026-11-08 that none of the three comes near, a brommobiel with its trailer included. `unbound_from` in
 `countries/nl.lua` holds these values for the tags and for the value on a
 mapped sign, such as `NL:C19[3.9]`. A sign without a value, an unreadable value
 or another unit still closes the way. RVV 1990 bijlage 1 and both regulations
@@ -422,19 +392,19 @@ Four municipalities, and each by-law is narrower than what the router does. The
 request states a powertrain but not a date of first registration or an engine
 cycle, so for a combustion two-wheeler the only claim the API can prove is
 "outside the affected municipality". Each is therefore closed as a whole, which
-can only refuse a lawful trip and never permit an unlawful one. All retrieved
-2026-08-15.
+can only refuse a lawful trip and never permit an unlawful one. All read
+2026-11-14.
 
 | Municipality | The by-law | What we do |
 | --- | --- | --- |
 | Amsterdam | A current brom- and snorfiets milieuzone | Whole municipality closed to combustion |
-| Den Haag | DET before 2011-01-01, **two-stroke only**: "Heeft u een 4-takt brommer of 4-takt snorfiets met een DET van vóór 1 januari 2011? Dan mag u in de milieuzone rijden." Old *electric* mopeds and brommobielen admitted | Whole municipality closed to combustion, four-stroke included |
+| Den Haag | DET before 2011-01-01: "U mag met een brom- of snorfiets van vóór 1 januari 2011 niet in de milieuzone rijden. Met oude elektrische brom- en snorfietsen en met brommobielen mag dit wel." A pre-2011 four-stroke may ride after an inspection and with an ontheffing | Whole municipality closed to combustion, four-stroke included |
 | Nijmegen | Build year 2010 or older, in **three areas** — Nijmegen centrum, Hof van Holland, Heijendaal. 2028: "bouwjaar van 2018 of ouder … niet in de bebouwde kom". 2030: electric only | Whole municipality closed to combustion, which already contains both later steps |
 | Utrecht | **From 2028-01-01**: "brom- en snorfietsen op benzine, diesel of gas met een datum eerste toelating (DET) tot en met 31-12-2017 niet meer in Utrecht rijden", for "heel de gemeente Utrecht". **From 2030**: all must be uitstootvrij | Recorded with `valid_from`, refusing nothing until the date arrives |
 
 Sources: <https://www.milieuzones.nl/locaties-milieuzones>,
 <https://www.denhaag.nl/nl/verkeer-en-vervoer/milieuzone-oude-brom-en-snorfietsen/>,
-<https://www.nijmegen.nl/over-de-gemeente/plannen/milieuzone-bromfietsen/>,
+<https://www.nijmegen.nl/verkeer-en-vervoer/milieuzone-bromfietsen/>,
 <https://www.utrecht.nl/wonen-en-leven/gezonde-leefomgeving/luchtkwaliteit/brom-en-snorfietsen-uitstootvrij>.
 
 **A dated measure is easy to miss.** Utrecht's rule starts three years out, so
@@ -454,91 +424,6 @@ the moped zones or apply lorry rules to mopeds.
 A missing or malformed zone file returns 503 rather than skipping the check, and
 a malformed validity date is a hard error rather than an ignored field: dropping
 it silently would make a dated rule bind immediately, or never.
-
-**The gehandicaptenvoertuig is in every zone, and that is `UNVERIFIED`.** Each
-by-law above was read as a brom- and snorfiets measure, and none says whether it
-reaches a vehicle that "geen bromfiets is" (NL-DEF-06). The national C22e
-milieuzone is no guide either way: RVV art. 86d lid 1 applies it to
-"personenauto’s, bedrijfsauto’s, vrachtauto’s of autobussen met een
-dieselmotor". Until a by-law
-is read that settles it, a combustion one is refused in all four
-municipalities, which can cost a lawful trip and never permit an unlawful one.
-
-### NL-ACC-10 — The gehandicaptenvoertuig chooses its own place `VERIFIED`
-
-> "Bestuurders van een gehandicaptenvoertuig gebruiken het trottoir, het
-> voetpad, het fietspad, het fiets/bromfietspad of de rijbaan."
-
-RVV art. 7, retrieved 2026-10-08. Every place is a permission and none is an
-obligation, so unlike NL-ACC-02 and NL-ACC-03 no sidepath ever binds it:
-`moped=use_sidepath` and `bicycle=use_sidepath` leave the road open, and the
-authority overlay, which exists only for mandatory use, does not reach it. Any
-closure therefore leaves it the rijbaan, and no pair of closures can leave it
-nowhere lawful.
-
-What the graph does with each place:
-
-| Place | Graph | Why |
-| --- | --- | --- |
-| Rijbaan | Open | Art. 7 |
-| Fiets/bromfietspad (G12a) | Open | Art. 7 |
-| Verplicht fietspad (G11) | Open | Art. 7 says "het fietspad", and a G11 is one. A bromfiets is barred from it |
-| Onverplicht fietspad (G13) | Closed | Optional, as for every class, so never using it cannot make a route illegal |
-| Unsigned cycleway | Closed | Legally none of the three (NL-ACC-03) |
-| Trottoir, voetpad (G7) | Closed | Art. 2 lid 1 puts it under pedestrian rules there, and arts. 20(c) and 21(c) cap it at 6 km/h. A route that needed it would be one this router cannot report a speed for |
-
-**Speeds.** Arts. 20(b) and 21(b) give "bromfietsen en gehandicaptenvoertuigen,
-uitgerust met een motor" 45 on the rijbaan and 30 or 40 on the
-fiets/bromfietspad, and add "op het fietspad, voor de hier bedoelde
-gehandicaptenvoertuigen, 30 km per uur" (40 outside the bebouwde kom).
-
-**No OSM key names it.** Every tag rule below is a closure except the one
-inference in item 4, and each closure is taken wherever a tag *could* be the
-trace of a sign that binds it, even where the same tag usually means one that
-does not. A wrong closure costs a detour; a wrong opening costs a fine. Because
-art. 7 obliges it onto nothing, no set of closures can leave it nowhere lawful.
-
-1. **A moped exemption does not reach it.** A road tagged `vehicle=no` or
-   `access=destination` with `moped=yes` is closed to traffic except
-   bromfietsen, and this vehicle is not one. That is why no existing class can
-   stand in for this one: the bromfiets would be routed through them.
-2. **Off the cycle network, a refusal for any vehicle near it closes it.**
-   `moped`, `mofa`: a C13 or C15 mapped as the tags it implies, and both bind
-   it. `motor_vehicle`, `motorcar`: usually a C12 or C6, which do not bind it
-   (NL-DEF-05), but OSM's `motor_vehicle` covers mopeds, so the tag can also be
-   a loosely mapped C13, and the tag cannot say which. The mapped sign itself is
-   read exactly: C6 and C12 as `traffic_sign` leave it open. `use_sidepath` is
-   the exception for every key, because it obliges the vehicle it names and
-   nobody else. On a cycle path these tags are the path's own nature and are
-   not read.
-3. **A bicycle refusal closes it everywhere**, paths included: it can be a C14,
-   which does not bind it, or a C15, which does.
-4. **On a cycleway with no mapped sign, a moped permission opens it**, unless
-   the same way refuses bicycles or snorfietsen. NL-ACC-02 admits a bromfiets
-   to a G12a and nowhere else on the cycle network, so a cycleway open to
-   mopeds is a G12a, which admits this class; a G12a admits bicycles and
-   snorfietsen too, so a way refusing either is not one. A snorfiets permission
-   is never evidence: a G13 carries one too.
-5. **The authority's moped verdict on a carriageway closes it.** `amgraph:bromfiets=no`
-   or `amgraph:snorfiets=no` off the cycle network does not say whether a
-   sidepath obliges mopeds, which binds nobody else, or a prohibition forbids
-   them, which may bind this class too. `on_roadway` places a snorfiets on the
-   road and says nothing against anybody, and `sidepath` is a closure whose
-   cause is known to bind the snorfiets alone (see the authority overlay).
-6. **A one-way for any nearby vehicle holds it.** `oneway:bicycle`, `oneway:mofa`,
-   `oneway:moped`, `oneway:motor_vehicle` and `oneway:motorcar` may be the only
-   trace of a C2, C3 or C4, so their restriction binds it; their exemption
-   (`no`) is an onderbord naming that vehicle and does not. A timed one closes
-   both directions.
-7. **At a node**, where a road and a path cannot be told apart, every refusal
-   above applies. A bus trap and a sump buster close it: it rides the bus
-   carrier, and upstream Valhalla passes a bus over a sump buster and does not
-   model a bus trap, so it would inherit a permission meant for buses.
-
-Signs: see the gehandicaptenvoertuig entries in NL-ACC-06. The difference from
-the brommobiel cuts both ways, which is why neither existing four-wheeled answer
-fits it: C13 and C15 name it and do not bind a brommobiel (art. 2a), while C6
-and C12 bind motorvoertuigen and not it.
 
 ### NL-ACC-11 — A bus lane closes its own lane `VERIFIED`
 
@@ -665,12 +550,12 @@ full.
 binds. Where the register has an A1 within 20 m of an opened way and OSM has no
 lower `maxspeed`, its figure is written as `maxspeed`, because that is the only
 place the API reads a posted limit. Art. 20(c) does not reach an ordinary
-snorfiets here: its 6 km/h binds only "gehandicaptenvoertuigen, uitgerust met
-een motor, en snorfietsen als bedoeld in artikel 1, eerste lid, onderdeel e,
+snorfiets here: its 6 km/h binds, besides motorised vehicles for the disabled,
+only "snorfietsen als bedoeld in artikel 1, eerste lid, onderdeel e,
 subonderdeel d, van de wet", and WVW 1994 art. 1(1)(e)(d) is a light electric
 vehicle "met een door de constructie bepaalde maximumsnelheid van niet meer
 dan 25 km/h" that needs no EU type approval
-(<https://wetten.overheid.nl/BWBR0006622/2026-07-01>, read 2026-11-13). A
+(<https://wetten.overheid.nl/BWBR0006622/2026-09-01>, read 2026-11-14). A
 type-approved blue-plate snorfiets falls under subonderdeel a.
 
 **Who stays out.** The brommobiel: art. 6 lid 3 puts it on the rijbaan, and
@@ -679,8 +564,6 @@ mee op onze IJ-veerponten"
 (<https://www.gvb.nl/reisinformatie/reisregels-en-voorwaarden>, read
 2026-11-13). Stcrt. 2015, 40478 does admit it to the (brom)fietspad east of the
 pontsteiger, but no plate on the square names it, so it is not admitted there.
-The gehandicaptenvoertuig: art. 20(c) does cap it at 6 km/h
-on a voetpad, a speed the API cannot report (NL-ACC-10).
 
 ### NL-ACC-13 — A ferry carries what its operator admits `VERIFIED`
 
@@ -688,12 +571,11 @@ No article of the RVV governs who boards a ferry; that is the operator's
 condition of carriage. The map's explicit permission for a class is the only
 trace of it the graph has, so a `route=ferry` way is open to a class exactly
 where `mofa`, `moped` or `motorcar`/`motor_vehicle` says `yes`, `designated`
-or `permissive`, and closed where the map is silent. The gehandicaptenvoertuig
-has no key and stays off every ferry. For the IJ ferries the map agrees with
-GVB's own rules:
+or `permissive`, and closed where the map is silent. For the IJ ferries the map
+agrees with GVB's own rules:
 
 > "Op onze IJ-veerponten mogen voetgangers, (brom)fietsers en
-> gehandicaptenvoertuigen mee."
+> […] mee."
 
 > "Brommobielen mogen niet mee op onze IJ-veerponten."
 
@@ -708,11 +590,11 @@ over a voetpad without an admitting onderbord stays out of reach.
 
 | Code | Caption | Meaning for us |
 | --- | --- | --- |
-| **G1 / G3** | Autosnelweg / Autoweg | Barred to all five: art. 42 admits only motorvoertuigen |
-| **G7 / G9** | Voetpad / Ruiterpad | Barred to all five. Art. 7 does admit a gehandicaptenvoertuig to a voetpad; see NL-ACC-10. A confirmed "brom-fietsen toegestaan" onderbord admits the two-wheelers and the speed pedelec; see NL-ACC-12 |
-| **G11** | Verplicht fietspad | Snorfiets yes, bromfiets no, gehandicaptenvoertuig yes. Snorfiets no inside an art. 5 lid 8 municipality |
+| **G1 / G3** | Autosnelweg / Autoweg | Barred to all three: art. 42 admits only motorvoertuigen |
+| **G7 / G9** | Voetpad / Ruiterpad | Barred to all three. A confirmed "brom-fietsen toegestaan" onderbord admits the two-wheelers; see NL-ACC-12 |
+| **G11** | Verplicht fietspad | Snorfiets yes, bromfiets no. Snorfiets no where an art. 5 lid 8 measure reaches it |
 | **G12** | Einde verplicht fietspad | End marker |
-| **G12a** | Fiets/bromfietspad | Snorfiets yes, bromfiets yes, gehandicaptenvoertuig yes, brommobiel no |
+| **G12a** | Fiets/bromfietspad | Snorfiets yes, bromfiets yes, brommobiel no |
 | **G12b** | Einde fiets/bromfietspad | End marker |
 | **G13** | Onverplicht fietspad | Closed to all in the graph: optional, so never using it cannot make a route illegal |
 | **G14** | Einde onverplicht fietspad | End marker |
@@ -737,13 +619,25 @@ access table missing `designated` locks bromfietsen out of the cycle network.
 RVV arts. 20, 21 and 22. Not the road's signed limit: the limit that binds
 *this* vehicle.
 
+> Art. 20: "Binnen de bebouwde kom gelden de volgende maximumsnelheden: …
+> b. voor bromfietsen en gehandicaptenvoertuigen, uitgerust met een motor:
+> 1. op het fiets/bromfietspad 30 km per uur; 2. op de rijbaan 45 km per uur"
+
+> Art. 21: "Buiten de bebouwde kom gelden de volgende maximumsnelheden: …
+> b. voor bromfietsen en gehandicaptenvoertuigen, uitgerust met een motor:
+> 1. op het fiets/bromfietspad 40 km per uur; 2. op de rijbaan 45 km per uur"
+
+> Art. 22: "c. voor brommobielen 45 km per uur; d. voor snorfietsen 25 km per
+> uur"
+
+> Art. 45: "Bestuurders mogen binnen een erf niet sneller rijden dan 15 km per
+> uur."
+
 | Profile | Roadway | Cycle path, built-up | Cycle path, rural |
 | --- | --- | --- | --- |
 | snorfiets | 25 | 25 | 25 |
 | bromfiets | 45 | 30 | 40 |
-| speed pedelec | 45 | 30 | 40 |
 | brommobiel | 45 | — | — |
-| gehandicaptenvoertuig | 45 | 30 | 40 |
 
 A posted limit lower than the class limit binds too: a 30 zone is 30 for a
 bromfiets as much as for a car. Inside an *erf* (`highway=living_street`) art.
@@ -766,7 +660,7 @@ is known without a sign.
 
 ## Authority overlay
 
-`infra/official_access.py` writes seven values into the extract, under keys
+`infra/official_access.py` writes six values into the extract, under keys
 `amgraph:snorfiets` and `amgraph:bromfiets`. Each has exactly one job.
 
 | Value | Meaning | Where it may appear |
@@ -775,7 +669,6 @@ is known without a sign.
 | `on_roadway` | Nothing lawful runs beside this carriageway, so lid 2 keeps it open | Carriageways only |
 | `roadway_only` | Art. 5 lid 8: this verplicht fietspad does not admit a snorfiets | Cycle paths, snorfiets key only |
 | `yes` | The register says a G12a stands on this unsigned path | Cycle paths, snorfiets key only |
-| `sidepath` | The authority closes this carriageway to the snorfiets, and not to the bromfiets or only by a sidepath obligation resolved to `on_roadway`, and either the path beside is usable to the snorfiets only through the NL-ACC-03 moped reading or an NL-ACC-04 exception, or the carriageway lies in a lid 8 municipality on a road its measure does not reach: the closure places the snorfiets. Nothing that closes the snorfiets alone binds a gehandicaptenvoertuig (C14 does not reach it; C13 and C15 close the bromfiets too; NL-ACC-06), so it keeps the road. Every other snorfiets closure stays `no`, because a WKD section that leaves the bromfiets open is never read as permission | Carriageways only, snorfiets key only |
 | `footpath_onderbord` | The register's G7 beside this voetpad has an onderbord admitting the class, and the mapper permits it | Footway and pedestrian ways with a mapped G7 |
 | `footpath_g12a` | The register confirms the G12a mapped on this voetpad | Footway and pedestrian ways with a mapped G12a |
 
@@ -829,9 +722,6 @@ The register's `validated` field is `n` on every sign, so it is not read.
 | A combustion vehicle's year, engine cycle or exemption | Not in the request | Emission-zone municipalities closed conservatively |
 | Actual vehicle dimensions, load or trailer | Not in the request | Dimension-controlled ways closed; C10 closes the brommobiel |
 | G13 for an electric snorfiets | One access bit, built before powertrain is chosen | Detours. Needs a distinct access class |
-| The trottoir and voetpad for a gehandicaptenvoertuig | Art. 7 admits it, at 6 km/h under pedestrian rules | Never routed there; longer routes |
-| A cycleway open to a gehandicaptenvoertuig by sign alone, with the sign unmapped | OSM has no key for the class, and only a moped permission implies a sign that admits it | Untagged G11s closed to it; longer routes |
-| Whether the municipal moped zones reach a gehandicaptenvoertuig | Not established (NL-ACC-06A) | Combustion ones refused in all four municipalities |
 | The bebouwde kom | Almost no H1 is mapped | 30 is the cap on a cycle path |
 | Untagged cycle paths the register cannot resolve | Ambiguous between opposite answers | Treated as forbidden; longer routes |
 | Zeeland / Walcheren | The crossings are motorway, C9 or the Westerscheldetunnel, and whether a lawful moped route exists **has not been established from primary sources** | Middelburg is unreachable for every class |

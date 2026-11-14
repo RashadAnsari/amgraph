@@ -9,8 +9,8 @@
 -- The three things it exercises are the three the research found a real country
 -- needs:
 --
---   1. A FOURTH and a FIFTH access class. A country that separates a speed
---      pedelec from a 45 km/h moped on some cycle paths needs a carrier each.
+--   1. A FOURTH and a FIFTH access class. A country whose law tells apart more
+--      classes than the Netherlands does needs a carrier for each.
 --      `taxi` and `bus` are the two remaining Valhalla costings that read an
 --      access bit of their own.
 --   2. A cycle rule CONDITIONAL on the way, not settled by the sign alone.
@@ -48,9 +48,8 @@ local FIXTURE = access.prepare({
       bicycle_rules = true, cycle_infrastructure = true },
     { code = "heavy", carrier = "motorcycle", access_keys = { "moped" },
       cycle_infrastructure = true },
-    -- The fourth and fifth: neither existed as an option before, and the
-    -- pedelec is the case that made a fourth necessary.
-    { code = "pedelec", carrier = "taxi", access_keys = { "speed_pedelec" },
+    -- The fourth and fifth, on the two spare carriers.
+    { code = "trike", carrier = "taxi", access_keys = { "motorcycle" },
       cycle_infrastructure = true },
     { code = "quad", carrier = "bus", access_keys = { "motorcar", "motor_vehicle" },
       cycle_infrastructure = false },
@@ -67,14 +66,14 @@ local FIXTURE = access.prepare({
         -- Invented: admission depends on the fixture way
         -- being faster than 50. This is not any country's law.
         heavy = limit_above(50),
-        pedelec = true,
+        trike = true,
       },
     },
   },
 
-  unsigned_cycleway = { light = false, heavy = false, pedelec = false },
+  unsigned_cycleway = { light = false, heavy = false, trike = false },
   closed_signs = {
-    { sign = "X1", bars = { light = true, heavy = true, pedelec = true, quad = true },
+    { sign = "X1", bars = { light = true, heavy = true, trike = true, quad = true },
       bars_entry = true },
   },
   all_directions_sign = "X2",
@@ -99,11 +98,11 @@ equals("and closing it leaves the other three alone", table.concat({
   quad_closed.moped_forward, quad_closed.motorcycle_forward, quad_closed.taxi_forward,
 }, " "), "true true true")
 
-local pedelec_closed = flags_for({ highway = "residential", speed_pedelec = "no" })
+local trike_closed = flags_for({ highway = "residential", motorcycle = "no" })
 equals("a class on the taxi carrier is closed by its own key",
-  pedelec_closed.taxi_forward, "false")
+  trike_closed.taxi_forward, "false")
 equals("and it is a class of its own, not the heavy class's shadow",
-  pedelec_closed.motorcycle_forward, "true")
+  trike_closed.motorcycle_forward, "true")
 
 -- The conditional cycle rule ------------------------------------------------
 -- The single thing three static booleans per sign could not say.
@@ -125,17 +124,17 @@ equals("a class barred from cycle infrastructure stays off it whatever the sign"
 -- The derived key families follow this country's keys ------------------------
 
 equals("a lane-level tag on this country's own key closes that class",
-  flags_for({ highway = "residential", ["speed_pedelec:lanes"] = "yes|no" }).taxi_forward,
+  flags_for({ highway = "residential", ["motorcycle:lanes"] = "yes|no" }).taxi_forward,
   "false")
 
 equals("and leaves the classes that key does not name open",
-  flags_for({ highway = "residential", ["speed_pedelec:lanes"] = "yes|no" }).moped_forward,
+  flags_for({ highway = "residential", ["motorcycle:lanes"] = "yes|no" }).moped_forward,
   "true")
 
 equals("this country's keys are what consulted_keys reports",
   (function()
     for _, key in ipairs(access.consulted_keys(FIXTURE)) do
-      if key == "maxspeed:speed_pedelec:backward" then
+      if key == "maxspeed:motorcycle:backward" then
         return true
       end
     end

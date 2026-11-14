@@ -54,7 +54,7 @@ _BLUE = Plate(background="#1256B8", foreground="#FAFAF8")
 #: Bump on any change below. Kept internally rather than served, so the legal
 #: freshness gate can force a periodic re-read of the primary sources without
 #: the string reading to a rider as a build number.
-RULES_VERSION = "nl-2026-10-08.5"
+RULES_VERSION = "nl-2026-11-14.1"
 
 #: Separate carriers keep each vehicle identity stable across country boundaries.
 CLASSES: tuple[VehicleClass, ...] = (
@@ -79,16 +79,6 @@ CLASSES: tuple[VehicleClass, ...] = (
         names={"en": "Moped", "nl": "Bromfiets"},
     ),
     VehicleClass(
-        code="speed_pedelec",
-        carrier=Carrier.TAXI,
-        construction_limit_kph=45,
-        speeds=ClassSpeeds(roadway=45, cycle_path_built_up=30, cycle_path_rural=40),
-        plate=_YELLOW,
-        marker="pedelec",
-        powertrain_matters=False,
-        names={"en": "Speed pedelec", "nl": "Speed pedelec"},
-    ),
-    VehicleClass(
         code="brommobiel",
         carrier=Carrier.TRUCK,
         construction_limit_kph=45,
@@ -98,35 +88,13 @@ CLASSES: tuple[VehicleClass, ...] = (
         powertrain_matters=False,
         names={"en": "Microcar", "nl": "Brommobiel"},
     ),
-    # NL-DEF-06, NL-ACC-10. A Canta without a kenteken is the vehicle this
-    # exists for. WVW 1994 art. 36 exempts it from registration, so it has no
-    # plate to draw, and its construction ceiling is the definition's 45.
-    # Arts. 20 and 21 give it the bromfiets's 30 and 40 on the fietspad as well
-    # as on the fiets/bromfietspad.
-    VehicleClass(
-        code="gehandicaptenvoertuig",
-        carrier=Carrier.BUS,
-        construction_limit_kph=45,
-        speeds=ClassSpeeds(roadway=45, cycle_path_built_up=30, cycle_path_rural=40),
-        plate=None,
-        marker="microcar",
-        powertrain_matters=True,
-        # The label carries the condition, because the same Canta registered
-        # as a bromfiets is a brommobiel (NL-DEF-06) and must never be routed
-        # onto a fietspad. A rider picks by what is on the back of the car.
-        names={"en": "Mobility car without plate", "nl": "Gehandicaptenvoertuig zonder kenteken"},
-    ),
 )
 
 #: The most restricted on the cycle network: a bromfiets may use a G12a and
 #: nothing else. See docs/countries/nl.md NL-ACC-02 and CountryRules.
 DEFAULT_CLASS = "bromfiets"
 
-#: The gehandicaptenvoertuig is here although none of the by-laws below names
-#: it. Each was read as a brom- and snorfiets measure and none says whether it
-#: reaches a vehicle that "geen bromfiets is", so a combustion one is refused
-#: rather than assumed exempt. See docs/countries/nl.md NL-ACC-10.
-_EMISSION_CLASSES = frozenset({"snorfiets", "bromfiets", "speed_pedelec", "gehandicaptenvoertuig"})
+_EMISSION_CLASSES = frozenset({"snorfiets", "bromfiets"})
 
 #: Municipal rules that turn on a vehicle fact the request does not carry.
 #:
@@ -139,20 +107,21 @@ _EMISSION_CLASSES = frozenset({"snorfiets", "bromfiets", "speed_pedelec", "gehan
 #:
 #: How much stricter, so the cost is on the record rather than implied:
 #:
-#: - **Den Haag** bars a DET before 2011-01-01, but only a *two-stroke* one.
-#:   "Heeft u een 4-takt brommer of 4-takt snorfiets met een DET van vóór
-#:   1 januari 2011? Dan mag u in de milieuzone rijden." Old *electric* mopeds
-#:   and brommobielen are admitted outright. Retrieved 2026-08-15 from
+#: - **Den Haag** bars a DET before 2011-01-01 in the whole municipality: "U
+#:   mag met een brom- of snorfiets van vóór 1 januari 2011 niet in de
+#:   milieuzone rijden. Met oude elektrische brom- en snorfietsen en met
+#:   brommobielen mag dit wel." A pre-2011 four-stroke may ride after an
+#:   inspection and with an ontheffing. Read 2026-11-14 from
 #:   <https://www.denhaag.nl/nl/verkeer-en-vervoer/milieuzone-oude-brom-en-snorfietsen/>
 #: - **Nijmegen** bars a build year of 2010 or older in *three areas* rather
 #:   than the municipality: Nijmegen centrum, Hof van Holland and Heijendaal.
 #:   Its 2028 step ("bouwjaar van 2018 of ouder … niet in de bebouwde kom") and
 #:   its 2030 step (electric only) both tighten inside an area this table
-#:   already closes, so neither needs a dated entry. Retrieved 2026-08-15 from
-#:   <https://www.nijmegen.nl/over-de-gemeente/plannen/milieuzone-bromfietsen/>
+#:   already closes, so neither needs a dated entry. Read 2026-11-14 from
+#:   <https://www.nijmegen.nl/verkeer-en-vervoer/milieuzone-bromfietsen/>
 #: - **Amsterdam** has a current brom- and snorfiets milieuzone, listed in the
 #:   national index at <https://www.milieuzones.nl/locaties-milieuzones>,
-#:   retrieved 2026-08-15.
+#:   read 2026-11-14.
 #:
 #: The Amsterdam and Utrecht snorfiets place-on-road rule (art. 5 lid 8) is not
 #: an emission rule and gates nothing here. It is a rule about which edge a
@@ -190,7 +159,7 @@ MUNICIPAL_ZONES: dict[str, MunicipalZone] = {
     #   "Vanaf 2030 moeten alle brom- en snorfietsen in heel Utrecht
     #    uitstootvrij zijn."
     #
-    # Retrieved 2026-08-15 from <https://www.utrecht.nl/wonen-en-leven/
+    # Read 2026-11-14 from <https://www.utrecht.nl/wonen-en-leven/
     # gezonde-leefomgeving/luchtkwaliteit/brom-en-snorfietsen-uitstootvrij>.
     #
     # Writing it down now rather than remembering it in 2028 is the whole point
@@ -396,10 +365,7 @@ REQUIRED_ROUTE_CHECKS = (
     ((52.0894, 5.1100), (52.3791, 4.9003)),  # Utrecht Centraal to Amsterdam Centraal
 )
 
-# The third pair proves the bus carrier on a verplicht fietspad, where a
-# gehandicaptenvoertuig may ride and a bromfiets may not.
 ACCESS_PROBES = (
     ("snorfiets", "bromfiets"),
-    ("speed_pedelec", "brommobiel"),
-    ("gehandicaptenvoertuig", "bromfiets"),
+    ("bromfiets", "brommobiel"),
 )

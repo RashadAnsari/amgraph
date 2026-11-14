@@ -48,7 +48,6 @@ CONSULTED = [
     "bicycle",
     "mofa",
     "moped",
-    "speed_pedelec",
     "motorcar",
     "motor_vehicle",
     "access:forward",
@@ -103,16 +102,6 @@ CONSULTED = [
     "moped:conditional",
     "moped:forward:conditional",
     "moped:backward:conditional",
-    "speed_pedelec:conditional",
-    "speed_pedelec:forward",
-    "speed_pedelec:backward",
-    "speed_pedelec:forward:conditional",
-    "speed_pedelec:backward:conditional",
-    "speed_pedelec:lanes",
-    "speed_pedelec:lanes:forward",
-    "speed_pedelec:lanes:backward",
-    "oneway:speed_pedelec",
-    "oneway:speed_pedelec:conditional",
     "motor_vehicle:conditional",
     "motor_vehicle:forward:conditional",
     "motor_vehicle:backward:conditional",
@@ -152,12 +141,6 @@ CONSULTED = [
     "maxspeed:moped",
     "maxspeed:moped:forward",
     "maxspeed:moped:backward",
-    "maxspeed:speed_pedelec",
-    "maxspeed:speed_pedelec:forward",
-    "maxspeed:speed_pedelec:backward",
-    "maxspeed:speed_pedelec:conditional",
-    "maxspeed:speed_pedelec:forward:conditional",
-    "maxspeed:speed_pedelec:backward:conditional",
     "maxspeed:motor_vehicle:conditional",
     "maxspeed:motor_vehicle:forward:conditional",
     "maxspeed:motor_vehicle:backward:conditional",
@@ -217,8 +200,6 @@ CONSULTED = [
     "oneway:moped:conditional",
     "oneway:motor_vehicle:conditional",
     "oneway:motorcar:conditional",
-    "oneway:bicycle",
-    "oneway:bicycle:conditional",
     "traffic_sign",
     "traffic_sign:forward",
     "traffic_sign:backward",
@@ -242,23 +223,19 @@ class DutchRules:
         #: themselves. See test_the_consulted_key_list_still_matches_the_rules.
         self.consulted = list(access.consulted_keys(self._country).values())
 
-    def __call__(self, tags: dict[str, str]) -> tuple[bool, bool, bool, bool]:
-        return self.flags(tags)[:4]
+    def __call__(self, tags: dict[str, str]) -> tuple[bool, bool, bool]:
+        return self.flags(tags)
 
-    def flags(self, tags: dict[str, str]) -> tuple[bool, bool, bool, bool, bool]:
-        """The forward answer per class, and the gehandicaptenvoertuig's backward one."""
-        # NL-DEF-03 gives the pedelec the bromfiets's access rights. Its
-        # separate cross-country carrier must preserve that answer on every
-        # observed combination, in both directions.
+    def flags(self, tags: dict[str, str]) -> tuple[bool, bool, bool]:
+        """The forward answer per class. The spare carriers stay closed."""
         flags = dict(self._access.carrier_flags(self._runtime.table_from(tags), self._country))
-        for direction in ("forward", "backward"):
-            assert flags[f"taxi_{direction}"] == flags[f"motorcycle_{direction}"]
+        for carrier in ("taxi", "bus"):
+            for direction in ("forward", "backward"):
+                assert flags[f"{carrier}_{direction}"] == "false"
         return (
             flags["moped_forward"] == "true",
             flags["motorcycle_forward"] == "true",
             flags["truck_forward"] == "true",
-            flags["bus_forward"] == "true",
-            flags["bus_backward"] == "true",
         )
 
 
@@ -327,63 +304,14 @@ def test_no_tag_combination_in_the_netherlands_breaks_a_rule(rules) -> None:
     failures: list[str] = []
     for combo, count in combos.items():
         tags = {k: v for k, v in zip(CONSULTED, combo, strict=True) if v is not None}
-        snorfiets, bromfiets, brommobiel, gehandicapt, gehandicapt_back = rules.flags(tags)
+        snorfiets, bromfiets, brommobiel = rules.flags(tags)
 
-        # RVV art. 42 admits only motorvoertuigen, and neither a bromfiets nor a
-        # gehandicaptenvoertuig is one.
+        # RVV art. 42 admits only motorvoertuigen, and a bromfiets is not one.
         barred = (
             tags.get("highway") in {"motorway", "motorway_link"} or tags.get("motorroad") == "yes"
         )
-        if barred and (snorfiets or bromfiets or brommobiel or gehandicapt):
+        if barred and (snorfiets or bromfiets or brommobiel):
             failures.append(f"{tags} on an autosnelweg or autoweg ({count:,} ways)")
-
-        # NL-ACC-10. A gehandicaptenvoertuig "geen bromfiets is", so nothing
-        # written for mopeds may open a way closed to traffic in general. This
-        # is the check the Bromfiets setting failed on 452 ways.
-        blanket = any(
-            tags.get(k) is not None and tags.get(k) not in {"yes", "designated", "permissive"}
-            for k in ("access", "vehicle")
-        )
-        if blanket and gehandicapt:
-            failures.append(f"{tags} opened a closed way to a gehandicapt ({count:,} ways)")
-
-        # NL-ACC-10. Off the cycle network, any refusal that could trace a sign
-        # binding it closes it, and so does the authority's moped verdict on a
-        # carriageway. A bicycle refusal closes it everywhere.
-        def refuses(key: str, tags: dict[str, str] = tags) -> bool:
-            return tags.get(key) is not None and tags.get(key) not in {
-                "yes",
-                "designated",
-                "permissive",
-                "use_sidepath",
-            }
-
-        # NL-ACC-12: a voetpad whose G12a the register confirms is a
-        # fiets/bromfietspad, so it is on the network.
-        confirmed_g12a = "footpath_g12a" in (
-            tags.get("amgraph:bromfiets"),
-            tags.get("amgraph:snorfiets"),
-        )
-        off_network = tags.get("highway") not in {"cycleway", "path"} and not confirmed_g12a
-        roadway_refusal = any(
-            refuses(k) for k in ("moped", "mofa", "motor_vehicle", "motorcar")
-        ) or any(tags.get(k) == "no" for k in ("amgraph:bromfiets", "amgraph:snorfiets"))
-        if off_network and roadway_refusal and gehandicapt:
-            failures.append(f"{tags} ignored a refusal on a road ({count:,} ways)")
-        if refuses("bicycle") and gehandicapt:
-            failures.append(f"{tags} ignored a bicycle refusal ({count:,} ways)")
-
-        # A one-way stated for any vehicle holds it, whatever exemption names
-        # another vehicle.
-        oneway_keys = ("oneway:bicycle", "oneway:mofa", "oneway:moped")
-        oneway_keys += ("oneway:motor_vehicle", "oneway:motorcar")
-        if any(tags.get(k) in {"yes", "true", "1"} for k in oneway_keys) and gehandicapt_back:
-            failures.append(f"{tags} let it ride against a one-way ({count:,} ways)")
-
-        signs = (tags.get("traffic_sign") or "").replace(",", ";").split(";")
-        for sign in ("C1", "C9", "C13", "C15", "G7", "G9"):
-            if f"NL:{sign}" in signs and gehandicapt:
-                failures.append(f"{tags} ignored {sign} ({count:,} ways)")
 
         # NL-ACC-11. Lane-level access opens a way only where every closed lane
         # is a bus or psv lane on a forward one-way road, which art. 81 confines
@@ -392,7 +320,7 @@ def test_no_tag_combination_in_the_netherlands_breaks_a_rule(rules) -> None:
         # Restated here rather than imported, so a loosened rule in access.lua
         # has something independent to disagree with.
         general = [tags[k].split("|") for k in ("access:lanes", "vehicle:lanes") if k in tags]
-        if general and (snorfiets or bromfiets or brommobiel or gehandicapt or gehandicapt_back):
+        if general and (snorfiets or bromfiets or brommobiel):
             reserved = [tags[k].split("|") for k in ("bus:lanes", "psv:lanes") if k in tags]
             one_way = tags.get("oneway") in {"yes", "true", "1"} or tags.get("junction") in {
                 "roundabout",
@@ -449,10 +377,6 @@ def test_no_tag_combination_in_the_netherlands_breaks_a_rule(rules) -> None:
             register_opened = tags.get("amgraph:snorfiets") == "yes"
             if bromfiets:
                 failures.append(f"{tags} put a bromfiets on an unsigned cycleway ({count:,} ways)")
-            if gehandicapt:
-                failures.append(
-                    f"{tags} put a gehandicaptenvoertuig on an unsigned cycleway ({count:,} ways)"
-                )
             if snorfiets and not register_opened:
                 failures.append(f"{tags} opened an unsigned cycleway ({count:,} ways)")
 

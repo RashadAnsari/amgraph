@@ -108,5 +108,4 @@ Never merge, never tag `rules-v<version>`. Both are the user's.
 Finish with a short table for the user: each source, the version or date read,
 and the outcome (unchanged, changed and applied, pending and recorded, could not
 be read). Then the remaining steps that are theirs: merge, tag, and in each
-consumer move the pin and run its route corpus (in 45weg, `make
-backend-test-legal` and `make backend-test-sweep`).
+consumer move the pin and run its route corpus.

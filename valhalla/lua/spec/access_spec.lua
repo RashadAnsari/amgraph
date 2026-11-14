@@ -207,13 +207,6 @@ allows("conservative", "a directional conditional speed also closes the whole st
 allows("conservative", "a moped-specific speed closes only the bromfiets class",
   { highway = "residential", ["maxspeed:moped"] = "30" }, { true, false, true })
 
-allows("conservative", "a speed-pedelec-only refusal closes its shared carrier class",
-  { highway = "residential", speed_pedelec = "no" }, { true, false, true })
-
-allows("conservative", "a speed-pedelec-specific speed closes its shared carrier class",
-  { highway = "residential", ["maxspeed:speed_pedelec"] = "30" },
-  { true, false, true })
-
 allows("conservative", "a bicycle-specific speed reaches the snorfiets",
   { highway = "residential", ["maxspeed:bicycle"] = "15" }, { false, true, true })
 
@@ -349,13 +342,7 @@ equals("conservative", "a conditional moped direction does not close another cla
     conditional_flags.truck_forward .. conditional_flags.truck_backward,
   "truetruetruetrue")
 
-local speed_pedelec_flags = access.carrier_flags(
-  { highway = "residential", ["oneway:speed_pedelec"] = "no" }, NL)
-equals("conservative", "an unshareable speed-pedelec direction closes its carrier",
-  speed_pedelec_flags.motorcycle_forward .. speed_pedelec_flags.motorcycle_backward,
-  "falsefalse")
-
--- NL-ACC-06. RVV 1990 bijlage I, C-series, read 2026-08-14. These
+-- NL-ACC-06. RVV 1990 bijlage I, C-series, read 2026-11-14. These
 -- prohibitions are applied from the sign itself even when OSM omitted its
 -- implied access tag.
 allows("NL-ACC-06", "C1 closes the way to every supported class",
@@ -370,14 +357,17 @@ allows("NL-ACC-06", "C9 explicitly closes every supported class",
 allows("NL-ACC-06", "C12 closes a brommobiel through RVV art. 2a",
   { highway = "residential", traffic_sign = "NL:C12" }, { true, true, false })
 
-allows("NL-ACC-06", "C13 closes snorfiets and bromfiets but not brommobiel",
-  { highway = "residential", traffic_sign = "NL:C13" }, { false, false, true })
+-- A brommobiel is a bromfiets (WVW art. 1). Whether art. 2a's swap to
+-- motor-vehicle rules reaches a sign caption naming bromfietsen is the same
+-- open question as NL-ACC-07, so the caption closes it.
+allows("NL-ACC-06", "C13 closes every class, the brommobiel being a bromfiets",
+  { highway = "residential", traffic_sign = "NL:C13" }, { false, false, false })
 
 allows("NL-ACC-06", "C14 reaches the snorfiets through RVV art. 2b",
   { highway = "residential", traffic_sign = "NL:C14" }, { false, true, true })
 
-allows("NL-ACC-06", "C15 closes snorfiets and bromfiets but not brommobiel",
-  { highway = "residential", traffic_sign = "NL:C15" }, { false, false, true })
+allows("NL-ACC-06", "C15 closes every class, the brommobiel being a bromfiets",
+  { highway = "residential", traffic_sign = "NL:C15" }, { false, false, false })
 
 allows("NL-ACC-06", "C10 closes the unmodelled trailer case for a brommobiel",
   { highway = "residential", traffic_sign = "NL:C10" }, { true, true, false })
@@ -546,9 +536,6 @@ equals("conservative", "moped=no on a node closes the bromfiets carrier",
   node_allows({ barrier = "gate", moped = "no", mofa = "yes", motor_vehicle = "yes" }),
   classes_to_string(true, false, true))
 
-equals("conservative", "speed_pedelec=no on a node closes its shared carrier",
-  node_allows({ speed_pedelec = "no" }), classes_to_string(true, false, true))
-
 equals("NL-ACC-05", "motorcar=no on a node closes the brommobiel carrier",
   node_allows({ barrier = "gate", mofa = "yes", moped = "yes", motorcar = "no" }),
   classes_to_string(true, true, false))
@@ -563,8 +550,8 @@ equals("conservative", "conditional node access is never treated as always legal
 equals("conservative", "directional node access has no safe adjacent edge",
   node_allows({ ["moped:forward"] = "no" }), classes_to_string(false, false, false))
 
-equals("NL-ACC-06", "a C13 sign mapped as a node closes both two-wheelers",
-  node_allows({ traffic_sign = "NL:C13" }), classes_to_string(false, false, true))
+equals("NL-ACC-06", "a C13 sign mapped as a node closes every class",
+  node_allows({ traffic_sign = "NL:C13" }), classes_to_string(false, false, false))
 
 equals("NL-ACC-06", "a C21 node no class reaches stays open",
   node_allows({ traffic_sign = "NL:C21[30]" }), classes_to_string(true, true, true))
@@ -744,7 +731,7 @@ allows("NL-ACC-02", "nor overrule an explicit refusal in OSM",
 
 allows("NL-ACC-06", "nor a signed prohibition",
   { highway = "residential", moped = "use_sidepath", traffic_sign = "NL:C13",
-    ["amgraph:bromfiets"] = "on_roadway" }, { false, false, true })
+    ["amgraph:bromfiets"] = "on_roadway" }, { false, false, false })
 
 -- A mandatory-use obligation mapped for one direction is the same statement
 -- as the plain tag, for half the carriageway. Directional keys otherwise close
@@ -948,195 +935,6 @@ equals("NL-ACC-06", "a designated hazmat route does not close the node either",
 equals("NL-ACC-06", "but a hazmat prohibition on a node does",
   node_allows({ hazmat = "no" }), classes_to_string(false, false, false))
 
--- NL-ACC-10: the gehandicaptenvoertuig -----------------------------------
--- RVV art. 7 lets it choose between "het trottoir, het voetpad, het fietspad,
--- het fiets/bromfietspad of de rijbaan", and nothing obliges it onto any of
--- them. It is not a bromfiets (art. 1), so a moped permission never reaches
--- it, and it is not a motorvoertuig, so a motor-vehicle refusal never does.
--- OSM has no key for it: everything here is decided by signs, by the general
--- access keys, and by the moped and mofa keys read as evidence of a sign.
-
-local function gehandicapt(tags)
-  return access.classes(tags, NL)[NL.class_index.gehandicaptenvoertuig]
-end
-
-local function node_gehandicapt(tags)
-  return access.node_classes(tags, NL)[NL.class_index.gehandicaptenvoertuig]
-end
-
-equals("NL-ACC-10", "the class rides the bus carrier, which no other Dutch class uses",
-  NL.classes[NL.class_index.gehandicaptenvoertuig or 0]
-    and NL.classes[NL.class_index.gehandicaptenvoertuig].carrier, "bus")
-
-equals("NL-ACC-10", "an ordinary street is open",
-  gehandicapt({ highway = "residential" }), true)
-
-equals("NL-ACC-01", "a motorway is barred: art. 42 admits only motorvoertuigen",
-  gehandicapt({ highway = "motorway" }), false)
-
-equals("NL-ACC-01", "an autoweg is barred",
-  gehandicapt({ highway = "trunk", motorroad = "yes" }), false)
-
-equals("NL-ACC-10", "a fiets/bromfietspad is open",
-  gehandicapt({ highway = "cycleway", traffic_sign = "NL:G12a" }), true)
-
-equals("NL-ACC-10", "a verplicht fietspad is open, where a bromfiets is barred",
-  gehandicapt({ highway = "cycleway", traffic_sign = "NL:G11" }), true)
-
-equals("NL-ACC-10", "an onverplicht fietspad stays closed: optional, so never needed",
-  gehandicapt({ highway = "cycleway", traffic_sign = "NL:G13" }), false)
-
-equals("NL-ACC-10", "an unsigned cycleway stays closed",
-  gehandicapt({ highway = "cycleway" }), false)
-
-equals("NL-ACC-10", "a moped permission on a cycleway marks a G12a, which admits it",
-  gehandicapt({ highway = "cycleway", moped = "designated" }), true)
-
-equals("NL-ACC-10", "a snorfiets permission alone does not: it could be a G13",
-  gehandicapt({ highway = "cycleway", mofa = "yes", moped = "no" }), false)
-
-equals("NL-ACC-10", "a moped permission does not reopen a G13 the sign closed",
-  gehandicapt({ highway = "cycleway", traffic_sign = "NL:G13", moped = "yes" }), false)
-
-equals("NL-ACC-10", "a moped refusal does not close a signed G11",
-  gehandicapt({ highway = "cycleway", traffic_sign = "NL:G11", moped = "no" }), true)
-
-equals("NL-ACC-10", "a blanket ban on a cycleway is not lifted by a moped permission",
-  gehandicapt({ highway = "cycleway", access = "no", moped = "designated" }), false)
-
--- Ways closed to traffic except mopeds.
--- The exemption names bromfietsen, and art. 1 says this vehicle "geen
--- bromfiets is".
-equals("NL-ACC-10", "a moped exemption from a road closure does not reach it",
-  gehandicapt({ highway = "residential", vehicle = "no", moped = "yes" }), false)
-
-equals("NL-ACC-10", "nor from a destination-only closure",
-  gehandicapt({ highway = "unclassified", access = "destination", moped = "yes" }), false)
-
-equals("NL-ACC-10", "a moped permission does not open an uncertain track",
-  gehandicapt({ highway = "track", moped = "yes" }), false)
-
-equals("NL-ACC-10", "an explicit public permission does",
-  gehandicapt({ highway = "track", access = "yes" }), true)
-
--- C13 and C15 are often mapped as the access tags they imply rather than as a
--- sign. Off the cycle network a moped or mofa refusal is the trace they leave.
-equals("NL-ACC-06", "a moped refusal on a road closes it, as a C13 or C15 would",
-  gehandicapt({ highway = "residential", moped = "no" }), false)
-
-equals("NL-ACC-06", "so does a snorfiets refusal",
-  gehandicapt({ highway = "residential", mofa = "no" }), false)
-
-equals("NL-ACC-10", "a moped sidepath obligation does not bind it: art. 7 obliges nothing",
-  gehandicapt({ highway = "secondary", maxspeed = "50", moped = "use_sidepath" }), true)
-
-equals("NL-ACC-10", "nor does a bicycle one",
-  gehandicapt({ highway = "secondary", maxspeed = "50", bicycle = "use_sidepath" }), true)
-
--- Legally a C12 does not bind it (NL-DEF-05), but OSM's motor_vehicle covers
--- mopeds, so the same tag can be a C13 mapped loosely. The tag cannot say which
--- sign it was, so it closes. The sign itself is read exactly: see below.
-equals("NL-ACC-10", "a motor-vehicle refusal closes it: the tag cannot name its sign",
-  gehandicapt({ highway = "residential", motor_vehicle = "no" }), false)
-
-equals("NL-ACC-10", "so does a motorcar refusal",
-  gehandicapt({ highway = "residential", motorcar = "no" }), false)
-
-equals("NL-ACC-10", "a motor-vehicle refusal on a cycleway is the path's own nature",
-  gehandicapt({ highway = "cycleway", traffic_sign = "NL:G11", motor_vehicle = "no" }), true)
-
-equals("NL-ACC-10", "a bicycle refusal closes a road",
-  gehandicapt({ highway = "residential", bicycle = "no" }), false)
-
-equals("NL-ACC-10", "and a signed cycle path: a C14 or C15 may stand there",
-  gehandicapt({ highway = "cycleway", traffic_sign = "NL:G11", bicycle = "no" }), false)
-
-equals("NL-ACC-10", "a moped permission is no G12a where bicycles are refused",
-  gehandicapt({ highway = "cycleway", moped = "designated", bicycle = "no" }), false)
-
-equals("NL-ACC-10", "nor where snorfietsen are",
-  gehandicapt({ highway = "cycleway", moped = "designated", mofa = "no" }), false)
-
--- The road authority's verdict that mopeds may not use a carriageway does not
--- say whether a sidepath obliges them or a sign forbids them, and the second
--- binds this class.
-equals("NL-ACC-10", "an authority moped closure on a carriageway closes it",
-  gehandicapt({ highway = "secondary", maxspeed = "50", ["amgraph:bromfiets"] = "no" }), false)
-
-equals("NL-ACC-10", "and a snorfiets one",
-  gehandicapt({ highway = "secondary", maxspeed = "50", ["amgraph:snorfiets"] = "no" }), false)
-
-equals("NL-ACC-04", "a snorfiets placed on the roadway says nothing against it",
-  gehandicapt({ highway = "secondary", maxspeed = "50", ["amgraph:snorfiets"] = "on_roadway" }),
-  true)
-
-for _, sign in ipairs({ "C1", "C9", "C13", "C15", "G1", "G3", "G7", "G9" }) do
-  equals("NL-ACC-06", "sign " .. sign .. " closes it",
-    gehandicapt({ highway = "residential", traffic_sign = "NL:" .. sign }), false)
-end
-
-for _, sign in ipairs({ "C6", "C10", "C12", "C14" }) do
-  equals("NL-ACC-06", "sign " .. sign .. " does not: it binds motorvoertuigen or no motor",
-    gehandicapt({ highway = "residential", traffic_sign = "NL:" .. sign }), true)
-end
-
-equals("NL-ACC-06", "a signed width limit closes it, its width being unknown",
-  gehandicapt({ highway = "residential", traffic_sign = "NL:C18[1.5]" }), false)
-
-equals("NL-ACC-06", "C13 at a node closes it",
-  node_gehandicapt({ traffic_sign = "NL:C13" }), false)
-
-equals("NL-ACC-06", "a moped refusal at a node closes it",
-  node_gehandicapt({ barrier = "bollard", moped = "no" }), false)
-
-equals("NL-ACC-10", "a moped permission at a closed gate does not open it",
-  node_gehandicapt({ barrier = "gate", access = "no", moped = "yes" }), false)
-
-equals("NL-ACC-10", "an ordinary node is open",
-  node_gehandicapt({ highway = "crossing" }), true)
-
-equals("NL-ACC-10", "a motor-vehicle refusal at a node closes it",
-  node_gehandicapt({ barrier = "bollard", motor_vehicle = "no" }), false)
-
-equals("NL-ACC-10", "a bicycle refusal at a node closes it",
-  node_gehandicapt({ barrier = "gate", bicycle = "no" }), false)
-
--- It rides the bus carrier, and upstream lets a bus through a sump buster and
--- does not model a bus trap at all. Both exist to stop everything but a bus.
-equals("NL-ACC-10", "a bus trap closes it",
-  node_gehandicapt({ barrier = "bus_trap" }), false)
-
-equals("NL-ACC-10", "a sump buster closes it",
-  node_gehandicapt({ barrier = "sump_buster" }), false)
-
--- A one-way exemption for bromfietsen or snorfietsen is an onderbord naming
--- them, and this vehicle is neither.
-flags = access.carrier_flags(
-  { highway = "residential", oneway = "yes", ["oneway:moped"] = "no", ["oneway:mofa"] = "no" }, NL)
-equals("NL-ACC-10", "a moped one-way exemption does not reach it",
-  flags.bus_backward, "false")
-
-flags = access.carrier_flags({ highway = "cycleway", traffic_sign = "NL:G11" }, NL)
-equals("NL-ACC-10", "a verplicht fietspad opens the bus carrier",
-  flags.bus_forward, "true")
-
--- A one-way mapped for another vehicle may be the only trace of a C2, C3 or C4
--- that binds every vehicle. Its restriction binds; its exemption does not.
-for _, key in ipairs({ "oneway:bicycle", "oneway:mofa", "oneway:moped",
-  "oneway:motor_vehicle", "oneway:motorcar" }) do
-  flags = access.carrier_flags({ highway = "residential", [key] = "yes" }, NL)
-  equals("NL-ACC-10", key .. "=yes holds it to the one-way",
-    flags.bus_forward .. flags.bus_backward, "truefalse")
-end
-
-flags = access.carrier_flags({ highway = "cycleway", traffic_sign = "NL:G11", ["oneway:bicycle"] = "-1" }, NL)
-equals("NL-ACC-10", "a reversed cycle one-way holds it too",
-  flags.bus_forward .. flags.bus_backward, "falsetrue")
-
-flags = access.carrier_flags({ highway = "residential", ["oneway:bicycle:conditional"] = "yes @ (Mo-Fr)" }, NL)
-equals("NL-ACC-10", "a timed one-way for another vehicle closes both directions",
-  flags.bus_forward .. flags.bus_backward, "falsefalse")
-
 -- NL-ACC-11: a bus lane closes its own lane ------------------------------
 -- RVV art. 1 makes a busstrook a marked "gedeelte van de rijbaan", and art. 81
 -- reserves that part alone. The rest of the rijbaan stays where every other
@@ -1148,7 +946,7 @@ equals("NL-ACC-10", "a timed one-way for another vehicle closes both directions"
 -- Every case below carries that finding, so each closure is shown to survive
 -- it; the one without it is stated on its own.
 
-local function all_five(tags, untagged)
+local function all_three(tags, untagged)
   if not untagged then
     tags["amgraph:bus_lane_turns"] = "none"
   end
@@ -1160,119 +958,117 @@ local function all_five(tags, untagged)
   return table.concat(out, " ")
 end
 
-local OPEN = "snorfiets=yes bromfiets=yes brommobiel=yes gehandicaptenvoertuig=yes speed_pedelec=yes"
-local CLOSED = "snorfiets=no bromfiets=no brommobiel=no gehandicaptenvoertuig=no speed_pedelec=no"
+local OPEN = "snorfiets=yes bromfiets=yes brommobiel=yes"
+local CLOSED = "snorfiets=no bromfiets=no brommobiel=no"
 
 equals("NL-ACC-11", "a one-way road with a bus lane on the right stays open beside it",
-  all_five({ highway = "secondary", oneway = "yes",
+  all_three({ highway = "secondary", oneway = "yes",
     ["access:lanes"] = "yes|no", ["bus:lanes"] = "no|yes" }), OPEN)
 
 equals("NL-ACC-11", "a psv lane is a reserved strook like a bus lane",
-  all_five({ highway = "secondary", oneway = "yes",
+  all_three({ highway = "secondary", oneway = "yes",
     ["access:lanes"] = "yes|no", ["psv:lanes"] = "|designated" }), OPEN)
 
 equals("NL-ACC-11", "vehicle:lanes reads the same as access:lanes",
-  all_five({ highway = "secondary", oneway = "yes",
+  all_three({ highway = "secondary", oneway = "yes",
     ["vehicle:lanes"] = "no|yes", ["bus:lanes"] = "designated|" }), OPEN)
 
 equals("NL-ACC-11", "without the junction finding a turn may cross the bus lane",
-  all_five({ highway = "secondary", oneway = "yes",
+  all_three({ highway = "secondary", oneway = "yes",
     ["access:lanes"] = "yes|no", ["bus:lanes"] = "no|yes" }, true), CLOSED)
 
 -- OSM lists lanes in the way's own direction, and a reversed one-way is ridden
 -- against it, so the side the junction pass checked is not the side it means.
 equals("NL-ACC-11", "a reversed one-way is not read",
-  all_five({ highway = "secondary", oneway = "-1",
+  all_three({ highway = "secondary", oneway = "-1",
     ["vehicle:lanes"] = "no|yes", ["bus:lanes"] = "designated|" }), CLOSED)
 
 -- Jaagweg, Purmerend, OSM way 842123253. Closing it left the fiets/bromfietspad
 -- beside it and the carriageway both shut, which is the contradiction AGENTS.md
 -- forbids.
 equals("NL-ACC-11", "Jaagweg Purmerend opens to the classes its other tags allow",
-  all_five({ highway = "secondary", oneway = "yes", lanes = "2", maxspeed = "50",
+  all_three({ highway = "secondary", oneway = "yes", lanes = "2", maxspeed = "50",
     bicycle = "no", foot = "no", surface = "asphalt",
     ["access:lanes"] = "yes|no", ["bus:lanes"] = "no|yes" }),
-  "snorfiets=yes bromfiets=yes brommobiel=yes gehandicaptenvoertuig=no speed_pedelec=yes")
+  "snorfiets=yes bromfiets=yes brommobiel=yes")
 
 -- Zeeweg (N200), OSM way 1305543223, the only road to Bloemendaal aan Zee. The
 -- two-wheelers stay off it for its moped tags; only the lane closure goes.
 equals("NL-ACC-11", "Zeeweg opens to the brommobiel and nobody its moped tags refuse",
-  all_five({ highway = "primary", oneway = "yes", lanes = "2", maxspeed = "50",
+  all_three({ highway = "primary", oneway = "yes", lanes = "2", maxspeed = "50",
     bicycle = "no", foot = "no", mofa = "no", moped = "no",
     ["access:lanes"] = "no|yes", ["bus:lanes"] = "yes|" }),
-  "snorfiets=no bromfiets=no brommobiel=yes gehandicaptenvoertuig=no speed_pedelec=no")
+  "snorfiets=no bromfiets=no brommobiel=yes")
 
 equals("NL-ACC-11", "a closed lane that is not a bus lane keeps the road closed",
-  all_five({ highway = "secondary", oneway = "yes", ["access:lanes"] = "yes|no" }), CLOSED)
+  all_three({ highway = "secondary", oneway = "yes", ["access:lanes"] = "yes|no" }), CLOSED)
 
 equals("NL-ACC-11", "a closed lane beside a bus lane keeps the road closed",
-  all_five({ highway = "secondary", oneway = "yes",
+  all_three({ highway = "secondary", oneway = "yes",
     ["access:lanes"] = "no|yes|no", ["bus:lanes"] = "designated||" }), CLOSED)
 
 equals("NL-ACC-11", "a road whose every lane is closed stays closed",
-  all_five({ highway = "secondary", oneway = "yes",
+  all_three({ highway = "secondary", oneway = "yes",
     ["access:lanes"] = "no|no", ["bus:lanes"] = "designated|designated" }), CLOSED)
 
 equals("NL-ACC-11", "a restricted open lane is not an open lane",
-  all_five({ highway = "secondary", oneway = "yes",
+  all_three({ highway = "secondary", oneway = "yes",
     ["access:lanes"] = "destination|no", ["bus:lanes"] = "|designated" }), CLOSED)
 
 equals("NL-ACC-11", "a two-way road cannot say which direction its open lane runs",
-  all_five({ highway = "secondary",
+  all_three({ highway = "secondary",
     ["access:lanes"] = "yes|no", ["bus:lanes"] = "|designated" }), CLOSED)
 
 -- Jaagweg, Purmerend, OSM way 740662887: two-way, with the bus lane in the
 -- backward direction only.
 equals("NL-ACC-11", "a two-way road whose only closed lane is a backward bus lane opens",
-  all_five({ highway = "secondary", lanes = "2", maxspeed = "50",
+  all_three({ highway = "secondary", lanes = "2", maxspeed = "50",
     bicycle = "no", foot = "no", surface = "asphalt",
     ["access:lanes:backward"] = "yes|no", ["bus:lanes:backward"] = "no|yes" }),
-  "snorfiets=yes bromfiets=yes brommobiel=yes gehandicaptenvoertuig=no speed_pedelec=yes")
+  "snorfiets=yes bromfiets=yes brommobiel=yes")
 
 equals("NL-ACC-11", "bus lanes in both directions of a two-way road open it",
-  all_five({ highway = "secondary",
+  all_three({ highway = "secondary",
     ["access:lanes:forward"] = "yes|no", ["bus:lanes:forward"] = "|designated",
     ["vehicle:lanes:backward"] = "yes|no", ["psv:lanes:backward"] = "|designated" }), OPEN)
 
 equals("NL-ACC-11", "a two-way bus lane still needs the junction finding",
-  all_five({ highway = "secondary",
+  all_three({ highway = "secondary",
     ["access:lanes:backward"] = "yes|no", ["bus:lanes:backward"] = "no|yes" }, true), CLOSED)
 
 equals("NL-ACC-11", "a closed lane that is no bus lane in the other direction keeps it closed",
-  all_five({ highway = "secondary",
+  all_three({ highway = "secondary",
     ["access:lanes:forward"] = "yes|no", ["bus:lanes:forward"] = "|designated",
     ["access:lanes:backward"] = "yes|no" }), CLOSED)
 
 equals("NL-ACC-11", "a one-way road's directional lane keys are not read",
-  all_five({ highway = "secondary", oneway = "yes",
+  all_three({ highway = "secondary", oneway = "yes",
     ["access:lanes:forward"] = "yes|no", ["bus:lanes:forward"] = "|designated" }), CLOSED)
 
 equals("NL-ACC-11", "a directional access value is no lane and keeps the road closed",
-  all_five({ highway = "secondary", ["access:backward"] = "no",
+  all_three({ highway = "secondary", ["access:backward"] = "no",
     ["access:lanes:forward"] = "yes|no", ["bus:lanes:forward"] = "|designated" }), CLOSED)
 
 equals("NL-ACC-11", "a lane count that disagrees across keys cannot be read",
-  all_five({ highway = "secondary", oneway = "yes",
+  all_three({ highway = "secondary", oneway = "yes",
     ["access:lanes"] = "yes|yes|no", ["bus:lanes"] = "|designated" }), CLOSED)
 
 equals("NL-ACC-11", "the lane must be open under both general keys",
-  all_five({ highway = "secondary", oneway = "yes", ["vehicle:lanes"] = "no|yes",
+  all_three({ highway = "secondary", oneway = "yes", ["vehicle:lanes"] = "no|yes",
     ["access:lanes"] = "yes|no", ["bus:lanes"] = "|designated" }), CLOSED)
 
 equals("NL-ACC-11", "directional lane access stays unrepresentable",
-  all_five({ highway = "secondary", oneway = "yes",
+  all_three({ highway = "secondary", oneway = "yes",
     ["access:lanes:forward"] = "yes|no", ["bus:lanes:forward"] = "|designated" }), CLOSED)
 
 equals("NL-ACC-11", "the bus-lane reading never reaches a cycle path",
-  all_five({ highway = "cycleway", traffic_sign = "NL:G12a", oneway = "yes",
+  all_three({ highway = "cycleway", traffic_sign = "NL:G12a", oneway = "yes",
     ["access:lanes"] = "yes|no", ["bus:lanes"] = "|designated" }), CLOSED)
 
--- The gehandicaptenvoertuig goes with the bromfiets: a moped refusal may be the
--- trace of a sign that binds it too (NL-ACC-10).
 equals("NL-ACC-11", "a lane tag naming a class still closes that class",
-  all_five({ highway = "secondary", oneway = "yes",
+  all_three({ highway = "secondary", oneway = "yes",
     ["access:lanes"] = "yes|no", ["bus:lanes"] = "|designated", ["moped:lanes"] = "yes|no" }),
-  "snorfiets=yes bromfiets=no brommobiel=yes gehandicaptenvoertuig=no speed_pedelec=no")
+  "snorfiets=yes bromfiets=no brommobiel=yes")
 
 flags = access.carrier_flags({ highway = "secondary", oneway = "yes",
   ["access:lanes"] = "yes|no", ["bus:lanes"] = "|designated",
@@ -1299,27 +1095,27 @@ local function with(base, changes)
   return tags
 end
 
-equals("NL-ACC-12", "a confirmed onderbord opens the voetpad to the two-wheelers and the pedelec",
-  all_five(with(SQUARE, {}), true),
-  "snorfiets=yes bromfiets=yes brommobiel=no gehandicaptenvoertuig=no speed_pedelec=yes")
+equals("NL-ACC-12", "a confirmed onderbord opens the voetpad to the two-wheelers",
+  all_three(with(SQUARE, {}), true),
+  "snorfiets=yes bromfiets=yes brommobiel=no")
 
 equals("NL-ACC-12", "the map's permission alone opens nothing",
-  all_five(with(SQUARE, { ["amgraph:snorfiets"] = false, ["amgraph:bromfiets"] = false }), true),
+  all_three(with(SQUARE, { ["amgraph:snorfiets"] = false, ["amgraph:bromfiets"] = false }), true),
   CLOSED)
 
 equals("NL-ACC-12", "the authority's confirmation alone opens nothing",
-  all_five(with(SQUARE, { moped = false, mofa = false }), true), CLOSED)
+  all_three(with(SQUARE, { moped = false, mofa = false }), true), CLOSED)
 
 equals("NL-ACC-12", "each class is opened by its own confirmation",
-  all_five(with(SQUARE, { ["amgraph:snorfiets"] = false }), true),
-  "snorfiets=no bromfiets=yes brommobiel=no gehandicaptenvoertuig=no speed_pedelec=yes")
+  all_three(with(SQUARE, { ["amgraph:snorfiets"] = false }), true),
+  "snorfiets=no bromfiets=yes brommobiel=no")
 
 equals("NL-ACC-12", "an explicit refusal on the way wins over the confirmation",
-  all_five(with(SQUARE, { moped = "no" }), true),
-  "snorfiets=yes bromfiets=no brommobiel=no gehandicaptenvoertuig=no speed_pedelec=no")
+  all_three(with(SQUARE, { moped = "no" }), true),
+  "snorfiets=yes bromfiets=no brommobiel=no")
 
 equals("NL-ACC-12", "the value means nothing off a voetpad",
-  all_five(with(SQUARE, { highway = "steps" }), true), CLOSED)
+  all_three(with(SQUARE, { highway = "steps" }), true), CLOSED)
 
 -- A G12a defines a fiets/bromfietspad (NL-ACC-03) whatever highway value the
 -- mapper chose. Confirmed by the register, the way is read as the cycle path
@@ -1328,56 +1124,49 @@ local G12A_ON_PEDESTRIAN = { highway = "pedestrian", traffic_sign = "NL:G12a", m
   mofa = "yes", ["amgraph:snorfiets"] = "footpath_g12a", ["amgraph:bromfiets"] = "footpath_g12a" }
 
 equals("NL-ACC-12", "a confirmed G12a on a pedestrian way is a fiets/bromfietspad",
-  all_five(with(G12A_ON_PEDESTRIAN, {}), true),
-  "snorfiets=yes bromfiets=yes brommobiel=no gehandicaptenvoertuig=yes speed_pedelec=yes")
+  all_three(with(G12A_ON_PEDESTRIAN, {}), true),
+  "snorfiets=yes bromfiets=yes brommobiel=no")
 
 equals("NL-ACC-12", "unconfirmed, the pedestrian way stays closed",
-  all_five(with(G12A_ON_PEDESTRIAN,
+  all_three(with(G12A_ON_PEDESTRIAN,
     { ["amgraph:snorfiets"] = false, ["amgraph:bromfiets"] = false }), true), CLOSED)
 
--- NL-ACC-04: on a road the art. 5 lid 8 measure skipped, the G11 beside it is
--- where the snorfiets must ride. That obligation binds it alone, so the
--- gehandicaptenvoertuig keeps the carriageway.
-equals("NL-ACC-04", "sidepath closes the carriageway to the snorfiets alone",
-  all_five({ highway = "primary", ["amgraph:snorfiets"] = "sidepath" }, true),
-  "snorfiets=no bromfiets=yes brommobiel=yes gehandicaptenvoertuig=yes speed_pedelec=yes")
-
-equals("NL-ACC-04", "a plain refusal still closes the gehandicaptenvoertuig too",
-  all_five({ highway = "primary", ["amgraph:snorfiets"] = "no" }, true),
-  "snorfiets=no bromfiets=yes brommobiel=yes gehandicaptenvoertuig=no speed_pedelec=yes")
+equals("NL-ACC-04", "the authority's refusal closes the carriageway to the snorfiets",
+  all_three({ highway = "primary", ["amgraph:snorfiets"] = "no" }, true),
+  "snorfiets=no bromfiets=yes brommobiel=yes")
 
 -- NL-ACC-03: a cycle path a bromfiets may use is a G12a, the only sign that
 -- admits it to the cycle network (NL-ACC-02), and a G12a admits the snorfiets.
 equals("NL-ACC-03", "an unsigned cycleway open to mopeds is open to the snorfiets",
-  all_five({ highway = "cycleway", moped = "designated" }, true),
-  "snorfiets=yes bromfiets=yes brommobiel=no gehandicaptenvoertuig=yes speed_pedelec=yes")
+  all_three({ highway = "cycleway", moped = "designated" }, true),
+  "snorfiets=yes bromfiets=yes brommobiel=no")
 
 equals("NL-ACC-03", "unless the way refuses bicycles, which a G12a admits",
-  all_five({ highway = "cycleway", moped = "designated", bicycle = "no" }, true),
-  "snorfiets=no bromfiets=yes brommobiel=no gehandicaptenvoertuig=no speed_pedelec=yes")
+  all_three({ highway = "cycleway", moped = "designated", bicycle = "no" }, true),
+  "snorfiets=no bromfiets=yes brommobiel=no")
 
 equals("NL-ACC-03", "or refuses the snorfiets itself",
-  all_five({ highway = "cycleway", moped = "designated", mofa = "no" }, true),
-  "snorfiets=no bromfiets=yes brommobiel=no gehandicaptenvoertuig=no speed_pedelec=yes")
+  all_three({ highway = "cycleway", moped = "designated", mofa = "no" }, true),
+  "snorfiets=no bromfiets=yes brommobiel=no")
 
 equals("NL-ACC-03", "a mapped sign still decides over the inference",
-  all_five({ highway = "cycleway", moped = "designated", traffic_sign = "NL:G13" }, true),
-  "snorfiets=no bromfiets=yes brommobiel=no gehandicaptenvoertuig=no speed_pedelec=yes")
+  all_three({ highway = "cycleway", moped = "designated", traffic_sign = "NL:G13" }, true),
+  "snorfiets=no bromfiets=yes brommobiel=no")
 
 -- NL-ACC-13: a ferry carries what its operator admits, as the map states it.
-equals("NL-ACC-13", "a ferry open to mopeds carries the two-wheelers and the pedelec",
-  all_five({ route = "ferry", moped = "yes", mofa = "yes", motor_vehicle = "no" }, true),
-  "snorfiets=yes bromfiets=yes brommobiel=no gehandicaptenvoertuig=no speed_pedelec=yes")
+equals("NL-ACC-13", "a ferry open to mopeds carries the two-wheelers",
+  all_three({ route = "ferry", moped = "yes", mofa = "yes", motor_vehicle = "no" }, true),
+  "snorfiets=yes bromfiets=yes brommobiel=no")
 
 equals("NL-ACC-13", "a ferry that says nothing carries nobody",
-  all_five({ route = "ferry" }, true), CLOSED)
+  all_three({ route = "ferry" }, true), CLOSED)
 
 equals("NL-ACC-13", "a car ferry carries the brommobiel",
-  all_five({ route = "ferry", motor_vehicle = "yes", moped = "yes", mofa = "yes" }, true),
-  "snorfiets=yes bromfiets=yes brommobiel=yes gehandicaptenvoertuig=no speed_pedelec=yes")
+  all_three({ route = "ferry", motor_vehicle = "yes", moped = "yes", mofa = "yes" }, true),
+  "snorfiets=yes bromfiets=yes brommobiel=yes")
 
 equals("NL-ACC-13", "a ferry refusing mopeds carries none",
-  all_five({ route = "ferry", moped = "no", mofa = "no", bicycle = "yes" }, true), CLOSED)
+  all_three({ route = "ferry", moped = "no", mofa = "no", bicycle = "yes" }, true), CLOSED)
 
 -- Result -----------------------------------------------------------------
 

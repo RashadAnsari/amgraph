@@ -25,12 +25,10 @@ later puts each of its classes on the carrier of the class it matches:
 | --- | --- | --- |
 | `moped` | `snorfiets` | `motor_scooter` |
 | `motorcycle` | `bromfiets` | `motorcycle` |
-| `taxi` | `speed_pedelec` | `taxi` |
 | `truck` | `brommobiel` | `truck` |
-| `bus` | `gehandicaptenvoertuig` | `bus` |
 
 Identifiers retain their statutory language. A carrier is storage for a
-vehicle's access decision; it does not give that vehicle the rights of a taxi,
+vehicle's access decision; it does not give that vehicle the rights of a
 truck or motorcycle. Consumers must use the matching rules package for vehicle
 selection, speeds and powertrain-dependent legal zones. A route is lawful only
 once `amgraph_rules.legal_zones.LegalZones.blocks` has passed it against the

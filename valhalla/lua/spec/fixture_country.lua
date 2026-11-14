@@ -33,8 +33,8 @@ return function(version)
         access_keys = { "mofa" }, cycle_infrastructure = true },
       { overlay = "amgraph:heavy", code = "heavy", carrier = "motorcycle",
         access_keys = { "moped" }, cycle_infrastructure = true },
-      { overlay = "amgraph:pedelec", code = "pedelec", carrier = "taxi",
-        access_keys = { "speed_pedelec" }, cycle_infrastructure = true },
+      { overlay = "amgraph:trike", code = "trike", carrier = "taxi",
+        access_keys = { "motorcycle" }, cycle_infrastructure = true },
       { code = "quad", carrier = "truck",
         access_keys = { "motorcar", "motor_vehicle" }, cycle_infrastructure = false },
     },
@@ -43,11 +43,11 @@ return function(version)
     forbidden_when_motorroad = true,
 
     cycle_signs = {
-      { sign = "P1", admits = { light = true, heavy = true, pedelec = true } },
+      { sign = "P1", admits = { light = true, heavy = true, trike = true } },
     },
-    unsigned_cycleway = { light = true, heavy = false, pedelec = true },
+    unsigned_cycleway = { light = true, heavy = false, trike = true },
     closed_signs = {
-      { sign = "X1", bars = { light = true, heavy = true, pedelec = true, quad = true },
+      { sign = "X1", bars = { light = true, heavy = true, trike = true, quad = true },
         bars_entry = true },
     },
     all_directions_sign = "X2",

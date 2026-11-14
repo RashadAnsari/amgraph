@@ -102,17 +102,12 @@ def cycle_sign_of(properties: dict) -> str | None:
     return code if code in CYCLE_SIGNS else None
 
 
-def path_classes(
-    tags: dict, register_sign: str | None, *, infer_from_moped: bool = True
-) -> tuple[bool, bool]:
+def path_classes(tags: dict, register_sign: str | None) -> tuple[bool, bool]:
     """Which classes may use this path, as access.lua will decide it.
 
     Explicit OSM access tags beat a sign, an OSM sign beats the register, and
     the register reaches the snorfiets only — see the cycle branch in
     access.lua for why that asymmetry is what makes it safe.
-
-    `infer_from_moped=False` leaves out the NL-ACC-03 reading of a moped
-    permission, for the one caller that needs to know what it adds.
     """
     sign = osm_cycle_sign(tags)
     snorfiets, bromfiets = CYCLE_SIGNS.get(sign, (False, False))
@@ -127,7 +122,7 @@ def path_classes(
     vetoed = any(
         key in tags and stated_access(tags, (key,)) is not True for key in ("bicycle", "mofa")
     )
-    if infer_from_moped and sign is None and moped is True and not vetoed:
+    if sign is None and moped is True and not vetoed:
         snorfiets = True
     if mofa is not None:
         snorfiets = mofa

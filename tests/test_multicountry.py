@@ -106,13 +106,15 @@ def test_border_access_is_the_intersection_of_every_applicable_law(second_countr
     def flags():
         return dict(access.lua.carrier_flags(access.runtime.table_from(tags)))
 
-    assert flags()["taxi_forward"] == "true"
+    assert flags()["motorcycle_forward"] == "true"
+    # The Netherlands leaves the taxi carrier unused, so a border way closes it.
+    assert flags()["taxi_forward"] == "false"
     tags["amgraph:ZZ:traffic_sign"] = "ZZ:X1"
     assert set(flags().values()) == {"false"}
     del tags["amgraph:ZZ:traffic_sign"]
-    tags["amgraph:NL:traffic_sign"] = "NL:C13"
-    assert flags()["taxi_forward"] == "false"
-    assert flags()["truck_forward"] == "true"
+    tags["amgraph:NL:traffic_sign"] = "NL:C14"
+    assert flags()["moped_forward"] == "false"
+    assert flags()["motorcycle_forward"] == "true"
 
 
 @pytest.mark.parametrize("attribution", ["", "NL;XX", "ZZ;", "NL;NL"])
@@ -210,7 +212,7 @@ def test_merge_selects_the_geographic_owner_and_attributes_shared_nodes(
     access = Access("ZZ")
     flags = dict(access.lua.carrier_flags(access.runtime.table_from(objects[11])))
     assert flags["moped_forward"] == "false"
-    assert flags["taxi_forward"] == "true"
+    assert flags["motorcycle_forward"] == "true"
 
 
 def test_an_external_border_is_not_assumed_to_be_supported_on_both_sides():
