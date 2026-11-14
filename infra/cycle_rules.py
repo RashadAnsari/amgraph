@@ -74,16 +74,10 @@ def is_cycle_infrastructure(tags: dict) -> bool:
     )
 
 
-#: The one register sign that may open a path, and only for the snorfiets.
-#:
-#: Not G11, and the reason is art. 5 lid 8 rather than accuracy. A verplicht
-#: fietspad can carry an onderbord that sends snorfietsen to the rijbaan, and
-#: the register's coverage of onderborden is documented as poor, so a G11
-#: cannot be read as admitting a snorfiets without checking a subplate that may
-#: not be recorded. Art. 5 lid 8 reaches "het verkeersteken dat het verplichte
-#: fietspad aangeeft" and nothing else, so a G12a is untouched by it and can be
-#: read at face value. Amsterdam and Utrecht are why this matters in practice.
-OPENS_FOR_SNORFIETS = "G12a"
+#: The register signs that may open a path, and only for the snorfiets: art. 5
+#: lid 1 admits it to both, so confusing them costs nothing. Art. 5 lid 8 is
+#: applied to a register G11 exactly as to a mapped one, in Paths.way.
+OPENS_FOR_SNORFIETS = frozenset({"G11", "G12a"})
 
 
 def cycle_sign_of(properties: dict) -> str | None:
@@ -111,7 +105,7 @@ def path_classes(tags: dict, register_sign: str | None) -> tuple[bool, bool]:
     """
     sign = osm_cycle_sign(tags)
     snorfiets, bromfiets = CYCLE_SIGNS.get(sign, (False, False))
-    if sign is None and register_sign == OPENS_FOR_SNORFIETS:
+    if sign is None and register_sign in OPENS_FOR_SNORFIETS:
         snorfiets = True
 
     mofa = stated_access(tags, ("mofa",))

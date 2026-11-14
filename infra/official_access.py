@@ -341,7 +341,9 @@ def _near(index, points, radius: float):
 
 
 class ExemptCarriageways(osmium.SimpleHandler):
-    """Where the carriageways of the roads art. 5 lid 8 does not reach run.
+    """Where the carriageways of the roads art. 5 lid 8 does not reach run:
+    the roads a municipality excepted, and every road its decision does not
+    name where the decision names its roads.
 
     A bike path along one of them is often unnamed, so the road beside it is
     the only way to tell it is one; Paths asks this index.
@@ -357,7 +359,7 @@ class ExemptCarriageways(osmium.SimpleHandler):
         if highway not in ROUTABLE or highway in CYCLE_LIKE:
             return
         name = w.tags.get("name")
-        if not name or not any(name == road for road, _ in self.roads):
+        if not name:
             return
         try:
             points = [(n.lat, n.lon) for n in w.nodes if n.location.valid()]
@@ -365,7 +367,7 @@ class ExemptCarriageways(osmium.SimpleHandler):
             return
         for a, b in pairwise(points):
             mid = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
-            if on_exempt_road(name, mid, self.roads):
+            if on_exempt_road(name, mid, self.roads) or not lid8_reaches(name, mid):
                 self.index[(int(mid[0] / CELL), int(mid[1] / CELL))].append((mid, bearing(a, b)))
 
 
@@ -611,7 +613,7 @@ class Paths(osmium.SimpleHandler):
             ] += 1
         # Only worth writing where it changes the answer: the mapper's own sign
         # already decides the rest, and a tag nothing reads is noise.
-        elif (
+        if (
             register is not None
             and osm_cycle_sign(tags) is None
             and snorfiets

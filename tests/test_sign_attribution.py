@@ -94,13 +94,12 @@ class TestWhoMayUseThePath:
     def test_an_unsigned_path_admits_neither(self) -> None:
         assert path_classes({}, None) == (False, False)
 
-    def test_the_register_opens_a_g12a_for_the_snorfiets_only(self) -> None:
-        assert path_classes({}, OPENS_FOR_SNORFIETS) == (True, False)
-
-    def test_the_register_never_opens_a_g11(self) -> None:
-        """Art. 5 lid 8 can hang an onderbord on a G11 and the register's
-        onderbord coverage is poor, so a G11 cannot be read at face value."""
-        assert path_classes({}, "G11") == (False, False)
+    @pytest.mark.parametrize("sign", sorted(OPENS_FOR_SNORFIETS))
+    def test_the_register_opens_a_g11_or_g12a_for_the_snorfiets_only(self, sign) -> None:
+        """NL-ACC-02: art. 5 lid 1 admits the snorfiets to both, so confusing
+        them costs nothing. Art. 5 lid 8 is applied to a register G11 as to a
+        mapped one, in Paths.way."""
+        assert path_classes({}, sign) == (True, False)
 
     def test_the_register_never_opens_a_g13(self) -> None:
         assert path_classes({}, "G13") == (False, False)

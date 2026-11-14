@@ -54,7 +54,7 @@ _BLUE = Plate(background="#1256B8", foreground="#FAFAF8")
 #: Bump on any change below. Kept internally rather than served, so the legal
 #: freshness gate can force a periodic re-read of the primary sources without
 #: the string reading to a rider as a build number.
-RULES_VERSION = "nl-2026-11-14.1"
+RULES_VERSION = "nl-2026-11-14.2"
 
 #: Separate carriers keep each vehicle identity stable across country boundaries.
 CLASSES: tuple[VehicleClass, ...] = (
@@ -235,10 +235,10 @@ ART5_LID8_EXEMPT_ROADS: tuple[tuple[str, tuple[float, float, float, float]], ...
 #: Later decisions put it on Biltstraat (Gmb. 2022, 579834), Vleutenseweg (Gmb.
 #: 2022, 415248 and others), Jutfaseweg (Gmb. 2024, 210227), Paardenveld (Gmb.
 #: 2025, 410033) and Croeselaan (Gmb. 2026, 309624). All read 2026-11-13. The
-#: list's solitary paths have no street of their own, so an unnamed G11 in the
-#: municipality stays closed to the snorfiets: missing one costs a detour,
-#: opening a listed one costs a fine. A register or mapped onderbord closes any
-#: other G11 as well.
+#: list's solitary paths have no street of their own, so an unnamed G11 stays
+#: closed to the snorfiets unless it runs beside a road the decision does not
+#: name, where art. 5 lid 1 puts the snorfiets on it. A register or mapped
+#: onderbord closes any other G11 as well.
 ART5_LID8_LISTED: dict[str, tuple[tuple[float, float, float, float], frozenset[str]]] = {
     "Utrecht": (
         _UTRECHT,

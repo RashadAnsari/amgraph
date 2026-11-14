@@ -1,7 +1,7 @@
 # Netherlands rules
 
 Primary sources last reviewed **2026-11-14**. The country module declares
-`nl-2026-11-14.1`.
+`nl-2026-11-14.2`.
 
 [Documentation](../README.md) · [Shared country rules](../country-rules.md)
 
@@ -227,10 +227,11 @@ decision behind them that the search found, and the plate decides.
 fietspad aanwezig is" and lists each road and solitary path, and later
 decisions add Biltstraat, Vleutenseweg, Jutfaseweg, Paardenveld and Croeselaan.
 `ART5_LID8_LISTED` holds those names. Inside Utrecht a G11 loses the snorfiets
-only on a listed road, on an unnamed path (the list's solitary paths have no
-street of their own, so one may be listed), or where an onderbord is mapped or
-in the register. Every other Utrecht G11 admits and obliges it under art. 5
-lid 1, and only listed carriageways are stamped `on_roadway`.
+only on a listed road, on an unnamed path that runs beside no road the
+decision leaves out (the list's solitary paths have no street of their own, so
+one may be listed), or where an onderbord is mapped or in the register. Every
+other Utrecht G11 admits and obliges it under art. 5 lid 1, and only listed
+carriageways are stamped `on_roadway`.
 
 **Roads Amsterdam left out.** The Amsterdam decision does not reach its main
 through-routes:
@@ -667,7 +668,7 @@ is known without a sign.
 | `no` | The class may not be here | Anywhere |
 | `on_roadway` | Nothing lawful runs beside this carriageway, so lid 2 keeps it open | Carriageways only |
 | `roadway_only` | Art. 5 lid 8: this verplicht fietspad does not admit a snorfiets | Cycle paths, snorfiets key only |
-| `yes` | The register says a G12a stands on this unsigned path | Cycle paths, snorfiets key only |
+| `yes` | The register says a G11 or a G12a stands on this unsigned path | Cycle paths, snorfiets key only |
 | `footpath_onderbord` | The register's G7 beside this voetpad has an onderbord admitting the class, and the mapper permits it | Footway and pedestrian ways with a mapped G7 |
 | `footpath_g12a` | The register confirms the G12a mapped on this voetpad | Footway and pedestrian ways with a mapped G12a |
 
@@ -706,9 +707,10 @@ Register cycle signs are matched to OSM ways within 20 m, and only where no
 different cycle sign stands within 30 m. What decides the policy is the
 direction of a mix-up. A G11/G12a confusion is free for a snorfiets, because
 art. 5 lid 1 admits it to both, and opens a verplicht fietspad to a bromfiets,
-because G11 bars it and G12a admits it. So the register opens a path for the
-snorfiets only, and only on a G12a; a bromfiets gets the rijbaan from art. 6
-lid 2 instead.
+because G11 bars it and G12a admits it. So the register opens a G11 or a G12a
+for the snorfiets only; a bromfiets gets the rijbaan from art. 6 lid 2 instead.
+A register G11 goes through NL-ACC-04 like a mapped one, so art. 5 lid 8 still
+takes the snorfiets off it where a municipality's measure reaches it.
 
 The register's `validated` field is `n` on every sign, so it is not read.
 
