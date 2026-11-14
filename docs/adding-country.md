@@ -20,8 +20,12 @@ unsupported and every way in it closes:
 
 ## The procedure
 
-1. Read the country's traffic code from a primary source: class definitions,
-   cycle-infrastructure rules, the motorway prohibition, the speed articles.
+1. Read the country's traffic code from a primary source: how its law defines
+   the moped up to 45 km/h and the microcar up to 45 km/h (both EU categories),
+   whether it has rules for a moped up to 25 km/h, the cycle-infrastructure
+   rules, the motorway prohibition and the speed articles. Map its legal terms
+   onto `snorfiets`, `bromfiets` and `brommobiel`; where its law establishes no
+   rules for the 25 km/h moped, leave `snorfiets` out of that country.
 2. Write the rules into `docs/countries/<cc>.md`, in the same shape as the
    countries already there: verbatim quotes, links, retrieval dates, a status
    and a stable identifier per rule. The
@@ -29,14 +33,14 @@ unsupported and every way in it closes:
 3. Map each rule to OSM tags and **measure the tag coverage** on the country's
    own extract before trusting the mapping. The Dutch measurement is what
    revealed that `designated`, not `yes`, marks a bromfietspad.
-4. Add `valhalla/lua/countries/<cc>.lua`: the access classes and the carrier
-   each borrows, the OSM keys that name them, the sign vocabulary, the
+4. Add `valhalla/lua/countries/<cc>.lua`: the three classes on their fixed
+   carriers, the OSM keys that name them, the sign vocabulary, the
    unsigned-path assumption, the roads barred outright, and which signs bar
    entry. Name it in `M.COUNTRIES` in `access.lua`, and add assertions to
    `valhalla/lua/spec/access_spec.lua`.
 5. Add `rules/src/amgraph_rules/countries/<cc>.py` and name it in `_MODELLED` in
    `countries/__init__.py`. It declares the same classes with the same carriers,
-   and the runtime half of the law (see below).
+   names per language, and the runtime half of the law (see below).
 6. Declare the country's data sources and verification fixtures in the same
    module (see below). Then build and audit the combined graph containing every
    registered country.
@@ -52,7 +56,7 @@ Legal facts, read at run time as well as build time:
 | Symbol | Holds |
 | --- | --- |
 | `RULES_VERSION` | `<cc>-YYYY-MM-DD.N`. The date is when the law was last read |
-| `CLASSES` | One `VehicleClass` per class: code, carrier, construction limit, `ClassSpeeds`, statutory `Plate` colours, map marker, whether powertrain matters, and names per language |
+| `CLASSES` | One `VehicleClass` per supported vehicle, using the shared code and carrier: construction limit, `ClassSpeeds`, statutory `Plate` colours, map marker, whether powertrain matters, and names per language |
 | `CountryRules.default_class` | `None` where no class's rights are a subset of the others |
 | `MUNICIPAL_ZONES` | Powertrain-dependent and class-blocking by-laws, with `valid_from` / `valid_to` |
 | `CountryRules.address_search_bounds` | `SearchBounds` for address lookup |
@@ -105,8 +109,8 @@ plausible access from stale arithmetic, and nothing downstream can tell.
 - Two classes may not share a carrier. They would be indistinguishable in the
   graph, so `access.prepare` refuses the country rather than letting the router
   answer for whichever it happened to ask about.
-- Five access classes is the ceiling, being the stock Valhalla travel modes that
-  read an access bit of their own. See
+- Every class uses its shared code and carrier: `snorfiets` on `moped`,
+  `bromfiets` on `motorcycle`, `brommobiel` on `truck`. See
   [classes and carriers](architecture.md#classes-and-carriers).
 - `RULES_VERSION` must be within the 90-day review window, and `valid_until`
   must not have arrived. Both abort the build rather than warning.

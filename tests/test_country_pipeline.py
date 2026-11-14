@@ -35,10 +35,10 @@ def test_a_crossing_path_is_not_a_sidepath(second_country):
     paths.project = lambda x, y: (x, y)
     paths.lines = [LineString([(50, -50), (50, 50)]), LineString([(0, 10), (100, 10)])]
     paths.ids = [1, 2]
-    paths.permissions = [{"trike": "mandatory"}, {"light": "mandatory"}]
+    paths.permissions = [{"brommobiel": "mandatory"}, {"bromfiets": "mandatory"}]
     paths.finish()
     adjacent, evidence = paths.adjacent([(0, 0), (100, 0)])
-    assert adjacent == {"light": "mandatory"}
+    assert adjacent == {"bromfiets": "mandatory"}
     assert evidence == [2]
 
 
@@ -120,7 +120,7 @@ def test_a_border_way_keeps_its_verified_sidepath_obligation(tmp_path, second_co
     output = tmp_path / "result.osm.pbf"
     paths = SimpleNamespace(
         access=Access("ZZ"),
-        adjacent=lambda points: ({"light": "mandatory"}, [99]),
+        adjacent=lambda points: ({"bromfiets": "mandatory"}, [99]),
     )
     with osmium.SimpleWriter(output) as writer:
         Enrich(
@@ -133,7 +133,7 @@ def test_a_border_way_keeps_its_verified_sidepath_obligation(tmp_path, second_co
         ).apply_file(str(source), locations=True)
     ways = [dict(obj.tags) for obj in osmium.FileProcessor(output) if obj.is_way()]
     assert ways[0]["amgraph:country"] == "unsupported"
-    assert ways[0]["amgraph:light"] == "no"
+    assert ways[0]["amgraph:bromfiets"] == "no"
     assert ways[0]["amgraph:sidepaths"] == "99"
 
 

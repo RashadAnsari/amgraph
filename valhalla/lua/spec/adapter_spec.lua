@@ -38,9 +38,9 @@ equals("amgraph never reopens an upstream physical refusal",
 
 equals("unknown countries never borrow Dutch junction law",
   mask({ ["amgraph:country"] = "unsupported" }), 0)
-equals("an ordinary junction in the invented second country keeps its bits",
+equals("an ordinary junction in the invented second country keeps its vehicles' bits",
   mask({ ["amgraph:country"] = "ZZ", highway = "crossing" }) & (512 | 1024 | 8),
-  512 | 1024 | 8)
+  1024 | 8)
 equals("a closing sign shuts a junction in the invented second country",
   mask({ ["amgraph:country"] = "ZZ", traffic_sign = "ZZ:X1" }), 0)
 equals("NL-ACC-06 C9 closes a Dutch junction in the same graph",

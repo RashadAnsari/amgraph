@@ -5,10 +5,9 @@ serve rules that contradict each other on the cycle network. The mapping is set
 in the Lua transform at build time (``valhalla/lua/access.lua``); this
 module is the query-time half of the same decision, and the two must agree.
 
-What is *not* here is any particular country's classes. Those live in
-``countries/<cc>.py`` beside the rest of that country's law, because which
-vehicles exist and what they may do is a statutory question and this file is a
-question about Valhalla.
+What is *not* here is any particular country's law. What each vehicle may do
+lives in ``countries/<cc>.py``, because that is a statutory question and this
+file is a question about Valhalla.
 
 See AGENTS.md, the two files that must agree.
 """
@@ -22,23 +21,16 @@ from typing import Any
 class Carrier(StrEnum):
     """A stock Valhalla travel mode borrowed to carry one access class.
 
-    Five, and the count is the ceiling on how many access classes a country may
-    have. The Netherlands uses all five, so a later country maps each of its
-    classes onto the Dutch class it matches.
-
-    ``TAXI`` and ``BUS`` are the two other Valhalla costings that read an
-    access bit of their own: ``TaxiCost`` and ``BusCost`` both derive from
-    ``AutoCost`` with ``kTaxiAccess`` and ``kBusAccess``, verified against the
-    3.8.3 source. ``auto`` is deliberately not here — it is the mode the rest of
-    the toolchain assumes when it wants to know whether a road exists at all,
-    and borrowing it would make a diagnostic route mean something else.
+    One per supported vehicle, the same in every country: see
+    ``rules.SUPPORTED_CLASSES``. ``auto`` is deliberately not here: it is the
+    mode the rest of the toolchain assumes when it wants to know whether a road
+    exists at all, and borrowing it would make a diagnostic route mean something
+    else.
     """
 
     MOPED = "moped"
     MOTORCYCLE = "motorcycle"
     TRUCK = "truck"
-    TAXI = "taxi"
-    BUS = "bus"
 
 
 class Powertrain(StrEnum):
@@ -53,8 +45,6 @@ _COSTING: dict[Carrier, str] = {
     Carrier.MOPED: "motor_scooter",
     Carrier.MOTORCYCLE: "motorcycle",
     Carrier.TRUCK: "truck",
-    Carrier.TAXI: "taxi",
-    Carrier.BUS: "bus",
 }
 
 
@@ -86,10 +76,10 @@ def costing_options_for(
         # valhalla/build.sh sets it.
         options["disable_hierarchy_pruning"] = True
 
-    if costing in {"truck", "taxi", "bus"}:
-        # A four-wheeled class borrows an auto-family costing purely for its
-        # access bit. Those costings also apply vehicle dimensions to weight and
-        # height limits, and a lorry's or a coach's defaults would keep a
+    if costing == "truck":
+        # The microcar borrows the truck costing purely for its access bit.
+        # That costing also applies vehicle dimensions to weight and height
+        # limits, and a lorry's defaults would keep a
         # microcar out of half the country. Regulation (EU) 168/2013 Annex I
         # sets the L6e-B maxima. Using a representative small model here can
         # route a taller or heavier legal microcar through a signed restriction

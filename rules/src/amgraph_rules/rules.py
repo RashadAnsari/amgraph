@@ -88,19 +88,27 @@ class ClassSpeeds:
     cycle_path_rural: int | None
 
 
+#: The vehicles amgraph supports in every country, each on its fixed carrier
+#: (AGENTS.md, "Vehicle classes"). The moped and the microcar up to 45 km/h are
+#: EU categories, Regulation (EU) 168/2013 art. 4 and Annex I, so every country
+#: declares both. The moped up to 25 km/h is national law, so a country declares
+#: `snorfiets` only where its own law sets that vehicle's rules.
+SUPPORTED_CLASSES: Mapping[str, Carrier] = {
+    "snorfiets": Carrier.MOPED,
+    "bromfiets": Carrier.MOTORCYCLE,
+    "brommobiel": Carrier.TRUCK,
+}
+REQUIRED_CLASSES = frozenset({"bromfiets", "brommobiel"})
+
+
 @dataclass(frozen=True)
 class VehicleClass:
     """A vehicle a rider can pick, and the access class it rides on.
 
-    Each class names the carrier its country writes into the combined graph.
-    A vehicle crossing a supported border must retain that carrier; matching
-    rights within one country are not enough to merge identities that another
-    country's law distinguishes.
-
-    ``code`` is the identifier a client stores and sends back. It is a statutory
-    term in the country's own language — ``snorfiets``, not ``light_moped`` —
-    because the rules in ``docs/countries/<cc>.md`` are written against those words and a
-    translated identifier would put guesswork between the code and the law.
+    ``code`` and ``carrier`` are one of :data:`SUPPORTED_CLASSES`, the same in
+    every country, so a vehicle keeps its carrier across a supported border.
+    ``code`` is the identifier a client stores and sends back; riders see
+    ``names``, translated per language.
 
     ``plate`` carries the country's own colours; see :class:`Plate` for why they
     are values rather than a key. ``marker`` stays a **key**, because it names a
@@ -265,9 +273,14 @@ class CountryRules:
             raise ValueError(f"{self.code} declares a vehicle class code twice")
         if self.default_class is not None and self.default_class not in set(codes):
             raise ValueError(f"{self.code} defaults to a class it does not offer")
-        carriers = {vehicle.carrier for vehicle in self.classes}
-        if len(carriers) > len(Carrier):
-            raise ValueError(f"{self.code} needs more carriers than Valhalla has bits")
+        for vehicle in self.classes:
+            if SUPPORTED_CLASSES.get(vehicle.code) != vehicle.carrier:
+                raise ValueError(
+                    f"{self.code} declares {vehicle.code!r} on {vehicle.carrier}; a class "
+                    "must be one of the supported vehicles on its fixed carrier"
+                )
+        if missing := REQUIRED_CLASSES - set(codes):
+            raise ValueError(f"{self.code} does not declare {', '.join(sorted(missing))}")
 
     @property
     def class_codes(self) -> frozenset[str]:

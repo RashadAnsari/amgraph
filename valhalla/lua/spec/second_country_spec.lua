@@ -1,21 +1,21 @@
 -- Proves that a country the Netherlands does not resemble can be added to the
--- graph rules without editing access.lua.
+-- graph rules without editing access.lua, and that no country can step outside
+-- the three supported vehicles.
 --
--- This synthetic module is a fixture with invented sign codes; nothing here
--- may be cited as a rule. It must fail if somebody makes access.lua own
--- the Dutch answer again — three classes, `mofa`/`moped`/`motorcar`, a sign
--- that admits a class unconditionally or not at all.
+-- This synthetic module is a fixture with invented sign codes and OSM keys;
+-- nothing here may be cited as a rule. It must fail if somebody makes access.lua
+-- own the Dutch answer again: `mofa`/`moped`/`motorcar`, a sign that admits a
+-- class unconditionally or not at all.
 --
--- The three things it exercises are the three the research found a real country
--- needs:
+-- What it exercises:
 --
---   1. A FOURTH and a FIFTH access class. A country whose law tells apart more
---      classes than the Netherlands does needs a carrier for each.
---      `taxi` and `bus` are the two remaining Valhalla costings that read an
---      access bit of their own.
+--   1. A country without the 25 km/h moped, as one whose law sets no rules for
+--      it would be. Its `moped` carrier stays closed everywhere.
 --   2. A cycle rule CONDITIONAL on the way, not settled by the sign alone.
 --   3. Its own OSM key vocabulary, so the derived tag families follow the
---      country's classes rather than the Dutch ones.
+--      country's keys rather than the Dutch ones.
+--   4. The fixed vehicle set: an unknown class, a class on another carrier, a
+--      duplicate, or a missing required vehicle is refused when it loads.
 
 local access = assert(loadfile(arg[1] or "valhalla/lua/access.lua"))()
 
@@ -44,14 +44,9 @@ local FIXTURE = access.prepare({
   sign_prefix = "ZZ",
 
   classes = {
-    { code = "light", carrier = "moped", access_keys = { "mofa" },
-      bicycle_rules = true, cycle_infrastructure = true },
-    { code = "heavy", carrier = "motorcycle", access_keys = { "moped" },
+    { code = "bromfiets", carrier = "motorcycle", access_keys = { "zz_moped" },
       cycle_infrastructure = true },
-    -- The fourth and fifth, on the two spare carriers.
-    { code = "trike", carrier = "taxi", access_keys = { "motorcycle" },
-      cycle_infrastructure = true },
-    { code = "quad", carrier = "bus", access_keys = { "motorcar", "motor_vehicle" },
+    { code = "brommobiel", carrier = "truck", access_keys = { "zz_car" },
       cycle_infrastructure = false },
   },
 
@@ -61,20 +56,15 @@ local FIXTURE = access.prepare({
   cycle_signs = {
     {
       sign = "P1",
-      admits = {
-        light = true,
-        -- Invented: admission depends on the fixture way
-        -- being faster than 50. This is not any country's law.
-        heavy = limit_above(50),
-        trike = true,
-      },
+      -- Invented: admission depends on the fixture way being faster than 50.
+      -- This is not any country's law.
+      admits = { bromfiets = limit_above(50) },
     },
   },
 
-  unsigned_cycleway = { light = false, heavy = false, trike = false },
+  unsigned_cycleway = { bromfiets = false },
   closed_signs = {
-    { sign = "X1", bars = { light = true, heavy = true, trike = true, quad = true },
-      bars_entry = true },
+    { sign = "X1", bars = { bromfiets = true, brommobiel = true }, bars_entry = true },
   },
   all_directions_sign = "X2",
   oneway_signs = {},
@@ -84,57 +74,41 @@ local function flags_for(tags)
   return access.carrier_flags(tags, FIXTURE)
 end
 
--- Four classes, four carriers, and the two new ones carry real answers -------
+-- Two vehicles, and the one the country lacks stays closed -------------------
 
 local road = flags_for({ highway = "residential" })
-equals("an ordinary road opens all four carriers", table.concat({
-  road.moped_forward, road.motorcycle_forward, road.taxi_forward, road.bus_forward,
-}, " "), "true true true true")
+equals("an ordinary road opens the two declared vehicles", table.concat({
+  road.motorcycle_forward, road.truck_forward,
+}, " "), "true true")
+equals("and keeps the 25 km/h moped's carrier closed", road.moped_forward, "false")
 
-local quad_closed = flags_for({ highway = "residential", motorcar = "no" })
-equals("a class on the bus carrier is closed by its own key",
-  quad_closed.bus_forward, "false")
-equals("and closing it leaves the other three alone", table.concat({
-  quad_closed.moped_forward, quad_closed.motorcycle_forward, quad_closed.taxi_forward,
-}, " "), "true true true")
-
-local trike_closed = flags_for({ highway = "residential", motorcycle = "no" })
-equals("a class on the taxi carrier is closed by its own key",
-  trike_closed.taxi_forward, "false")
-equals("and it is a class of its own, not the heavy class's shadow",
-  trike_closed.motorcycle_forward, "true")
+local car_closed = flags_for({ highway = "residential", zz_car = "no" })
+equals("a class is closed by this country's own key", car_closed.truck_forward, "false")
+equals("and closing it leaves the other alone", car_closed.motorcycle_forward, "true")
 
 -- The conditional cycle rule ------------------------------------------------
--- The single thing three static booleans per sign could not say.
 
 local slow_path = flags_for({ highway = "cycleway", traffic_sign = "ZZ:P1", maxspeed = "50" })
 equals("the conditional class is refused where the road is 50",
   slow_path.motorcycle_forward, "false")
-equals("while the unconditional ones are admitted", table.concat({
-  slow_path.moped_forward, slow_path.taxi_forward,
-}, " "), "true true")
 
 local fast_path = flags_for({ highway = "cycleway", traffic_sign = "ZZ:P1", maxspeed = "70" })
 equals("and admitted where the road is faster than 50",
   fast_path.motorcycle_forward, "true")
-
 equals("a class barred from cycle infrastructure stays off it whatever the sign",
-  fast_path.bus_forward, "false")
+  fast_path.truck_forward, "false")
 
 -- The derived key families follow this country's keys ------------------------
 
+local lanes = flags_for({ highway = "residential", ["zz_moped:lanes"] = "yes|no" })
 equals("a lane-level tag on this country's own key closes that class",
-  flags_for({ highway = "residential", ["motorcycle:lanes"] = "yes|no" }).taxi_forward,
-  "false")
-
-equals("and leaves the classes that key does not name open",
-  flags_for({ highway = "residential", ["motorcycle:lanes"] = "yes|no" }).moped_forward,
-  "true")
+  lanes.motorcycle_forward, "false")
+equals("and leaves the class that key does not name open", lanes.truck_forward, "true")
 
 equals("this country's keys are what consulted_keys reports",
   (function()
     for _, key in ipairs(access.consulted_keys(FIXTURE)) do
-      if key == "maxspeed:motorcycle:backward" then
+      if key == "maxspeed:zz_moped:backward" then
         return true
       end
     end
@@ -144,33 +118,35 @@ equals("this country's keys are what consulted_keys reports",
 -- Every carrier is named even when the country uses none of them -------------
 
 local unattributed = access.carrier_flags({ highway = "residential" }, nil)
-equals("a way with no country closes every carrier this build could borrow",
+equals("a way with no country closes every carrier this build names",
   table.concat({
     unattributed.moped_forward, unattributed.motorcycle_forward,
     unattributed.truck_forward, unattributed.taxi_forward, unattributed.bus_forward,
   }, " "), "false false false false false")
 
-equals("a carrier this country does not use is still named and still closed",
-  flags_for({ highway = "residential" }).truck_forward, "false")
+equals("the carriers no vehicle uses are named and closed", table.concat({
+  road.taxi_forward, road.bus_forward,
+}, " "), "false false")
 
--- Two classes may not share a carrier ----------------------------------------
--- They would be indistinguishable in the graph, so the router would answer for
--- whichever it happened to ask about.
+-- Only the three vehicles, each on its own carrier ---------------------------
 
-local ok = pcall(access.prepare, {
-  code = "YY",
-  classes = {
-    { code = "one", carrier = "moped", access_keys = { "mofa" } },
-    { code = "two", carrier = "moped", access_keys = { "moped" } },
-  },
-})
-equals("two classes on one carrier is refused when the country loads", ok, false)
+local function loads(classes)
+  return (pcall(access.prepare, { code = "YY", classes = classes }))
+end
 
-local unknown_carrier = pcall(access.prepare, {
-  code = "YY",
-  classes = { { code = "one", carrier = "hovercraft", access_keys = { "mofa" } } },
-})
-equals("a carrier Valhalla does not have is refused too", unknown_carrier, false)
+local BROMFIETS = { code = "bromfiets", carrier = "motorcycle", access_keys = { "moped" } }
+local BROMMOBIEL = { code = "brommobiel", carrier = "truck", access_keys = { "motorcar" } }
+
+equals("the two required vehicles alone load", loads({ BROMFIETS, BROMMOBIEL }), true)
+equals("a class outside the supported three is refused", loads({
+  BROMFIETS, BROMMOBIEL, { code = "trike", carrier = "taxi", access_keys = { "motorcycle" } },
+}), false)
+equals("a supported class on another carrier is refused", loads({
+  BROMFIETS, { code = "brommobiel", carrier = "bus", access_keys = { "motorcar" } },
+}), false)
+equals("a class declared twice is refused", loads({ BROMFIETS, BROMFIETS, BROMMOBIEL }), false)
+equals("a country without the microcar is refused", loads({ BROMFIETS }), false)
+equals("a country without the 45 km/h moped is refused", loads({ BROMMOBIEL }), false)
 
 print(string.format("%d second-country checks, %d failures", checks, failures))
 os.exit(failures == 0 and 0 or 1)

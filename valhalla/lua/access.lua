@@ -2,9 +2,9 @@
 -- tags. No Valhalla, no globals, no side effects, so every rule can be
 -- unit-tested against a tag table.
 --
--- A class owns a carrier bit throughout the combined graph. Two vehicles
--- distinguished by any supported country's law need distinct carriers even
--- where another country gives them identical road rights.
+-- amgraph supports three vehicles in every country, each on one carrier bit
+-- throughout the combined graph (M.SUPPORTED_CLASSES), so a vehicle stays the
+-- same vehicle across a border.
 --
 -- This file holds what is the same wherever the rider is: how to read an access
 -- tag, how a one-way binds, that a footway is never open to a motor. What
@@ -28,12 +28,11 @@ local M = {}
 -- the costing that reads it. `mask` is the bit in Valhalla's node access mask
 -- (baldr/graphconstants.h), which nodes_proc clears when a class may not pass.
 --
--- Five, and the count is the ceiling on how many classes a country may have.
--- The Netherlands uses three; `taxi` and `bus` stay closed on every way. Both
--- read access bits of their own, deriving from AutoCost with kTaxiAccess and
--- kBusAccess respectively, verified against the 3.8.3 source. `auto` is deliberately left alone: it is
--- the mode everything else in the toolchain assumes when it wants to know
--- whether a road exists at all.
+-- `taxi` and `bus` carry no vehicle. They read access bits of their own, so
+-- they are named here only to be closed on every way, which keeps upstream's
+-- ordinary road access off them. `auto` is deliberately left alone: it is the
+-- mode everything else in the toolchain assumes when it wants to know whether
+-- a road exists at all.
 M.CARRIERS = {
   moped      = { forward = "moped_forward",      backward = "moped_backward",      mask = 512 },
   motorcycle = { forward = "motorcycle_forward", backward = "motorcycle_backward", mask = 1024 },
@@ -41,6 +40,13 @@ M.CARRIERS = {
   taxi       = { forward = "taxi_forward",       backward = "taxi_backward",       mask = 32 },
   bus        = { forward = "bus_forward",        backward = "bus_backward",        mask = 64 },
 }
+
+--- The vehicles amgraph supports in every country, each on its fixed carrier
+-- (AGENTS.md, "Vehicle classes"). `bromfiets` and `brommobiel` are EU
+-- categories every country declares; `snorfiets`, the 25 km/h moped, is national
+-- law, so a country declares it only where its own law sets its rules.
+M.SUPPORTED_CLASSES = { snorfiets = "moped", bromfiets = "motorcycle", brommobiel = "truck" }
+M.REQUIRED_CLASSES = { "bromfiets", "brommobiel" }
 
 --- Every carrier flag, in a fixed order, so an unsupported way can be closed
 -- without knowing which country it would have belonged to.
@@ -216,13 +222,11 @@ function M.prepare(country)
   end
 
   for index, class in ipairs(country.classes) do
-    assert(M.CARRIERS[class.carrier],
-      "class " .. class.code .. " names no carrier this Valhalla build has")
-    for other = 1, index - 1 do
-      assert(country.classes[other].carrier ~= class.carrier,
-        "classes " .. country.classes[other].code .. " and " .. class.code ..
-        " share carrier " .. class.carrier .. ", so neither can be told from the other")
-    end
+    assert(M.SUPPORTED_CLASSES[class.code] == class.carrier,
+      "class " .. tostring(class.code) .. " on " .. tostring(class.carrier) ..
+      " is not one of the supported vehicles on its fixed carrier")
+    assert(not country.class_index[class.code],
+      "class " .. class.code .. " is declared twice")
     country.class_index[class.code] = index
 
     -- Every key that binds this class: the ones that decide its access, the
@@ -317,6 +321,9 @@ function M.prepare(country)
     consult(key)
   end
 
+  for _, code in ipairs(M.REQUIRED_CLASSES) do
+    assert(country.class_index[code], (country.code or "?") .. " does not declare " .. code)
+  end
   return country
 end
 

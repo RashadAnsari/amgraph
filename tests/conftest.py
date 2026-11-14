@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "infra"))
 
 from amgraph_rules import countries
 from amgraph_rules.countries.nl import NETHERLANDS
-from amgraph_rules.profiles import Carrier, Powertrain
+from amgraph_rules.profiles import Powertrain
 from amgraph_rules.rules import BoundaryDocument, CountryRules, MunicipalZone, SearchBounds
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,30 +34,18 @@ FIXTURE_LUA = ROOT / "valhalla/lua/spec/fixture_country.lua"
 #: Dated today so require_current's review window always admits it.
 RULES_VERSION = f"zz-{datetime.now(UTC).date().isoformat()}.1"
 
-#: The Dutch carriers under invented codes, so a border way is open to a carrier
-#: only where both countries have a class on it, and no Dutch code can stand in.
-#: The bus carrier is left out on purpose: a carrier only one side uses is the
-#: case that proves a border way closes it.
-_CODES = {Carrier.MOPED: "light", Carrier.MOTORCYCLE: "heavy", Carrier.TRUCK: "quad"}
+#: The two required vehicles, without the 25 km/h moped, as a country whose law
+#: sets no rules for one declares them. A border way is then closed to the moped
+#: carrier, which only the Dutch side uses.
 CLASSES = (
-    *(
-        replace(vehicle, code=_CODES[vehicle.carrier], names={"en": _CODES[vehicle.carrier]})
-        for vehicle in NETHERLANDS.classes
-    ),
-    # A class on a carrier the Netherlands leaves unused, as a country whose law
-    # tells apart more classes would have.
-    replace(
-        NETHERLANDS.vehicle("bromfiets"),
-        code="trike",
-        carrier=Carrier.TAXI,
-        names={"en": "trike"},
-    ),
+    replace(NETHERLANDS.vehicle("bromfiets"), names={"en": "Zed moped"}),
+    replace(NETHERLANDS.vehicle("brommobiel"), names={"en": "Zed microcar"}),
 )
 
 MUNICIPAL_ZONES = {
     "Zedtown": MunicipalZone(
         municipality_id="ZZ0001",
-        powertrain_classes=frozenset({"light", "heavy", "trike"}),
+        powertrain_classes=frozenset({"bromfiets"}),
         allowed_powertrains=frozenset({Powertrain.ELECTRIC}),
         blocked_classes=frozenset(),
     ),
@@ -77,8 +65,8 @@ ZEDLAND = CountryRules(
 
 
 def sidepath_obligation(tags: dict[str, str], code: str) -> str:
-    """Invented: the light class must take any path it may use, the others may."""
-    return "mandatory" if code == "light" else "optional"
+    """Invented: the moped must take any path it may use, the microcar may."""
+    return "mandatory" if code == "bromfiets" else "optional"
 
 
 def enrich_way(source: dict[str, str], adjacent: dict[str, str]) -> dict[str, str]:
@@ -106,7 +94,7 @@ def _module() -> types.ModuleType:
         ZONE_ID_KEY="code",
         BOUNDARY_FILENAME="zedland.geojson",
         ROUTE_CHECKS=tuple(((0.5, 1.1 + i / 20), (0.5, 1.2 + i / 20)) for i in range(10)),
-        ACCESS_PROBES=(("light", "heavy"), ("trike", "quad")),
+        ACCESS_PROBES=(("bromfiets", "brommobiel"),),
         # ZZ lies east of the test Netherlands, so these cross the shared border.
         BORDER_ROUTE_CHECKS={"NL": (((0.5, 1.1), (0.5, 0.9)), ((0.5, 0.9), (0.5, 1.1)))},
         sidepath_obligation=sidepath_obligation,

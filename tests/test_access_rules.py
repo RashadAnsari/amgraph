@@ -227,7 +227,7 @@ class DutchRules:
         return self.flags(tags)
 
     def flags(self, tags: dict[str, str]) -> tuple[bool, bool, bool]:
-        """The forward answer per class. The spare carriers stay closed."""
+        """The forward answer per class. The carriers no vehicle uses stay closed."""
         flags = dict(self._access.carrier_flags(self._runtime.table_from(tags), self._country))
         for carrier in ("taxi", "bus"):
             for direction in ("forward", "backward"):

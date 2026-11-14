@@ -13,10 +13,9 @@ Primary sources last reviewed **2026-11-14**. The country module declares
 | `bromfiets` | yellow | 45 | Must use **G12a only**. G11 and G13 are closed |
 | `brommobiel` | yellow | 45 | **None.** Roadway only |
 
-The enum values stay Dutch; the labels riders see are English. `snorfiets` in
-code, "Light moped" on screen. The identifiers are statutory terms and the
-rules are written against them, so a translated identifier would put guesswork
-between the code and the law.
+The three are the vehicles amgraph supports in every country (see AGENTS.md);
+in the Netherlands they coincide with the statutory snorfiets, bromfiets and
+brommobiel. Riders see translated labels, "Light moped" for `snorfiets`.
 
 **NL-DEF-01 — snorfiets** `VERIFIED`
 > "bromfiets die blijkens de gegevens in het kentekenregister is geconstrueerd

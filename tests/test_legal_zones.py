@@ -6,7 +6,6 @@ import json
 import math
 import sys
 import time
-from dataclasses import replace
 from datetime import date
 from pathlib import Path
 
@@ -17,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "infra"))
 from amgraph_rules.countries import rules_for
 from amgraph_rules.countries.nl import MUNICIPAL_ZONES, NETHERLANDS
 from amgraph_rules.legal_zones import LegalZoneFileError, LegalZoneRule, LegalZones, Point
-from amgraph_rules.profiles import Carrier, Powertrain
+from amgraph_rules.profiles import Powertrain
 from zones import zone_feature
 
 TODAY = date(2026, 9, 25)
@@ -234,8 +233,8 @@ class TestAVehicleFromAcrossTheBorder:
         ("country", "code", "shape"),
         [
             ("NL", "bromfiets", IN_AMSTERDAM),
-            ("ZZ", "heavy", IN_AMSTERDAM),
-            ("ZZ", "heavy", IN_ZEDTOWN),
+            ("ZZ", "bromfiets", IN_AMSTERDAM),
+            ("ZZ", "bromfiets", IN_ZEDTOWN),
             ("NL", "bromfiets", IN_ZEDTOWN),
         ],
     )
@@ -248,7 +247,7 @@ class TestAVehicleFromAcrossTheBorder:
     @pytest.mark.parametrize(
         ("country", "code", "shape"),
         [
-            ("ZZ", "heavy", IN_AMSTERDAM),
+            ("ZZ", "bromfiets", IN_AMSTERDAM),
             ("NL", "bromfiets", IN_ZEDTOWN),
         ],
     )
@@ -263,7 +262,7 @@ class TestAVehicleFromAcrossTheBorder:
         assert not self._zones(tmp_path).blocks(
             BROMMOBIEL, Powertrain.COMBUSTION, IN_AMSTERDAM, on=TODAY
         )
-        # And read as Zedland's quad, which Zedtown's rule does not reach either.
+        # And read as Zedland's brommobiel, which Zedtown's rule does not reach either.
         assert not self._zones(tmp_path).blocks(
             BROMMOBIEL, Powertrain.COMBUSTION, IN_ZEDTOWN, on=TODAY
         )
@@ -273,11 +272,11 @@ class TestAVehicleFromAcrossTheBorder:
     ) -> None:
         """No class to read it as means no rule can admit it.
 
-        Zedland has no class on the bus carrier, so a vehicle on it has nothing
-        to be read as there.
+        Zedland declares no 25 km/h moped, so a Dutch snorfiets has nothing to
+        be read as there.
         """
-        stranger = replace(BROMFIETS, code="bus_class", carrier=Carrier.BUS)
-        assert self._zones(tmp_path).blocks(stranger, Powertrain.ELECTRIC, IN_ZEDTOWN, on=TODAY)
+        snorfiets = rules_for("NL").vehicle("snorfiets")
+        assert self._zones(tmp_path).blocks(snorfiets, Powertrain.ELECTRIC, IN_ZEDTOWN, on=TODAY)
 
 
 class TestARuleThatIsNotYetInForce:

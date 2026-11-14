@@ -107,13 +107,13 @@ def test_border_access_is_the_intersection_of_every_applicable_law(second_countr
         return dict(access.lua.carrier_flags(access.runtime.table_from(tags)))
 
     assert flags()["motorcycle_forward"] == "true"
-    # The Netherlands leaves the taxi carrier unused, so a border way closes it.
-    assert flags()["taxi_forward"] == "false"
+    # Zedland declares no 25 km/h moped, so a border way closes its carrier.
+    assert flags()["moped_forward"] == "false"
     tags["amgraph:ZZ:traffic_sign"] = "ZZ:X1"
     assert set(flags().values()) == {"false"}
     del tags["amgraph:ZZ:traffic_sign"]
-    tags["amgraph:NL:traffic_sign"] = "NL:C14"
-    assert flags()["moped_forward"] == "false"
+    tags["amgraph:NL:traffic_sign"] = "NL:C6"
+    assert flags()["truck_forward"] == "false"
     assert flags()["motorcycle_forward"] == "true"
 
 
@@ -168,7 +168,7 @@ def test_merge_selects_the_geographic_owner_and_attributes_shared_nodes(
                     continue
                 tags = {"highway": "residential", "maxspeed": "30", "amgraph:country": code}
                 if code == "ZZ":
-                    tags.update({"amgraph:rules": module.RULES_VERSION, "amgraph:light": "no"})
+                    tags.update({"amgraph:rules": module.RULES_VERSION, "amgraph:bromfiets": "no"})
                 writer.add_way(
                     osmium.osm.mutable.Way(id=identifier, version=1, nodes=nodes, tags=tags)
                 )
@@ -201,7 +201,7 @@ def test_merge_selects_the_geographic_owner_and_attributes_shared_nodes(
         objects[obj.id] = dict(obj.tags)
     assert objects[3]["amgraph:country"] == "NL;ZZ"
     assert objects[10]["amgraph:country"] == "NL"
-    assert "amgraph:light" not in objects[10]
+    assert "amgraph:bromfiets" not in objects[10]
     if missing_owner:
         assert objects[11]["amgraph:country"] == "unsupported"
         access = Access("ZZ")
@@ -211,8 +211,11 @@ def test_merge_selects_the_geographic_owner_and_attributes_shared_nodes(
     assert objects[11]["amgraph:country"] == "NL;ZZ"
     access = Access("ZZ")
     flags = dict(access.lua.carrier_flags(access.runtime.table_from(objects[11])))
+    # Zedland has no 25 km/h moped, and its own overlay closes its 45 km/h one
+    # here; the microcar both countries declare stays open.
     assert flags["moped_forward"] == "false"
-    assert flags["motorcycle_forward"] == "true"
+    assert flags["motorcycle_forward"] == "false"
+    assert flags["truck_forward"] == "true"
 
 
 def test_an_external_border_is_not_assumed_to_be_supported_on_both_sides():
@@ -405,7 +408,7 @@ def test_a_manifest_cannot_certify_two_disconnected_country_graphs(tmp_path, sec
     (tmp_path / "routes.json").write_text(json.dumps(routes))
     result = manifest.build(1, "test", tmp_path)
     assert set(result["countries"]) == {"NL", "ZZ"}
-    assert result["route_checks"]["borders"]["ZZ-NL/taxi"] == {"attempted": 2, "passed": 2}
+    assert result["route_checks"]["borders"]["ZZ-NL/motorcycle"] == {"attempted": 2, "passed": 2}
     assert "country" not in result
     published = json.dumps(result)
     assert not any(key in published for key in ("min_lat", "max_lon", "summary")), (

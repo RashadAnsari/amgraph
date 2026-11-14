@@ -3,12 +3,13 @@
 -- Only the Netherlands is modelled, and the multi-country machinery (border
 -- attribution, the merge, the manifest, per-country zones and carriers) still
 -- has to be proved with two, or it rots unseen until somebody adds a country.
--- Nothing here is law and nothing may be cited as a rule. Its class codes,
--- sign codes and OSM keys are invented or chosen so that no Dutch answer can
--- stand in for one of its answers by accident.
+-- Nothing here is law and nothing may be cited as a rule. Its sign codes are
+-- invented so that no Dutch answer can stand in for one of its answers by
+-- accident.
 --
--- It shares the four Dutch carriers, because a way on a border is open to a
--- carrier only where both countries have a class on it. It trusts only
+-- It declares the two required vehicles and leaves out the 25 km/h moped, as a
+-- country whose law has no rules for one would: a way on its border is then
+-- closed to the `moped` carrier, which only the Dutch side uses. It trusts only
 -- enriched ways, as a country without the Dutch authority overlay must, by
 -- requiring the `amgraph:rules` stamp its Python half writes.
 --
@@ -29,13 +30,9 @@ return function(version)
     extra_keys = { "amgraph:rules" },
 
     classes = {
-      { overlay = "amgraph:light", code = "light", carrier = "moped",
-        access_keys = { "mofa" }, cycle_infrastructure = true },
-      { overlay = "amgraph:heavy", code = "heavy", carrier = "motorcycle",
+      { overlay = "amgraph:bromfiets", code = "bromfiets", carrier = "motorcycle",
         access_keys = { "moped" }, cycle_infrastructure = true },
-      { overlay = "amgraph:trike", code = "trike", carrier = "taxi",
-        access_keys = { "motorcycle" }, cycle_infrastructure = true },
-      { code = "quad", carrier = "truck",
+      { code = "brommobiel", carrier = "truck",
         access_keys = { "motorcar", "motor_vehicle" }, cycle_infrastructure = false },
     },
 
@@ -43,11 +40,11 @@ return function(version)
     forbidden_when_motorroad = true,
 
     cycle_signs = {
-      { sign = "P1", admits = { light = true, heavy = true, trike = true } },
+      { sign = "P1", admits = { bromfiets = true } },
     },
-    unsigned_cycleway = { light = true, heavy = false, trike = true },
+    unsigned_cycleway = { bromfiets = false },
     closed_signs = {
-      { sign = "X1", bars = { light = true, heavy = true, trike = true, quad = true },
+      { sign = "X1", bars = { bromfiets = true, brommobiel = true },
         bars_entry = true },
     },
     all_directions_sign = "X2",

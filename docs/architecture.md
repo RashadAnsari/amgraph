@@ -22,17 +22,15 @@ of each tag value and the node rules are in
 
 ## Classes and carriers
 
-A class is a set of road rights tied to a stable carrier throughout the graph.
-The Netherlands puts the snorfiets on `moped`, the bromfiets on `motorcycle` and
-the brommobiel on `truck`.
+The three vehicles, `snorfiets`, `bromfiets` and `brommobiel`, are the same in
+every country, each on one carrier throughout the graph: `moped`, `motorcycle`
+and `truck`. A country supplies their road rights, never a class of its own.
 
-**Five is the ceiling**, being the stock Valhalla travel modes that read an
-access bit of their own: `moped` (512), `motorcycle` (1024), `truck` (8),
-`taxi` (32) and `bus` (64), from `baldr/graphconstants.h`. `TaxiCost` and
-`BusCost` both derive from `AutoCost` with those masks, so a class riding either
-gets auto-family costing and the dimension handling that goes with it. `auto` is
-deliberately left alone: it is what the rest of the toolchain reaches for when
-it wants to know whether a road exists at all.
+Each carrier is a stock Valhalla travel mode that reads an access bit of its
+own: `moped` (512), `motorcycle` (1024) and `truck` (8), from
+`baldr/graphconstants.h`. `auto` is deliberately left alone: it is what the
+rest of the toolchain reaches for when it wants to know whether a road exists
+at all.
 
 The adapter marks every carrier decision with Valhalla's corresponding
 `*_tag` flag, including refusals and unassigned carriers. Without these flags,
@@ -56,8 +54,6 @@ Two classes may not share a carrier in the Lua. They would be indistinguishable
 in the graph, so the router would answer for whichever it happened to ask about;
 `access.prepare` refuses the country at load rather than letting that happen.
 
-The Netherlands uses all five carriers. A country whose law separates two
-vehicles Dutch law does not cannot be added until a carrier is freed.
 `valhalla/lua/spec/second_country_spec.lua` pins all of this against an invented
 country that exists nowhere else, so a change that quietly moves a country's
 facts back into shared code fails rather than waits to be noticed.
