@@ -33,10 +33,9 @@ extract: ## Download the Dutch authority pipeline's OSM input
 graph: ## Merge all audited countries and build the single graph
 	$(MAKE) -C .. country-graph
 
-official-data: sign-data ## Download the road authority's access and built-up-area decisions
+official-data: sign-data ## Download the road authority's access decisions
 	# Rijkswaterstaat's Wegkenmerkendatabase, public domain, refreshed monthly.
-	# Verkeerstypen says which classes may use each NWB section; Komgrenzen says
-	# which sections lie inside the bebouwde kom.
+	# Verkeerstypen says which classes may use each NWB section.
 	@set -e; \
 	release="$(WKD_RELEASE)"; \
 	if [ -z "$$release" ]; then \
@@ -54,7 +53,7 @@ official-data: sign-data ## Download the road authority's access and built-up-ar
 	mkdir -p $(WORK); \
 	printf '%s\n' "$$release" > $(WORK)/wkd-release.txt; \
 	mkdir -p $(WORK)/wkd; \
-	for set in Verkeerstypen Komgrenzen; do \
+	for set in Verkeerstypen; do \
 		curl -fL --retry 3 --retry-all-errors --progress-bar -o "$(WORK)/wkd/$$set.zip" \
 			"$(WKD_BASE)/$$set/$$release.zip"; \
 		rm -rf "$(WORK)/wkd/$$set"; \
@@ -66,12 +65,10 @@ sign-data: ## Download the national traffic-sign register (about 1 GB)
 	# Every sign standing on a Dutch road, with its RVV code and position.
 	# NDW publishes it daily as open data, no key.
 	#
-	# A prerequisite of official-data rather than a step somebody remembers,
-	# because without it the matcher does not fail: it stops refusing, and the
-	# 17,094 use_sidepath lifts and 2,469 path openings the signs contradict go
-	# straight into the graph with every test still green. official_access.py
-	# now refuses outright instead, and its error message names this target's
-	# parent, so the two must not come apart again.
+	# A prerequisite of official-data, because the signs are what stop the
+	# matcher lifting a sidepath obligation or opening a path the road says
+	# otherwise. official_access.py refuses to run without them, and its error
+	# message names this target's parent, so the two must stay together.
 	mkdir -p $(WORK)/ndw
 	curl -fL --retry 3 --retry-all-errors --progress-bar -o $(WORK)/ndw/signs.geojson \
 		"https://data.ndw.nu/api/rest/static-road-data/traffic-signs/v4/current-state?f=geojson"

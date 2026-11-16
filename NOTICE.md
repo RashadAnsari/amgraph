@@ -40,7 +40,7 @@ attributes OpenStreetMap and shares alike.
 
 Two official Dutch sources also feed the access decisions written into it:
 
-- Rijkswaterstaat's Wegkenmerkendatabase, Verkeerstypen and Komgrenzen,
+- Rijkswaterstaat's Wegkenmerkendatabase, Verkeerstypen,
   published under [CC0 1.0](https://data.overheid.nl/dataset/73747-wegkenmerkendatabase-voor-verkeerstypen),
   which imposes no condition.
 - NDW's national traffic-sign register, which NDW publishes on
